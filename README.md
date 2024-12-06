@@ -60,7 +60,7 @@ df
 | adjust | PriceAdjust | 价格复权方式，可选值：None(不复权)、QFQ(前复权)、HFQ(后复权) | PriceAdjust.HFQ |
 
 
-![alt text](images/get_data.png)
+![get_data](https://github.com/smartian/tgtrader/raw/main/tgtrader/images/get_data.png)
 
 ## 微信公众号： 天工量化
 **关注即可获取**：
@@ -68,4 +68,3 @@ df
 2. 研报复现：各大券商研报复现，源码公开
 3. 策略分享：基于tg量化工具集，实现各类策略
 4. 实盘跟踪：已上线的实盘策略持续跟进
-

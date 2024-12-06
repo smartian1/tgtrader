@@ -30,5 +30,9 @@ setup(
         'cython',
         'pyprind'
     ],
+    package_data={
+        'tgtrader': ['images/*'],
+    },
+    include_package_data=True,
     license='MPL-2.0',
 )
