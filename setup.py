@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="tgtrader",  
-    version="0.1.0a1",
+    version="0.1.0",
     author="smartian",
     author_email="smartian@163.com",
     description="TianGong Quantitative Investment Research Analysis Client",
