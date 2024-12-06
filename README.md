@@ -60,7 +60,7 @@ df
 | adjust | PriceAdjust | 价格复权方式，可选值：None(不复权)、QFQ(前复权)、HFQ(后复权) | PriceAdjust.HFQ |
 
 
-![get_data](https://github.com/smartian/tgtrader/raw/main/tgtrader/images/get_data.png)
+![get_data](https://github.com/smartian1/tgtrader/blob/main/tgtrader/images/get_data.png)
 
 ## 微信公众号： 天工量化
 **关注即可获取**：
