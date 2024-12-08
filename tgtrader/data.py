@@ -6,8 +6,8 @@ from tgtrader.data_provider.data_provider_akshare import AkshareDataProvider
 DEFAULT_DATA_PROVIDER = AkshareDataProvider()
 
 class DataGetter:
-    def __init__(self):
-        pass
+    def __init__(self, provider: DataProvider = DEFAULT_DATA_PROVIDER):
+        self.provider = provider
 
     def get_data(self, 
                  symbol_list: list[str], 
@@ -16,8 +16,7 @@ class DataGetter:
                  period: Period = Period.Day,
                  adjust: PriceAdjust = PriceAdjust.HFQ,
                  fields: list[str] = ["open", "high", "low", "close", "volume"],
-                 security_type: SecurityType = SecurityType.Stocks,
-                 provider: DataProvider = DEFAULT_DATA_PROVIDER):
+                 security_type: SecurityType = SecurityType.Stocks):
         """
         获取股票数据
         
@@ -42,6 +41,6 @@ class DataGetter:
         """
         
         # 标准化symbol，因为不同数据提供者的symbol格式可能不一样
-        symbol_list = [provider.standardize_symbol(symbol) for symbol in symbol_list]
+        symbol_list = [self.provider.standardize_symbol(symbol) for symbol in symbol_list]
 
-        return provider.get_data(symbol_list, start_date, end_date, period, adjust, fields, security_type)
+        return self.provider.get_data(symbol_list, start_date, end_date, period, adjust, fields, security_type)
