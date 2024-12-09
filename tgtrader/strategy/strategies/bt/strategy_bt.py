@@ -1,0 +1,60 @@
+# encoding: utf-8
+
+
+from abc import abstractmethod
+import pandas as pd
+from tgtrader import bt
+from tgtrader.bt.core import Algo
+from tgtrader.data import DEFAULT_DATA_PROVIDER, DataGetter
+from tgtrader.strategy.strategy_base import RebalancePeriod, StrategyDef
+
+
+
+"""
+以下是具体的策略的实现
+"""
+class BtStrategy(StrategyDef):
+    def __init__(self,
+                 name: str,
+                 symbols: list[str],
+                 rebalance_period: RebalancePeriod = RebalancePeriod.Daily,
+                 data_getter: DataGetter = DEFAULT_DATA_PROVIDER,
+                 integer_positions: bool = False,
+                 commissions: lambda q, p: float = 0.0):
+        super().__init__(name, symbols, rebalance_period, data_getter)
+        self.integer_positions = integer_positions
+        self.commissions = commissions
+
+    def run(self, df: pd.DataFrame):
+        s = bt.Strategy(self.name, self.get_algos())
+        t = bt.Backtest(s, df, integer_positions=self.integer_positions, commissions=self.commissions, progress_bar=True)
+        t.run()
+
+    @abstractmethod
+    def get_algos(self) -> list[Algo]:
+        raise NotImplementedError
+
+
+class CompositeBtStrategy(BtStrategy):
+    def __init__(self, 
+                 name: str,
+                 symbols: list[str],
+                 rebalance_period: RebalancePeriod = RebalancePeriod.Daily,
+                 data_getter: DataGetter = DEFAULT_DATA_PROVIDER,
+                 integer_positions: bool = False,
+                 commissions: lambda q, p: float = 0.0):
+        super().__init__(name, symbols, rebalance_period, data_getter, integer_positions, commissions)
+        self.strategies: list[BtStrategy] = []
+
+    def add_strategy(self, strategy: BtStrategy):
+        self.strategies.append(strategy)
+
+    def run(self, df: pd.DataFrame):
+        strats_list = []
+        for strategy in self.strategies:
+            strats = bt.Strategy(strategy.name, strategy.get_algos())
+            strats_list.append(strats)
+
+        s = bt.Strategy(self.name, self.get_algos(), children=strats_list)
+        t = bt.Backtest(s, df, integer_positions=self.integer_positions, commissions=self.commissions, progress_bar=True)
+        t.run()
