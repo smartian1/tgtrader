@@ -1,6 +1,40 @@
 [build-system]
-requires = ["setuptools>=45", "wheel"]
+requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[project]
+name = "tgtrader"
+version = "0.1.0"
+description = "TianGong Quantitative Investment Research Analysis Client"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MPL-2.0" }
+authors = [
+    { name = "smartian", email = "smartian@163.com" }
+]
+maintainers = [
+    { name = "smartian", email = "smartian@163.com" }
+]
+keywords = ["quantitative", "trading", "investment", "analysis"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "pandas==1.5.3",
+    "numpy==1.26.4",
+    "matplotlib==3.5.3",
+    "ffn==1.1.1",
+    "loguru",
+    "akshare",
+    "tqdm",
+    "cython",
+    "pyprind"
+]
+
+[project.urls]
+Homepage = "https://github.com/smartian1/tgtrader"
+
 [tool.setuptools]
-package-data = {"tgtrader" = ["images/*"]}
+package-data = { "tgtrader" = ["images/*"] }
