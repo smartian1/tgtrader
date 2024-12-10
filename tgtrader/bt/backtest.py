@@ -11,7 +11,7 @@ import pyprind
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
-import bt
+import tgtrader.bt as bt
 
 
 def run(*backtests):

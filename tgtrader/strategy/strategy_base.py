@@ -28,6 +28,7 @@ class StrategyDef:
         self.name: str = name
         self.symbols: Dict[SecurityType, list[str]] = symbols
         self.rebalance_period: RebalancePeriod = rebalance_period
+        self.backtest_result = None
 
 
     def backtest(self, start_date: str, end_date: str):
@@ -45,11 +46,18 @@ class StrategyDef:
         # 合并所有数据
         df = pd.concat(dfs) if len(dfs) > 0 else pd.DataFrame()
 
-        self.run(df)
+        self.backtest_result = self._run(df)
     
     @abstractmethod
-    def run(self, df: pd.DataFrame):
+    def _run(self, df: pd.DataFrame):
         raise NotImplementedError
 
+    @abstractmethod
+    def get_result(self) -> pd.DataFrame:
+        raise NotImplementedError
+    
+    @abstractmethod
+    def plot_result(self):
+        raise NotImplementedError
 
 

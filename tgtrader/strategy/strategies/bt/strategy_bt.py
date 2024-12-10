@@ -19,19 +19,24 @@ class BtStrategy(StrategyDef):
                  symbols: list[str],
                  rebalance_period: RebalancePeriod = RebalancePeriod.Daily,
                  data_getter: DataGetter = DEFAULT_DATA_PROVIDER,
-                 integer_positions: bool = False,
-                 commissions: lambda q, p: float = 0.0):
+                 integer_positions: bool = True,
+                 commissions = lambda q, p: 0.0,
+                 backtest_field: str = 'close'):
         super().__init__(name, symbols, rebalance_period, data_getter)
         self.integer_positions = integer_positions
         self.commissions = commissions
+        self.backtest_field = backtest_field
 
-    def run(self, df: pd.DataFrame):
-        s = bt.Strategy(self.name, self.get_algos())
+    def _run(self, df: pd.DataFrame):
+        df = df[[self.backtest_field]]
+        df = pd.pivot_table(df, index='date', columns='code', values=self.backtest_field)
+
+        s = bt.Strategy(self.name, self._get_algos())
         t = bt.Backtest(s, df, integer_positions=self.integer_positions, commissions=self.commissions, progress_bar=True)
         t.run()
 
     @abstractmethod
-    def get_algos(self) -> list[Algo]:
+    def _get_algos(self) -> list[Algo]:
         raise NotImplementedError
 
 
@@ -41,15 +46,19 @@ class CompositeBtStrategy(BtStrategy):
                  symbols: list[str],
                  rebalance_period: RebalancePeriod = RebalancePeriod.Daily,
                  data_getter: DataGetter = DEFAULT_DATA_PROVIDER,
-                 integer_positions: bool = False,
-                 commissions: lambda q, p: float = 0.0):
-        super().__init__(name, symbols, rebalance_period, data_getter, integer_positions, commissions)
+                 integer_positions: bool = True,
+                 commissions = lambda q, p: 0.0,
+                 backtest_field: str = 'close'):
+        super().__init__(name, symbols, rebalance_period, data_getter, integer_positions, commissions, backtest_field)
         self.strategies: list[BtStrategy] = []
 
     def add_strategy(self, strategy: BtStrategy):
         self.strategies.append(strategy)
 
-    def run(self, df: pd.DataFrame):
+    def _run(self, df: pd.DataFrame):
+        df = df[self.backtest_field]
+        df = pd.pivot_table(df, index='date', columns='code', values=self.backtest_field)
+    
         strats_list = []
         for strategy in self.strategies:
             strats = bt.Strategy(strategy.name, strategy.get_algos())

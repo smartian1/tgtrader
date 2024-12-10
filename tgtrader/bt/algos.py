@@ -10,8 +10,8 @@ import numpy as np
 import pandas as pd
 import sklearn.covariance
 
-import bt
-from bt.core import Algo, AlgoStack, SecurityBase, is_zero
+import tgtrader.bt as bt
+from tgtrader.bt.core import Algo, AlgoStack, SecurityBase, is_zero
 
 
 def run_always(f):
