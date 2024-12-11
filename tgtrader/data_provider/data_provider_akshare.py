@@ -37,11 +37,11 @@ class AkshareDataProvider(DataProvider):
     def get_data(self, 
                  symbol_list: list[str], 
                  start_date: str, 
-                 end_date: str, 
+                 end_date: str,
+                 security_type: SecurityType, 
                  period: Period = Period.Day, 
                  adjust: PriceAdjust = PriceAdjust.HFQ, 
-                 fields: list[str] = ["open", "high", "low", "close", "volume"],
-                 security_type: SecurityType = SecurityType.ETF):
+                 fields: list[str] = ["open", "high", "low", "close", "volume"]):
         """获取证券数据，支持ETF和股票
         
         Args:

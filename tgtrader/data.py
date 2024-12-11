@@ -12,11 +12,11 @@ class DataGetter:
     def get_data(self, 
                  symbol_list: list[str], 
                  start_date: str, 
-                 end_date: str, 
+                 end_date: str,
+                 security_type: SecurityType,
                  period: Period = Period.Day,
                  adjust: PriceAdjust = PriceAdjust.HFQ,
-                 fields: list[str] = ["open", "high", "low", "close", "volume"],
-                 security_type: SecurityType = SecurityType.Stocks):
+                 fields: list[str] = ["open", "high", "low", "close", "volume"]):
         """
         获取股票数据
         
@@ -43,4 +43,4 @@ class DataGetter:
         # 标准化symbol，因为不同数据提供者的symbol格式可能不一样
         symbol_list = [self.provider.standardize_symbol(symbol) for symbol in symbol_list]
 
-        return self.provider.get_data(symbol_list, start_date, end_date, period, adjust, fields, security_type)
+        return self.provider.get_data(symbol_list, start_date, end_date, security_type, period, adjust, fields)

@@ -28,10 +28,10 @@ class DataProvider:
                  symbol_list: list[str],
                  start_date: str,
                  end_date: str,
+                 security_type: SecurityType,
                  period: Period = Period.Day,
                  adjust: str = "hfq",
-                 fields: list[str] = ["open", "high", "low", "close", "volume"],
-                 security_type: SecurityType = SecurityType.Stocks):
+                 fields: list[str] = ["open", "high", "low", "close", "volume"]):
         raise NotImplementedError
 
     def standardize_symbol(self, symbol: str):

@@ -33,7 +33,9 @@ class BtStrategy(StrategyDef):
 
         s = bt.Strategy(self.name, self._get_algos())
         t = bt.Backtest(s, df, integer_positions=self.integer_positions, commissions=self.commissions, progress_bar=True)
-        t.run()
+        ret = bt.run(t)
+
+        return ret
 
     @abstractmethod
     def _get_algos(self) -> list[Algo]:
@@ -66,4 +68,6 @@ class CompositeBtStrategy(BtStrategy):
 
         s = bt.Strategy(self.name, self.get_algos(), children=strats_list)
         t = bt.Backtest(s, df, integer_positions=self.integer_positions, commissions=self.commissions, progress_bar=True)
-        t.run()
+        ret = bt.run(t)
+
+        return ret
