@@ -6,7 +6,7 @@ import pandas as pd
 from tgtrader import bt
 from tgtrader.bt.core import Algo
 from tgtrader.data import DEFAULT_DATA_PROVIDER, DataGetter
-from tgtrader.strategy.strategy_base import RebalancePeriod, StrategyDef
+from tgtrader.strategy import RebalancePeriod, StrategyDef
 
 
 

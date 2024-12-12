@@ -7,8 +7,8 @@ WeightEqualStrategy
 from tgtrader import bt
 from tgtrader.bt.core import Algo
 from tgtrader.data import DataGetter
-from tgtrader.strategy.strategies.bt.strategy_bt import BtStrategy
-from tgtrader.strategy.strategy_base import RebalancePeriod
+from tgtrader.strategies.bt.strategy_bt import BtStrategy
+from tgtrader.strategy import RebalancePeriod
 from tgtrader.data import DataGetter, DEFAULT_DATA_PROVIDER
 
 
