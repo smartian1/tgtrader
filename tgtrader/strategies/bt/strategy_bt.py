@@ -31,6 +31,8 @@ class BtStrategy(StrategyDef):
         df = df[[self.backtest_field]]
         df = pd.pivot_table(df, index='date', columns='code', values=self.backtest_field)
 
+        df = df.fillna(method='ffill')
+
         s = bt.Strategy(self.name, self._get_algos())
         t = bt.Backtest(s, df, integer_positions=self.integer_positions, commissions=self.commissions, progress_bar=True)
         ret = bt.run(t)
@@ -42,7 +44,7 @@ class BtStrategy(StrategyDef):
         raise NotImplementedError
 
 
-class CompositeBtStrategy(BtStrategy):
+class BtTreeStrategy(BtStrategy):
     def __init__(self, 
                  name: str,
                  symbols: list[str],
@@ -60,6 +62,8 @@ class CompositeBtStrategy(BtStrategy):
     def _run(self, df: pd.DataFrame):
         df = df[self.backtest_field]
         df = pd.pivot_table(df, index='date', columns='code', values=self.backtest_field)
+
+        df = df.fillna(method='ffill')
     
         strats_list = []
         for strategy in self.strategies:

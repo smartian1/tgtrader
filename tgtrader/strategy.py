@@ -1,9 +1,10 @@
 # encoding: utf-8
 from abc import abstractmethod
 import enum
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 import pandas as pd
+import ffn
 
 from tgtrader.common import Period, PriceAdjust, SecurityType
 from tgtrader.data import DataGetter
@@ -28,7 +29,7 @@ class StrategyDef:
         self.name: str = name
         self.symbols: Dict[SecurityType, list[str]] = symbols
         self.rebalance_period: RebalancePeriod = rebalance_period
-        self.backtest_result = None
+        self.backtest_result: ffn.GroupStats = None
 
 
     def backtest(self, start_date: str, end_date: str):
@@ -46,6 +47,9 @@ class StrategyDef:
         # 合并所有数据
         df = pd.concat(dfs) if len(dfs) > 0 else pd.DataFrame()
 
+        # 按code分组，按date排序，用前值填充，去除nan
+        df = df.sort_values(['code', 'date']).groupby('code').fillna(method='ffill').dropna()
+
         self.backtest_result = self._run(df)
     
     @abstractmethod
@@ -53,11 +57,26 @@ class StrategyDef:
         raise NotImplementedError
 
     @abstractmethod
-    def get_result(self) -> pd.DataFrame:
-        raise NotImplementedError
+    def performance_stats(self) -> pd.DataFrame:
+        return self.backtest_result.stats
     
     @abstractmethod
     def plot_result(self):
-        raise NotImplementedError
+        self.backtest_result.plot()
 
 
+class StrategyCompare:
+    def __init__(self, strategies: List[StrategyDef]):
+        self.strategies: Dict[str, StrategyDef] = {strategy.name: strategy for strategy in strategies}
+        self.result_dict: Dict[str, pd.DataFrame] = {}
+
+    def run(self, start_date: str, end_date: str):
+        for name, strategy in self.strategies.items():
+            strategy.backtest(start_date, end_date)
+            self.result_dict[name] = strategy.performance_stats()
+
+    def performance_stats(self) -> pd.DataFrame:
+        result_list = []
+        for name, result in self.result_dict.items():
+            result_list.append(result)
+        return pd.concat(result_list, axis=1)
