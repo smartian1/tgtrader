@@ -30,7 +30,10 @@ dependencies = [
     "akshare",
     "tqdm",
     "cython",
-    "pyprind"
+    "pyprind",
+    "streamlit",
+    "peewee",
+    "bcrypt",
 ]
 
 [project.urls]
