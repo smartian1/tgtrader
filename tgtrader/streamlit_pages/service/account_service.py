@@ -1,22 +1,49 @@
 # encoding: utf-8
 import streamlit as st
-from ..dao.t_user import User, db
+from tgtrader.streamlit_pages.dao.t_user import User
 
 class AccountService:
     @classmethod
-    def verify_user(cls, username, password):
-        """Verify user credentials from database and return user info"""
+    def get_user_by_username(cls, username):
         try:
-            with db:
-                user = User.get_or_none(User.username == username)
-                if user and user.verify_password(password):
-                    return {
-                        'id': user.id,
-                        'username': user.username,
-                        'role': user.role
-                    }
-                return None
+            user = User.get_user_by_username(username)
+            return user
+        except Exception as e:
+            st.error(f'查询用户失败：{str(e)}')
+            return None
+
+    @classmethod
+    def verify_user(cls, username: str, password: str):
+        """Verify user credentials and return user info"""
+        try:
+            user = User.get_user_by_username(username)
+            if user and user.verify_password(password):
+                return {
+                    'id': user.id,
+                    'username': user.username,
+                    'role': user.role
+                }
+            return None
                 
         except Exception as e:
-            st.error(f'数据库错误：{str(e)}')
+            st.error(f'验证用户失败：{str(e)}')
             return None
+
+    @classmethod
+    def create_user(cls, username: str, password: str, role: str = 'admin'):
+        """Create a new user"""
+        try:
+            user = User.create_user(username, password, role)
+            return {
+                'id': user.id,
+                'username': user.username,
+                'role': user.role
+            }
+        except Exception as e:
+            raise Exception(f"创建用户失败: {str(e)}")
+
+    @classmethod
+    def init_table(cls):
+        """Initialize database tables"""
+        User.init_table()
+

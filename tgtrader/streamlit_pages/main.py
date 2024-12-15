@@ -10,7 +10,6 @@ from tgtrader.streamlit_pages.pages.strategies.my_strategies import run as my_st
 from tgtrader.streamlit_pages.pages.strategies.strategy_compare import run as strategy_compare_run
 from tgtrader.streamlit_pages.pages.accounts.account_info import run as account_info_run
 from tgtrader.streamlit_pages.pages.accounts.settings import run as settings_run
-from tgtrader.streamlit_pages.pages.accounts.data_init import run as data_init_run
 
 def logout():
     st.header("Log out")
@@ -35,9 +34,8 @@ def run():
 
     account_info_page = st.Page(account_info_run, title='账户信息', icon=':material/person:', url_path='accounts_info')
     account_settings_page = st.Page(settings_run, title='账户设置', icon=':material/settings:', url_path='accounts_settings')
-    data_init_page = st.Page(data_init_run, title='数据初始化', icon=':material/restart_alt:', url_path='accounts_data_init')
     logout_page = st.Page(logout, title='退出登录', icon=':material/logout:')
-    strategy_pages['账户管理'] = [account_info_page, account_settings_page, data_init_page, logout_page]
+    strategy_pages['账户管理'] = [account_info_page, account_settings_page, logout_page]
 
     pg = st.navigation(strategy_pages)
 

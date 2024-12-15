@@ -1,6 +1,5 @@
-# tgtrader
+# tgtrader天工量化投研分析客户端
 
-天工量化投研分析客户端
 - 提供开箱即用的分析工具
 - 对于小白，可以直接使用可视化分析工具，零代码开启量化分析
 - 对于有一定经验的开发者，结合使用sdk开发，更加灵活
@@ -19,7 +18,9 @@ pip install tgtrader -i https://mirrors.aliyun.com/pypi/simple/
 v0.1.0
 - 支持获取国内ETF数据、股票数据（使用AKShare获取数据）
 
-## 使用说明
+## 客户端使用说明
+
+## SDK使用说明
 
 ### 获取数据
 

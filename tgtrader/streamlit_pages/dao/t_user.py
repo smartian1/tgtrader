@@ -2,7 +2,7 @@
 from peewee import *
 from datetime import datetime
 import bcrypt
-from .common import BaseModel
+from .common import BaseModel, db
 
 class User(BaseModel):
     id = AutoField()
@@ -28,3 +28,39 @@ class User(BaseModel):
     def verify_password(self, password: str) -> bool:
         """Verify a password against the stored hash"""
         return bcrypt.checkpw(password.encode(), self.password.encode())
+
+    @classmethod
+    def init_table(cls):
+        with db:
+            db.drop_tables([User], safe=True)
+            db.create_tables([User])
+
+    @classmethod
+    def get_user_by_username(cls, username: str):
+        """Get user by username"""
+        with db:
+            print(f"当前数据库路径: {db.database}")
+            print(f"查询表名: {cls._meta.table_name}")
+            try:
+                user = cls.get_or_none(cls.username == username)
+                print(f"查询结果: username=={username}, user={user}")
+                return user
+            except Exception as e:
+                print(f"查询出错: {str(e)}")
+                raise
+
+    @classmethod
+    def create_user(cls, username: str, password: str, role: str = 'normal'):
+        """Create a new user"""
+        with db:
+            # Check if user already exists
+            if cls.get_user_by_username(username):
+                raise Exception(f"用户 {username} 已存在")
+            
+            # Hash the password and create user
+            hashed_password = cls.hash_password(password)
+            return cls.create(
+                username=username,
+                password=hashed_password,
+                role=role
+            )
