@@ -1,4 +1,5 @@
 # encoding: utf-8
+from loguru import logger
 from peewee import *
 from datetime import datetime
 import bcrypt
@@ -40,14 +41,12 @@ class User(BaseModel):
     @classmethod
     def get_user_by_username(cls, username: str):
         with db:
-            print(f"当前数据库路径: {db.database}")
-            print(f"查询表名: {cls._meta.table_name}")
             try:
                 user = cls.get_or_none(cls.username == username)
-                print(f"查询结果: username=={username}, user={user}")
+                logger.info(f"查询结果: username=={username}, user={user}")
                 return user
             except Exception as e:
-                print(f"查询出错: {str(e)}")
+                logger.error(f"查询出错: {str(e)}")
                 raise
 
     @classmethod

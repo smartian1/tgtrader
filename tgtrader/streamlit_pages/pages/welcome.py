@@ -9,6 +9,10 @@ def run():
 - 提供开箱即用的分析工具
 - 对于小白，可以直接使用可视化分析工具，零代码开启量化分析
 - 对于有一定经验的开发者，结合使用sdk开发，更加灵活
+                
+# 源码地址
+- github: https://github.com/smartian1/tgtrader
+- gitee: https://gitee.com/smartian123/tgtrader                
 
 ## 更新日志
 

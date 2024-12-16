@@ -4,6 +4,11 @@
 - 对于小白，可以直接使用可视化分析工具，零代码开启量化分析
 - 对于有一定经验的开发者，结合使用sdk开发，更加灵活
 
+## 源码地址
+- github: https://github.com/smartian1/tgtrader
+- gitee: https://gitee.com/smartian123/tgtrader   
+
+
 ## 安装
 
 ```bash
@@ -36,7 +41,7 @@ pip install tgtrader
 python -m tgtrader.streamlit_pages.init_data
 
 启动客户端
-1. 创建一个python文件，例如：tgtrader_cli.py
+1. 创建一个python文件(要与初始化数据时目录保持一致)，例如：tgtrader_cli.py
 2. 在文件中添加以下代码：
 
 from tgtrader.streamlit_pages.main import run
