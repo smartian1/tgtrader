@@ -9,6 +9,10 @@ class DataGetter:
     def __init__(self, provider: DataProvider = DEFAULT_DATA_PROVIDER):
         self.provider = provider
 
+    def get_all_symbols(self, security_type: SecurityType):
+        ret = self.provider.get_all_symbols(security_type)
+        return ret
+
     def get_data(self, 
                  symbol_list: list[str], 
                  start_date: str, 
