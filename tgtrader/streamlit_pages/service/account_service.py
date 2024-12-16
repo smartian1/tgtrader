@@ -16,7 +16,7 @@ class AccountService:
     def verify_user(cls, username: str, password: str):
         """Verify user credentials and return user info"""
         try:
-            user = User.get_user_by_username(username)
+            user = cls.get_user_by_username(username)
             if user and user.verify_password(password):
                 return {
                     'id': user.id,

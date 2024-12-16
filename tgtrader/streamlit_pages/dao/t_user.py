@@ -32,12 +32,13 @@ class User(BaseModel):
     @classmethod
     def init_table(cls):
         with db:
-            db.drop_tables([User], safe=True)
-            db.create_tables([User])
+            if User.table_exists():
+                User.delete().execute()  # Delete all records if table exists
+            else:
+                db.create_tables([User])  # Create table if it doesn't exist
 
     @classmethod
     def get_user_by_username(cls, username: str):
-        """Get user by username"""
         with db:
             print(f"当前数据库路径: {db.database}")
             print(f"查询表名: {cls._meta.table_name}")

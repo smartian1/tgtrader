@@ -19,6 +19,32 @@ v0.1.0
 - 支持获取国内ETF数据、股票数据（使用AKShare获取数据）
 
 ## 客户端使用说明
+```bash
+创建虚拟环境(建议)
+python -m venv venv_tgtrader
+
+激活虚拟环境
+1. windows
+.\venv_tgtrader\Scripts\activate
+2. mac/linux
+source venv_tgtrader/bin/activate
+
+安装tgtrader
+pip install tgtrader
+
+初始化数据
+python -m tgtrader.streamlit_pages.init_data
+
+启动客户端
+1. 创建一个python文件，例如：tgtrader_cli.py
+2. 在文件中添加以下代码：
+
+from tgtrader.streamlit_pages.main import run
+run()
+
+3. 运行
+   streamlit run tgtrader_cli.py
+```
 
 ## SDK使用说明
 
