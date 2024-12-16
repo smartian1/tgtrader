@@ -17,9 +17,6 @@ def login_page():
     
     # Form submission handling
     if submit_button:
-        # st.write("Debug: Form submitted")  # Debug print
-        # print(f"Debug: username: {username}, password: {password}")  # Console debug print
-        
         user_info = AccountService.verify_user(username, password)
         if user_info:
             st.success('登录成功！')

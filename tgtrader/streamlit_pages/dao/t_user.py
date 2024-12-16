@@ -41,13 +41,8 @@ class User(BaseModel):
     @classmethod
     def get_user_by_username(cls, username: str):
         with db:
-            try:
-                user = cls.get_or_none(cls.username == username)
-                logger.info(f"查询结果: username=={username}, user={user}")
-                return user
-            except Exception as e:
-                logger.error(f"查询出错: {str(e)}")
-                raise
+            user = cls.get_or_none(cls.username == username)
+            return user
 
     @classmethod
     def create_user(cls, username: str, password: str, role: str = 'normal'):
@@ -55,7 +50,7 @@ class User(BaseModel):
         with db:
             # Check if user already exists
             if cls.get_user_by_username(username):
-                raise Exception(f"用户 {username} 已存在")
+                raise Exception(f"user {username} already exists")
             
             # Hash the password and create user
             hashed_password = cls.hash_password(password)

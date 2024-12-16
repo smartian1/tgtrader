@@ -1,6 +1,7 @@
 # encoding: utf-8
 import streamlit as st
 from tgtrader.streamlit_pages.dao.t_user import User
+from loguru import logger
 
 class AccountService:
     @classmethod
@@ -9,8 +10,8 @@ class AccountService:
             user = User.get_user_by_username(username)
             return user
         except Exception as e:
-            st.error(f'查询用户失败：{str(e)}')
-            return None
+            logger.exception(e)
+            raise Exception(f'query user error: {str(e)}')
 
     @classmethod
     def verify_user(cls, username: str, password: str):
@@ -26,8 +27,8 @@ class AccountService:
             return None
                 
         except Exception as e:
-            st.error(f'验证用户失败：{str(e)}')
-            return None
+            logger.exception(e)
+            raise Exception(f'verify user error: {str(e)}')
 
     @classmethod
     def create_user(cls, username: str, password: str, role: str = 'admin'):
@@ -40,7 +41,8 @@ class AccountService:
                 'role': user.role
             }
         except Exception as e:
-            raise Exception(f"创建用户失败: {str(e)}")
+            logger.exception(e)
+            raise Exception(f"create user error: {str(e)}")
 
     @classmethod
     def init_table(cls):
