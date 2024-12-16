@@ -76,3 +76,5 @@ docs/source/.ipynb_checkpoints/
 
 # jupyter
 .ipynb_checkpoints
+
+test*.py

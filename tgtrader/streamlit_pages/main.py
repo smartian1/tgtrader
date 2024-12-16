@@ -12,8 +12,10 @@ from tgtrader.streamlit_pages.pages.accounts.account_info import run as account_
 from tgtrader.streamlit_pages.pages.accounts.settings import run as settings_run
 
 def logout():
-    st.header("Log out")
-    st.button("Log out")
+    # Clear session state
+    st.session_state['logged_in'] = False
+    st.session_state['user_info'] = None
+    st.rerun()
 
 def run():
     # Check if user is logged in
