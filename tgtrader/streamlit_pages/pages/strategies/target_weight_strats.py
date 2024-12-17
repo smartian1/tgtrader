@@ -4,6 +4,9 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
+from tgtrader.data import DataGetter
+from tgtrader.streamlit_pages.pages.component.stock_dropdown_list import build_stock_dropdown_list
+
 def validate_weights(weights):
     """验证权重之和是否为100%"""
     return abs(sum(weights) - 100.0) < 0.01
@@ -12,28 +15,18 @@ def run():
     st.title('目标权重策略')
     
     # 1. 标的选择
-    # 这里假设从数据库获取可选标的列表，格式为: code, name
-    available_symbols = [
-        ('000001.SH', '上证指数'),
-        ('000300.SH', '沪深300'),
-        ('000905.SH', '中证500'),
-        # 添加更多标的...
-    ]
-    selected_symbols = st.multiselect(
-        '选择标的',
-        options=[f"{code} {name}" for code, name in available_symbols],
-        format_func=lambda x: x.split()[1]  # 显示名称
-    )
-    
+    data_getter = DataGetter()
+    security_type_selectbox, symbol_multiselect = build_stock_dropdown_list(data_getter)
+
     # 2. 已选择标的表格
-    if selected_symbols:
+    if symbol_multiselect:
         # 创建DataFrame来存储选择的标的和权重
         selected_df = pd.DataFrame([
             {
                 '代码': symbol.split()[0],
                 '名称': symbol.split()[1],
                 '权重(%)': 0.0
-            } for symbol in selected_symbols
+            } for symbol in symbol_multiselect
         ])
         
         # 使用st.data_editor让用户编辑权重

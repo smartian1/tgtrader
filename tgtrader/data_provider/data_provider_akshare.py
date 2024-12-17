@@ -45,17 +45,18 @@ class AkshareDataProvider(DataProvider):
         try:
             if security_type == SecurityType.ETF:
                 # 获取ETF基金列表
-                df = ak.fund_etf_spot_em()
-                # 重命名列
-                df = df[['基金代码', '基金简称']]
+                df = ak.fund_etf_category_sina(symbol="ETF基金")
+                df = df[['代码', '名称']]
                 df.columns = ['code', 'name']
+                # 去掉code前两位字符
+                df['code'] = df['code'].str[2:]
                 return df
                 
             elif security_type == SecurityType.Stocks:
                 # 获取A股上市公司列表
-                df = ak.stock_info_a_code_name()
-                # 重命名列
-                df.columns = ['code', 'name'] 
+                df = ak.stock_zh_a_spot_em()
+                df = df[['代码', '名称']]
+                df.columns = ['code', 'name']
                 return df
                 
             else:

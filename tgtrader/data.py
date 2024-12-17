@@ -10,6 +10,13 @@ class DataGetter:
         self.provider = provider
 
     def get_all_symbols(self, security_type: SecurityType):
+        """获取所有证券代码
+        Args:
+            security_type: 证券类型
+            
+        Returns:
+            DataFrame with columns: [code, name]
+        """
         ret = self.provider.get_all_symbols(security_type)
         return ret
 
