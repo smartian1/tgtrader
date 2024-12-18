@@ -44,7 +44,7 @@ class TargetWeightStrategy(BtStrategy):
         self.algos = [
             period_run_algo,
             bt.algos.SelectAll(),
-            bt.algos.WeighTarget(self.weights),
+            bt.algos.WeighSpecified(**self.weights),
             bt.algos.Rebalance()]
         
         return self.algos

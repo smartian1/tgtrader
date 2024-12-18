@@ -4,6 +4,7 @@ import akshare as ak
 import pandas as pd
 from loguru import logger
 from tqdm import tqdm
+from pydantic import validate_arguments
 
 from tgtrader.common import Period, DataProvider, PriceAdjust, SecurityType
 
@@ -67,6 +68,7 @@ class AkshareDataProvider(DataProvider):
             logger.error(f"Error getting symbols: {str(e)}")
             return pd.DataFrame()
 
+    @validate_arguments
     def get_data(self, 
                  symbol_list: list[str], 
                  start_date: str, 
