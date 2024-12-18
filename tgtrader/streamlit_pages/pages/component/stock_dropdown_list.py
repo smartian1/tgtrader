@@ -13,7 +13,7 @@ def build_stock_dropdown_list(data_getter: DataGetter):
     security_type_selectbox = st.selectbox(
         "证券类型", 
         options=["ETF", "股票"],
-        key="security_type_selectbox"
+        key="build_stock_dropdown_list_security_type_selectbox"
     )
 
     @st.cache_data
@@ -26,13 +26,14 @@ def build_stock_dropdown_list(data_getter: DataGetter):
     df = get_symbols(security_type_enum)
     
     # 格式化显示选项
-    options = [f"{row['code']}|{row['name']}" 
+    options = [f"{row['code']}|{row['name']}|{security_type_selectbox}" 
               for _, row in df.iterrows()]
     # 返回下拉多选框控件
     symbol_multiselect = st.multiselect(
         f"选择{security_type_selectbox}",
         options=options,
-        key="symbol_multiselect"
+        format_func=lambda x: '|'.join(x.split('|')[:-1]),
+        key="build_stock_dropdown_list_symbol_multiselect"
     )
     return security_type_selectbox, symbol_multiselect
 

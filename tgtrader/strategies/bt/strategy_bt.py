@@ -2,9 +2,11 @@
 
 
 from abc import abstractmethod
+from typing import Dict
 import pandas as pd
 from tgtrader import bt
 from tgtrader.bt.core import Algo
+from tgtrader.common import SecurityType
 from tgtrader.data import DEFAULT_DATA_PROVIDER, DataGetter
 from tgtrader.strategy import RebalancePeriod, StrategyDef
 
@@ -16,7 +18,7 @@ from tgtrader.strategy import RebalancePeriod, StrategyDef
 class BtStrategy(StrategyDef):
     def __init__(self,
                  name: str,
-                 symbols: list[str],
+                 symbols: Dict[SecurityType, list[str]],
                  rebalance_period: RebalancePeriod = RebalancePeriod.Daily,
                  data_getter: DataGetter = DEFAULT_DATA_PROVIDER,
                  integer_positions: bool = True,
@@ -47,7 +49,7 @@ class BtStrategy(StrategyDef):
 class BtTreeStrategy(BtStrategy):
     def __init__(self, 
                  name: str,
-                 symbols: list[str],
+                 symbols: Dict[SecurityType, list[str]],
                  rebalance_period: RebalancePeriod = RebalancePeriod.Daily,
                  data_getter: DataGetter = DEFAULT_DATA_PROVIDER,
                  integer_positions: bool = True,

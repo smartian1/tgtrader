@@ -4,7 +4,10 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
+from tgtrader.common import SecurityType
 from tgtrader.data import DataGetter
+from tgtrader.strategies.bt.target_weight_strategy import TargetWeightStrategy
+from tgtrader.strategy import RebalancePeriod
 from tgtrader.streamlit_pages.pages.component.stock_dropdown_list import build_stock_dropdown_list
 
 def validate_weights(weights):
@@ -23,15 +26,23 @@ def run():
         # 创建DataFrame来存储选择的标的和权重
         selected_df = pd.DataFrame([
             {
-                '代码': symbol.split()[0],
-                '名称': symbol.split()[1],
+                '代码': symbol.split('|')[0],
+                '名称': symbol.split('|')[1],
                 '权重(%)': 0.0
             } for symbol in symbol_multiselect
         ])
         
+        # 添加现金行
+        cash_row = pd.DataFrame([{
+            '代码': 'CASH',
+            '名称': '现金',
+            '权重(%)': 100.0 - selected_df['权重(%)'].sum()
+        }])
+        display_df = pd.concat([selected_df, cash_row], ignore_index=True)
+        
         # 使用st.data_editor让用户编辑权重
         edited_df = st.data_editor(
-            selected_df,
+            display_df,
             column_config={
                 '权重(%)': st.column_config.NumberColumn(
                     min_value=0,
@@ -40,7 +51,7 @@ def run():
                     format="%.1f %%"
                 )
             },
-            disabled=['代码', '名称'],
+            # disabled=['代码', '名称', '权重(%)'],  # 现金权重也设为只读
             hide_index=True
         )
         
@@ -55,7 +66,7 @@ def run():
         rebalance_period = st.selectbox(
             '调仓周期',
             options=['日', '周', '月'],
-            index=1  # 默认选择'周'
+            index=0  # 默认选择'周'
         )
     
     # 4. 初始资金
@@ -69,19 +80,9 @@ def run():
             format='%d'
         )
     
-    # 5. 手续费
-    fee_rate = st.slider(
-        '手续费率(%)',
-        min_value=0.0,
-        max_value=0.5,
-        value=0.05,
-        step=0.01,
-        format='%.2f'
-    )
-    
     # 6. 回测按钮
     if st.button('开始回测', type='primary'):
-        if not selected_symbols:
+        if not symbol_multiselect:
             st.error('请选择至少一个标的')
             return
             
@@ -89,15 +90,58 @@ def run():
             st.error('请确保权重之和为100%')
             return
             
-        # TODO: 执行回测逻辑
         st.info('回测进行中...')
         
-        # 这里添加回测逻辑
-        # backtest_params = {
-        #     'symbols': edited_df['代码'].tolist(),
-        #     'weights': edited_df['权重(%)'].tolist(),
-        #     'rebalance_period': rebalance_period,
-        #     'initial_capital': initial_capital,
-        #     'fee_rate': fee_rate / 100
-        # }
+        # Convert rebalance period to enum
+        period_map = {
+            '日': RebalancePeriod.Daily,
+            '周': RebalancePeriod.Weekly, 
+            '月': RebalancePeriod.Monthly
+        }
+        rebalance_period_enum = period_map[rebalance_period]
+
+        # Prepare weights dict from edited dataframe
+        weights = {
+            row['代码']: row['权重(%)'] / 100 
+            for _, row in edited_df.iterrows()
+        }
+
+        # Separate ETF and stock symbols based on selection
+        etf_symbols = []
+        stock_symbols = []
+        
+        for symbol in symbol_multiselect:
+            code, _, security_type = symbol.split('|')
+            if security_type == 'ETF':
+                etf_symbols.append(code)
+            else:
+                stock_symbols.append(code)
+                
+        # Build symbols dict with non-empty lists only
+        symbols = {}
+        if etf_symbols:
+            symbols[SecurityType.ETF] = etf_symbols
+        if stock_symbols:
+            symbols[SecurityType.Stocks] = stock_symbols
+
+        # Remove cash from weights if present
+        if 'CASH' in weights:
+            del weights['CASH']
+
+        # debug
+        st.write("Debug parameters:")
+        st.write(f"Symbols: {symbols}")
+        st.write(f"Weights: {weights}")
+        st.write(f"Rebalance period: {rebalance_period_enum}")
+
+        # Create strategy instance
+        strategy = TargetWeightStrategy(
+            symbols=symbols,
+            weights=weights,
+            rebalance_period=rebalance_period_enum,
+            integer_positions=True
+        )
+
+        # Run backtest
+        result = strategy.run()
 
