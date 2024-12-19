@@ -24,7 +24,7 @@ def run():
         default_weight = 100.0 / len(default_symbols)
     else:
         default_weight = None
-    security_type_selectbox, symbol_multiselect = build_stock_dropdown_list(data_getter, default_symbols=default_symbols)
+    symbol_multiselect = build_stock_dropdown_list(data_getter, default_symbols=default_symbols)
 
     # 2. 已选择标的表格
     if symbol_multiselect:

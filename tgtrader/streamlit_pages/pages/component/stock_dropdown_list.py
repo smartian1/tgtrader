@@ -42,4 +42,4 @@ def build_stock_dropdown_list(data_getter: DataGetter, default_symbols: list[str
         format_func=lambda x: '|'.join(x.split('|')[:-1]),
         key="build_stock_dropdown_list_symbol_multiselect"
     )
-    return security_type_selectbox, symbol_multiselect
+    return symbol_multiselect
