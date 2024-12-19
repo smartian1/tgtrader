@@ -10,6 +10,7 @@ from tgtrader.strategies.bt.target_weight_strategy import TargetWeightStrategy
 from tgtrader.strategy import RebalancePeriod
 from tgtrader.streamlit_pages.pages.component.stock_dropdown_list import build_stock_dropdown_list
 from tgtrader.streamlit_pages.pages.component.weight_editor import weight_editor
+from ..component.backtest_params import build_backtest_params
 
 def run():
     st.title('目标权重策略')
@@ -32,47 +33,13 @@ def run():
             show_weights=True
         )
     
-    # 3. 调仓周期
-    col1, col2 = st.columns(2)
-    with col1:
-        rebalance_period = st.selectbox(
-            '调仓周期',
-            options=['日', '周', '月'],
-            index=0  # 默认选择'周'
-        )
+    # 3-5. 回测参数
+    rebalance_period_enum, initial_capital, start_date, end_date = build_backtest_params()
     
-    # 4. 初始资金
-    with col2:
-        initial_capital = st.number_input(
-            '初始资金',
-            min_value=100000,
-            max_value=10000000,
-            value=1000000,
-            step=100000,
-            format='%d'
-        )
-
-    # 5. 回测区间
-    col1, col2 = st.columns(2)
-    with col1:
-        start_date = st.date_input(
-            '开始日期',
-            value=pd.Timestamp.now() - pd.DateOffset(years=1),
-            min_value=pd.Timestamp('2010-01-01'),
-            max_value=pd.Timestamp.now()
-        )
-    
-    with col2:
-        end_date = st.date_input(
-            '结束日期', 
-            value=pd.Timestamp.now(),
-            min_value=pd.Timestamp('2010-01-01'),
-            max_value=pd.Timestamp.now()
-        )
-
-    if start_date >= end_date:
-        st.error('开始日期必须早于结束日期')
-    
+    if None in (rebalance_period_enum, initial_capital, start_date, end_date):
+        st.error('请确保所有参数都已填写')
+        return
+        
     # 6. 回测按钮
     if st.button('开始回测', type='primary'):
         if not symbol_multiselect:
@@ -85,14 +52,6 @@ def run():
             
         progress_bar = st.progress(0)
         
-        # Convert rebalance period to enum
-        period_map = {
-            '日': RebalancePeriod.Daily,
-            '周': RebalancePeriod.Weekly, 
-            '月': RebalancePeriod.Monthly
-        }
-        rebalance_period_enum = period_map[rebalance_period]
-
         # Prepare weights dict from edited dataframe
         weights = {
             row['代码']: row['权重(%)'] / 100 
@@ -100,7 +59,7 @@ def run():
         }
 
         progress_bar.progress(25, text='正在处理权重数据...')
-
+        
         # Separate ETF and stock symbols based on selection
         etf_symbols = []
         stock_symbols = []
