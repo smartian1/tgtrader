@@ -30,7 +30,6 @@ def plot_returns_chart(prices: pd.DataFrame):
                 )),
         tooltip=['date:T', 'returns:Q']
     ).properties(
-        title=f'策略累计收益率 - {strategy_col}',
         height=500
     )
     

@@ -34,7 +34,7 @@ def run():
             show_weights=True
         )
     
-    # 3-5. 回测参数
+    # 3. 回测参数
     rebalance_period_enum, initial_capital, start_date, end_date = build_backtest_params()
     
     if None in (rebalance_period_enum, initial_capital, start_date, end_date):
@@ -103,6 +103,3 @@ def run():
 
         # 7. 显示回测结果
         display_backtest_results(strategy)
-
-        # 7. 回测结果
-        
