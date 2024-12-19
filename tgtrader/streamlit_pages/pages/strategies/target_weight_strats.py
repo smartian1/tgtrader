@@ -11,6 +11,7 @@ from tgtrader.strategy import RebalancePeriod
 from tgtrader.streamlit_pages.pages.component.stock_dropdown_list import build_stock_dropdown_list
 from tgtrader.streamlit_pages.pages.component.weight_editor import weight_editor
 from ..component.backtest_params import build_backtest_params
+from ..component.backtest_results import display_backtest_results
 
 def run():
     st.title('目标权重策略')
@@ -100,4 +101,8 @@ def run():
 
         progress_bar.progress(100, text='回测完成!')
 
-        st.write(strategy.performance_stats())
+        # 7. 显示回测结果
+        display_backtest_results(strategy)
+
+        # 7. 回测结果
+        
