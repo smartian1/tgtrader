@@ -9,13 +9,13 @@ from tgtrader import bt
 from tgtrader.bt.core import Algo
 from tgtrader.data import DataGetter
 from tgtrader.strategies.bt.strategy_bt import BtStrategy
-from tgtrader.strategy import RebalancePeriod, strategy_config_def, strategy_def
+from tgtrader.strategy import RebalancePeriod, strategy_def
 from tgtrader.data import DataGetter, DEFAULT_DATA_PROVIDER
 from tgtrader.common import SecurityType
 from typing import Dict, Any
 import json
-from pydantic import Field, validator
-from tgtrader.strategy_config import StrategyConfig
+from pydantic import Field
+from tgtrader.strategy_config import StrategyConfig, strategy_config_def
 
 @strategy_config_def
 class TargetWeightStrategyConfig(StrategyConfig):
@@ -37,7 +37,7 @@ class TargetWeightStrategyConfig(StrategyConfig):
             else:
                 self.target_weights_dict = data['target_weights']
 
-@strategy_def
+@strategy_def(name="目标权重策略")
 class TargetWeightStrategy(BtStrategy):
     def __init__(self, 
                  symbols: Dict[SecurityType, list[str]], 

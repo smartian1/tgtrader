@@ -18,6 +18,7 @@ from loguru import logger
 def run(strategy_id: int = None):
     st.title('目标权重策略')
 
+    strategy_config = None
     if strategy_id is not None:
         # 获取策略对象
         strategy_obj = UserStrategyService.get_strategy(strategy_id)

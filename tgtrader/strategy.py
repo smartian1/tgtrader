@@ -248,53 +248,47 @@ class StrategyCompare:
 
 
 class StrategyRegistry:
-    """Strategy registry for storing strategy class mappings"""
+    """策略注册表，用于存储策略类映射"""
     _strategies: Dict[str, Type['StrategyDef']] = {}
+    _strategy_names: Dict[str, str] = {}  # 存储策略显示名称
 
     @classmethod
-    def register(cls, name: str, strategy_cls: Type['StrategyDef']) -> None:
-        """Register a strategy class with given name"""
-        if name in cls._strategies:
-            raise ValueError(f"Strategy {name} already registered")
-        cls._strategies[name] = strategy_cls
+    def register(cls, class_name: str, strategy_cls: Type['StrategyDef'], display_name: str = None) -> None:
+        """注册策略类
+        
+        Args:
+            class_name: 策略类名
+            strategy_cls: 策略类
+            display_name: 策略显示名称
+        """
+        if class_name in cls._strategies:
+            raise ValueError(f"策略 {class_name} 已经注册")
+        cls._strategies[class_name] = strategy_cls
+        cls._strategy_names[class_name] = display_name or class_name
     
     @classmethod
     def get(cls, name: str) -> Optional[Type['StrategyDef']]:
-        """Get strategy class by name"""
+        """根据类名获取策略类"""
         return cls._strategies.get(name)
     
     @classmethod
-    def list_strategies(cls) -> List[str]:
-        """List all registered strategy names"""
-        return list(cls._strategies.keys())
-
-def strategy_def(cls: Type[StrategyDef]) -> Type[StrategyDef]:
-    """Decorator to register strategy definitions"""
-    StrategyRegistry.register(cls.__name__, cls)
-    return cls
-
-class StrategyConfigRegistry:
-    """Strategy registry for storing strategy class mappings"""
-    _strategies: Dict[str, Type['StrategyConfig']] = {}
-
-    @classmethod
-    def register(cls, name: str, strategy_cls: Type['StrategyConfig']) -> None:
-        """Register a strategy class with given name"""
-        if name in cls._strategies:
-            raise ValueError(f"Strategy {name} already registered")
-        cls._strategies[name] = strategy_cls
-    
-    @classmethod
-    def get(cls, name: str) -> Optional[Type['StrategyConfig']]:
-        """Get strategy class by name"""
-        return cls._strategies.get(name)
+    def get_display_name(cls, class_name: str) -> str:
+        """获取策略显示名称"""
+        return cls._strategy_names.get(class_name, class_name)
     
     @classmethod
     def list_strategies(cls) -> List[str]:
-        """List all registered strategy names"""
+        """列出所有已注册的策略类名"""
         return list(cls._strategies.keys())
 
-def strategy_config_def(cls: Type[StrategyConfig]) -> Type[StrategyConfig]:
-    """Decorator to register strategy definitions"""
-    StrategyConfigRegistry.register(cls.__name__, cls)
-    return cls
+def strategy_def(name: str = None):
+    """策略定义装饰器
+    
+    Args:
+        name: 策略显示名称，如果不传则使用类名
+    """
+    def decorator(cls: Type[StrategyDef]) -> Type[StrategyDef]:
+        StrategyRegistry.register(cls.__name__, cls, name)
+        return cls
+    return decorator
+

@@ -2,7 +2,7 @@
 
 from abc import abstractmethod
 import json
-from typing import Any, Dict, Type
+from typing import Any, Dict, List, Optional, Type
 from loguru import logger
 from pydantic import BaseModel, Field
 from tgtrader.common import SecurityType, RebalancePeriod
@@ -11,6 +11,7 @@ def serialize_enum(enum_value):
     if enum_value is None:
         return None
     return enum_value.value
+
 
 class StrategyConfig(BaseModel):
     # 标的列表
@@ -46,7 +47,6 @@ class StrategyConfig(BaseModel):
         strategy_cls_name = data.get("strategy_cls")
         
         if strategy_cls_name:
-            from tgtrader.strategy import StrategyConfigRegistry
             strategy_config_cls = StrategyConfigRegistry.get(f"{strategy_cls_name}Config")
             if strategy_config_cls is None:
                 raise ValueError(f"找不到策略config类: {strategy_cls_name}Config")
@@ -93,3 +93,37 @@ class StrategyConfig(BaseModel):
     def to_json(self) -> str:
         dict_config = self.to_dict()
         return json.dumps(dict_config)
+
+
+class StrategyConfigRegistry:
+    """Strategy registry for storing strategy class mappings"""
+    _strategies: Dict[str, Type['StrategyConfig']] = {}
+    _strategy_names: Dict[str, str] = {}  # 存储策略显示名称
+
+    @classmethod
+    def register(cls, name: str, strategy_cls: Type['StrategyConfig'], display_name: str = None) -> None:
+        """Register a strategy class with given name"""
+        if name in cls._strategies:
+            raise ValueError(f"Strategy {name} already registered")
+        cls._strategies[name] = strategy_cls
+        cls._strategy_names[name] = display_name or name
+    
+    @classmethod
+    def get(cls, name: str) -> Optional[Type['StrategyConfig']]:
+        """Get strategy class by name"""
+        return cls._strategies.get(name)
+    
+    @classmethod
+    def get_display_name(cls, class_name: str) -> str:
+        """获取策略显示名称"""
+        return cls._strategy_names.get(class_name, class_name)
+    
+    @classmethod
+    def list_strategies(cls) -> List[str]:
+        """List all registered strategy names"""
+        return list(cls._strategies.keys())
+
+def strategy_config_def(cls: Type[StrategyConfig]) -> Type[StrategyConfig]:
+    """Decorator to register strategy definitions"""
+    StrategyConfigRegistry.register(cls.__name__, cls)
+    return cls

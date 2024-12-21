@@ -21,10 +21,10 @@ class SecurityType(enum.Enum):
 
 class RebalancePeriod(enum.Enum):
     """调仓周期"""
-    Daily = 1
-    Weekly = 2  
-    Monthly = 3
-    Quarterly = 4
+    Daily = 'daily'
+    Weekly = 'weekly'
+    Monthly = 'monthly'
+    Quarterly = 'quarterly'
 
 class DataProvider:
     def __init__(self):
