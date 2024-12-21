@@ -8,11 +8,10 @@ from tgtrader.common import SecurityType
 
   
 class StockDropdownSelectItem:
-    def __init__(self, symbol_type:str, code:str, name:str, weight:float):
+    def __init__(self, symbol_type:str, code:str, name:str):
         self.symbol_type = symbol_type
         self.code = code
         self.name = name
-        self.weight = weight
         
     def __eq__(self, other):
         # 通过 symbol_type 和 code 确定唯一性
@@ -55,6 +54,6 @@ def build_stock_dropdown_list(src_page:str, data_getter: DataGetter) -> list[Sto
     )
 
     # 将symbol_multiselect转换为BuildStockDropdownSelectItem列表
-    symbol_multiselect = [StockDropdownSelectItem(symbol.split('|')[2], symbol.split('|')[0], symbol.split('|')[1], 0.0) for symbol in symbol_multiselect]
+    symbol_multiselect = [StockDropdownSelectItem(symbol.split('|')[2], symbol.split('|')[0], symbol.split('|')[1]) for symbol in symbol_multiselect]
 
     return symbol_multiselect

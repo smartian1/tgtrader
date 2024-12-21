@@ -18,9 +18,19 @@ def weight_editor(src_page:str, symbol_multiselect: list[StockDropdownSelectItem
             '类型': symbol.symbol_type,
             '代码': symbol.code,
             '名称': symbol.name,
-            '权重(%)': symbol.weight
+            '权重(%)': 0.0
         } for symbol in symbol_multiselect
     ])
+
+    # 之前保存的权重
+    if f'{src_page}_symbol_multiselect' in st.session_state:
+        old_df = st.session_state[f'{src_page}_symbol_multiselect']
+    
+        # 遍历，更新权重
+        for index, row in new_df.iterrows():
+            old_row = old_df[(old_df['类型'] == row['类型']) & (old_df['代码'] == row['代码'])]
+            if not old_row.empty:
+                new_df.at[index, '权重(%)'] = old_row['权重(%)'].values[0]
     
     if show_weights:
         cash_weight = st.slider('现金比例', 
@@ -80,6 +90,8 @@ def weight_editor(src_page:str, symbol_multiselect: list[StockDropdownSelectItem
         is_valid = validate_weights(edited_df['权重(%)'], cash_weight)
         if not is_valid:
             st.warning(f'当前权重之和为 {total_weight + cash_weight:.1f}%，请调整为100%')
+        
+        st.session_state[f'{src_page}_symbol_multiselect'] = edited_df
     else:
         is_valid = True
     
