@@ -77,11 +77,13 @@ def run():
         stock_symbols = []
         
         for symbol in symbol_multiselect:
-            code, _, security_type = symbol.split('|')
-            if security_type == 'ETF':
-                etf_symbols.append(code)
+            if SecurityType(symbol.symbol_type) == SecurityType.ETF:
+                etf_symbols.append(symbol.code)
+            elif SecurityType(symbol.symbol_type) == SecurityType.Stocks:
+                stock_symbols.append(symbol.code)
             else:
-                stock_symbols.append(code)
+                st.error(f'未知标的类型: {symbol.symbol_type}')
+                return
                 
         # 构建包含非空列表的symbols字典
         symbols = {}
@@ -131,6 +133,7 @@ def run():
             symbols = st.session_state.symbols
             weights = st.session_state.weights
             params = st.session_state.strategy_params
+
 
             # 准备策略配置
             strategy_config = TargetWeightStrategyConfig(

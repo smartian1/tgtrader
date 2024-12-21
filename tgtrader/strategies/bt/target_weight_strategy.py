@@ -37,6 +37,7 @@ class TargetWeightStrategyConfig(StrategyConfig):
         """转换为字典格式"""
         dict_config = super().to_dict()
         dict_config['target_weights_dict'] = self.target_weights_dict
+
         return dict_config
 
     def from_dict(self, data: dict) -> None:
