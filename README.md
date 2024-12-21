@@ -19,6 +19,11 @@ pip install tgtrader -i https://mirrors.aliyun.com/pypi/simple/
 ```
 
 ## 更新日志
+v0.2.0
+- 支持在**本地运行可视化页面**, 仅需两行代码
+- 支持**内置策略**: 目标权重策略, 风险平价策略 (策略不断扩充中)
+- 支持**我的策略**: 将回测策略及参数保存到个人空间
+- 支持**策略详情**: 查看策略详情, 并支持查看策略回测和模拟阶段绩效
 
 v0.1.0
 - 支持获取国内ETF数据、股票数据（使用AKShare获取数据）
@@ -50,6 +55,16 @@ run()
 3. 运行
    streamlit run tgtrader_cli.py
 ```
+
+### 已支持的内置策略
+| 策略名称 | 策略说明 | 适用场景 |
+|---------|---------|----------|
+| 目标权重策略 | 根据预设的目标权重定期调仓，是最基础的资产配置策略 | 适用于有明确资产配置目标的场景，如60/40策略、风险等级配置等 |
+| 风险平价策略 | 通过计算资产的风险贡献，使各资产的风险贡献相等，实现风险的平衡配置 | 适用于追求风险平衡、稳健收益的场景，特别是在市场波动较大时期 |
+
+#### 目标权重策略
+![目标权重策略](https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/target_weight_strategy.png)
+![目标权重策略](https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/target_weight_strategy_result.png)
 
 ## SDK使用说明
 
