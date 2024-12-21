@@ -5,10 +5,7 @@ from tgtrader.streamlit_pages.pages.welcome import run as welcome_run
 from tgtrader.streamlit_pages.login import run as login_run
 from tgtrader.streamlit_pages.pages.strategies.target_weight_strats import run as target_weight_strats_run
 from tgtrader.streamlit_pages.pages.strategies.risk_parity_strats import run as risk_parity_strats_run
-from tgtrader.streamlit_pages.pages.strategies.strategy_composite import run as strategy_composite_run
 from tgtrader.streamlit_pages.pages.strategies.my_strategies import run as my_strategies_run
-from tgtrader.streamlit_pages.pages.strategies.strategy_compare import run as strategy_compare_run
-from tgtrader.streamlit_pages.pages.accounts.account_info import run as account_info_run
 from tgtrader.streamlit_pages.pages.accounts.settings import run as settings_run
 
 def logout():
@@ -33,15 +30,12 @@ def run():
         risk_parity_page = st.Page(risk_parity_strats_run, title='风险平价策略', icon=':material/balance:', url_path='strategies_risk_parity')
         strategy_pages['策略列表'] = [target_weights_page, risk_parity_page]
 
-        strategy_compare_page = st.Page(strategy_compare_run, title='策略对比', icon=':material/compare_arrows:', url_path='strategies_compare')
-        strategy_composite_page = st.Page(strategy_composite_run, title='策略组合', icon=':material/apps:', url_path='strategies_composite')
         my_strategies_page = st.Page(my_strategies_run, title='我的策略', icon=':material/person:', url_path='strategies_my')
-        strategy_pages['策略分析'] = [strategy_compare_page, strategy_composite_page, my_strategies_page]
+        strategy_pages['策略分析'] = [my_strategies_page]
 
-        account_info_page = st.Page(account_info_run, title='账户信息', icon=':material/person:', url_path='accounts_info')
-        account_settings_page = st.Page(settings_run, title='账户设置', icon=':material/settings:', url_path='accounts_settings')
-        logout_page = st.Page(logout, title='退出登录', icon=':material/logout:')
-        strategy_pages['账户管理'] = [account_info_page, account_settings_page, logout_page]
+        account_settings_page = st.Page(settings_run, title='设置', icon=':material/settings:', url_path='accounts_settings')
+        logout_page = st.Page(logout, title='退出', icon=':material/logout:')
+        strategy_pages['账户管理'] = [account_settings_page, logout_page]
 
         pg = st.navigation(strategy_pages)
 

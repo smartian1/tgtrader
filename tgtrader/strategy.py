@@ -1,7 +1,7 @@
 # encoding: utf-8
 from abc import abstractmethod
 import enum
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Type
 from dataclasses import dataclass
 
 import pandas as pd
@@ -37,7 +37,7 @@ class PerformanceStats:
 
     # 期间收益
     mtd: float                      # 当月收益
-    three_month: float              # 3个月��益
+    three_month: float              # 3个月收益
     six_month: float                # 6个月收益
     ytd: float                      # 年初至今收益
     one_year: float                 # 1年收益
@@ -64,7 +64,7 @@ class PerformanceStats:
     monthly_skew: float             # 月度偏度
     monthly_kurt: float             # 月度峰度
     best_month: float               # 最佳月度收益
-    worst_month: float              # ��差月度收益
+    worst_month: float              # 最差月度收益
     avg_up_month: float             # 上涨月均值
     avg_down_month: float           # 下跌月均值
 
@@ -229,6 +229,10 @@ class StrategyDef:
     def plot_result(self):
         self.backtest_result.plot()
 
+    @classmethod
+    def from_config(cls, config: 'StrategyConfig'):
+        raise NotImplementedError
+
 
 class StrategyCompare:
     def __init__(self, strategies: List[StrategyDef]):
@@ -248,3 +252,30 @@ class StrategyCompare:
             stats.columns = [name]
             result_list.append(stats)
         return pd.concat(result_list, axis=1)
+
+
+class StrategyRegistry:
+    """Strategy registry for storing strategy class mappings"""
+    _strategies: Dict[str, Type['StrategyDef']] = {}
+
+    @classmethod
+    def register(cls, name: str, strategy_cls: Type['StrategyDef']) -> None:
+        """Register a strategy class with given name"""
+        if name in cls._strategies:
+            raise ValueError(f"Strategy {name} already registered")
+        cls._strategies[name] = strategy_cls
+    
+    @classmethod
+    def get(cls, name: str) -> Optional[Type['StrategyDef']]:
+        """Get strategy class by name"""
+        return cls._strategies.get(name)
+    
+    @classmethod
+    def list_strategies(cls) -> List[str]:
+        """List all registered strategy names"""
+        return list(cls._strategies.keys())
+
+def strategy_def(cls: Type[StrategyDef]) -> Type[StrategyDef]:
+    """Decorator to register strategy definitions"""
+    StrategyRegistry.register(cls.__name__, cls)
+    return cls

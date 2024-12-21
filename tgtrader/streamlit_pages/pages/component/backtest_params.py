@@ -35,7 +35,7 @@ def build_backtest_params(default_rebalance_period='日'):
     with col1:
         start_date = st.date_input(
             '开始日期',
-            value=pd.Timestamp.now() - pd.DateOffset(years=1),
+            value=pd.Timestamp.now() - pd.DateOffset(years=3),
             min_value=pd.Timestamp('2010-01-01'),
             max_value=pd.Timestamp.now()
         )
