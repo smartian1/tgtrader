@@ -4,6 +4,7 @@ import os
 import sys
 from getpass import getpass
 from tgtrader.streamlit_pages.service.account_service import AccountService
+from tgtrader.streamlit_pages.service.user_strategy import UserStrategyService
 
 def init_db():
     # 确保data目录存在
@@ -44,6 +45,11 @@ def init_db():
         # 创建管理员账户
         account_service.create_user("admin", admin_password)
         print("管理员账户创建成功!")
+
+        # 初始化策略表
+        user_strategy_service = UserStrategyService()
+        user_strategy_service.init_table()
+        print("策略表初始化成功!")
         
     except Exception as e:
         print(f"初始化失败: {str(e)}")

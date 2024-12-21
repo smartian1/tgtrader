@@ -78,3 +78,5 @@ docs/source/.ipynb_checkpoints/
 .ipynb_checkpoints
 
 test*.py
+
+data/*

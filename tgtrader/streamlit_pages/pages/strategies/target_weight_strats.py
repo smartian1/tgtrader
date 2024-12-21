@@ -11,6 +11,7 @@ from tgtrader.streamlit_pages.pages.component.stock_dropdown_list import StockDr
 from tgtrader.streamlit_pages.pages.component.weight_editor import weight_editor
 from tgtrader.streamlit_pages.pages.component.backtest_params import build_backtest_params
 from tgtrader.streamlit_pages.pages.component.backtest_results import display_backtest_results
+from tgtrader.streamlit_pages.service.user_strategy import UserStrategyService
 
 def run():
     st.title('目标权重策略')
@@ -146,10 +147,10 @@ def run():
                 target_weights_dict=weights
             )
             
-            # 将策略配置转换为JSON并保存
-            config_json = strategy_config.to_json()
-            
-            print(config_json)
+            # 保存策略
+            UserStrategyService.create_strategy(user_id=st.session_state['user_info']['id'], strategy_config=strategy_config)
+
+            st.success('策略保存成功!')
             
         except Exception as e:
             st.error(f'保存策略时发生错误: {str(e)}')
