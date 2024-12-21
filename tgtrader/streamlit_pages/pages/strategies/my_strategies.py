@@ -6,12 +6,11 @@ from tgtrader.streamlit_pages.service.user_strategy import UserStrategyService
 from tgtrader.strategy_config import StrategyConfig, StrategyConfigRegistry
 from loguru import logger
 from datetime import datetime, timezone, timedelta
-from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
+from st_aggrid import AgGrid, GridOptionsBuilder
 
 def run():
     st.title('我的策略')
 
-    # 从session state获取用户信息
     if 'user_info' not in st.session_state:
         st.error('请先登录!')
         return
@@ -19,51 +18,39 @@ def run():
     user_id = st.session_state['user_info']['id']
 
     try:
-        # 获取用户的策略列表
         strategies = UserStrategyService.get_user_strategies(user_id)
 
         if not strategies:
             st.info('暂无策略')
             return
 
-        # 将策略列表转换为DataFrame
         df = pd.DataFrame(strategies)
-
-        # 解析策略配置并添加到DataFrame
         strategy_configs = []
         for _, row in df.iterrows():
-            # 检查strategy字段的类型并相应处理
             strategy_dict = row['strategy']
             if isinstance(strategy_dict, str):
                 strategy_dict = json.loads(strategy_dict)
 
-            logger.debug(f"Strategy dict: {strategy_dict}")
+            # logger.debug(f"Strategy dict: {strategy_dict}")
             strategy_config = StrategyConfig.from_dict(strategy_dict)
 
-            # 处理交易标的显示
-            symbols_str = []
-            for security_type, codes in strategy_config.symbols.items():
-                for code in codes:
-                    symbols_str.append(f"{code}_{security_type.value}")
-            symbols_str = ", ".join(symbols_str)
+            strategy_name = strategy_config.strategy_name
 
-            # 尝试将时间戳转换为datetime对象
-            create_time = datetime.fromtimestamp(int(row['create_time']), tz=timezone.utc)
-            update_time = datetime.fromtimestamp(int(row['update_time']), tz=timezone.utc)
-            beijing_tz = timezone(timedelta(hours=8))
-            create_time = create_time.astimezone(beijing_tz)
-            update_time = update_time.astimezone(beijing_tz)
+            strategy_type = StrategyRegistry.get_display_name(strategy_config.strategy_cls)
 
-            # 获取其他参数
-            common_params = {'symbols', 'strategy_cls', 'rebalance_period', 'initial_capital', 'start_date', 'end_date'}
+            symbols_str = ", ".join([f"{code}_{security_type.value}" for security_type, codes in strategy_config.symbols.items() for code in codes])
+
+            create_time = datetime.fromtimestamp(int(row['create_time']), tz=timezone.utc).astimezone(timezone(timedelta(hours=8)))
+            update_time = datetime.fromtimestamp(int(row['update_time']), tz=timezone.utc).astimezone(timezone(timedelta(hours=8)))
+
+            common_params = {'symbols', 'strategy_cls', 'rebalance_period', 'initial_capital', 'start_date', 'end_date', 'strategy_name'}
             other_params = {k: v for k, v in strategy_dict.items() if k not in common_params}
 
-            # 获取策略显示名称
-            strategy_name = StrategyRegistry.get_display_name(strategy_dict.get('strategy_cls', '未知策略'))
 
             strategy_configs.append({
-                'id': row['id'],  # 保留id用于操作
-                '策略类型': strategy_name,
+                'id': row['id'],
+                '策略名称': strategy_name,
+                '策略类型': strategy_type,
                 '交易标的': symbols_str,
                 '调仓周期': strategy_config.rebalance_period.value,
                 '初始资金': strategy_config.initial_capital,
@@ -72,97 +59,16 @@ def run():
                 '其他参数': str(other_params),
                 '创建时间': create_time.strftime('%Y-%m-%d %H:%M:%S'),
                 '更新时间': update_time.strftime('%Y-%m-%d %H:%M:%S'),
-                '操作': ''  # 操作列
             })
 
         display_df = pd.DataFrame(strategy_configs)
 
-        jsfnc = """
-        class BtnCellRenderer {
-            init(params) {
-                this.params = params;
-                this.eGui = document.createElement('div');
-                this.eGui.innerHTML = `
-                <span>
-                    <button id='view-button'
-                        class='btn-simple'
-                        style='margin-right: 3px;
-                        color: #1f77b4;
-                        background-color: transparent;
-                        border: 1px solid #1f77b4;
-                        border-radius: 3px;
-                        padding: 1px 6px;
-                        font-size: 12px;'>查看</button>
-                    <button id='delete-button'
-                        class='btn-simple'
-                        style='color: #d62728;
-                        background-color: transparent;
-                        border: 1px solid #d62728;
-                        border-radius: 3px;
-                        padding: 1px 6px;
-                        font-size: 12px;'>删除</button>
-                </span>
-                `;
-                this.viewButton = this.eGui.querySelector('#view-button');
-                this.deleteButton = this.eGui.querySelector('#delete-button');
-
-                this.viewClickHandler = this.viewClickHandler.bind(this);
-                this.deleteClickHandler = this.deleteClickHandler.bind(this);
-
-                this.viewButton.addEventListener('click', this.viewClickHandler);
-                this.deleteButton.addEventListener('click', this.deleteClickHandler);
-            }
-
-            getGui() {
-                return this.eGui;
-            }
-
-            refresh() {
-                return true;
-            }
-
-            destroy() {
-                if (this.viewButton) {
-                    this.viewButton.removeEventListener('click', this.viewClickHandler);
-                }
-                if (this.deleteButton) {
-                    this.deleteButton.removeEventListener('click', this.deleteClickHandler);
-                }
-            }
-
-            viewClickHandler(event) {
-                const strategy = this.params.data;
-                window.parent.postMessage({action: 'view', id: strategy.id}, '*');
-            }
-
-            deleteClickHandler(event) {
-                if (confirm('确定要删除这个策略吗?') == true) {
-                    const strategy = this.params.data;
-                    window.parent.postMessage({action: 'delete', id: strategy.id}, '*');
-                }
-            }
-        };
-        """
-        BtnCellRenderer = JsCode(jsfnc)
-
-        # 配置AgGrid选项
         gb = GridOptionsBuilder.from_dataframe(display_df)
         gb.configure_default_column(resizable=True, filterable=True, sortable=True)
         gb.configure_pagination(enabled=True, paginationAutoPageSize=False, paginationPageSize=10)
-
-        # 添加操作列配置
-        gb.configure_column(
-            "操作",
-            cellRenderer=BtnCellRenderer,
-            cellRendererParams={
-                "color": "red",
-                "background_color": "black",
-            }
-        )
-
+        gb.configure_selection(selection_mode="single")
         gridOptions = gb.build()
 
-        # 使用AgGrid显示表格
         grid_response = AgGrid(
             display_df,
             gridOptions=gridOptions,
@@ -174,25 +80,45 @@ def run():
             }
         )
 
-        # 检查URL参数
-        query_params = st.query_params
-        if 'action' in query_params and 'id' in query_params:
-            action = query_params['action'][0]
-            strategy_id = query_params['id'][0]
-            if action == 'view':
-                view_strategy(strategy_id)
-            elif action == 'delete':
-                delete_strategy(strategy_id)
+        selected = grid_response['selected_rows']
 
-        # 监听消息事件
-        if 'message' in st.session_state:
-            message = st.session_state['message']
-            if message['action'] == 'view':
-                view_strategy(message['id'])
-            elif message['action'] == 'delete':
-                delete_strategy(message['id'])
-            # 清除消息状态
-            del st.session_state['message']
+        if selected is not None:
+            strategy_id_to_delete = selected.iloc[0]['id']  # Get the id of the selected strategy
+            col1, col2 = st.columns(2, gap='small')
+
+            with col1:
+                if st.button('查看', use_container_width=True, key=f"view_{strategy_id_to_delete}"):
+                    
+                    if 'confirm_delete' in st.session_state:
+                        del st.session_state['confirm_delete']
+
+                    view_strategy(strategy_id_to_delete)
+
+            with col2:
+                if st.button('删除', use_container_width=True, key=f"delete_{strategy_id_to_delete}"):
+                    st.session_state['confirm_delete'] = strategy_id_to_delete # Store the strategy ID
+
+        if 'confirm_delete' in st.session_state:
+            st.warning(f'确定要删除策略: {st.session_state["confirm_delete"]} 吗?', icon="⚠️")
+            col3, col4 = st.columns(2)
+            with col3:
+                if st.button('确认删除', key="confirm_delete_button"):
+                    try:
+                        UserStrategyService.delete_strategy(st.session_state['confirm_delete'])
+                        st.success(f'策略 {st.session_state["confirm_delete"]} 已删除')
+                        logger.warning(f"Deleted strategy: {st.session_state['confirm_delete']}")
+                        del st.session_state['confirm_delete']
+                        st.rerun()
+                    except Exception as e:
+                        logger.exception(e)
+                        st.error(f'删除策略失败: {str(e)}')
+            with col4:
+                if st.button('取消', key="cancel_delete_button"):
+                    del st.session_state['confirm_delete']
+                    st.rerun()
+
+        else:
+            st.info('请选择一行以执行操作')
 
     except Exception as e:
         logger.exception(e)
@@ -200,6 +126,17 @@ def run():
 
 def view_strategy(strategy_id):
     st.write(f'查看策略: {strategy_id}')
+    # 在这里添加更多的查看逻辑，例如显示策略详细信息
 
-def delete_strategy(strategy_id):
-    st.write(f'删除策略: {strategy_id}')
+# def delete_strategy(strategy_id): # Removed the separate delete_strategy function
+#     confirm = st.warning('确定要删除这个策略吗?', icon="⚠️")
+#     if st.button('确认删除'):
+#         try:
+#             # 调用删除 API
+#             UserStrategyService.delete_strategy(strategy_id)
+#             # 显示删除成功提示
+#             st.success(f'策略 {strategy_id} 已删除')
+#             st.rerun()
+#         except Exception as e:
+#             logger.exception(e)
+#             st.error(f'删除策略失败: {str(e)}')

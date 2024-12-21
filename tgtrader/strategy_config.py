@@ -26,6 +26,9 @@ class StrategyConfig(BaseModel):
     # 策略类
     strategy_cls: str = Field(default=None, description="策略类名")
 
+    # 策略名称
+    strategy_name: str = Field(default="", description="策略名称")
+
     @abstractmethod
     def to_dict(self) -> dict:
         # Convert enum keys to their string values
@@ -37,12 +40,13 @@ class StrategyConfig(BaseModel):
             "start_date": self.start_date,
             "end_date": self.end_date,
             "strategy_cls": self.strategy_cls,
+            "strategy_name": self.strategy_name
         }
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'StrategyConfig':
         """反序列化方法，从字典创建 StrategyConfig 对象."""
-        logger.debug(f"Loading strategy config from dict: {data}")
+        # logger.debug(f"Loading strategy config from dict: {data}")
         
         strategy_cls_name = data.get("strategy_cls")
         
@@ -69,6 +73,7 @@ class StrategyConfig(BaseModel):
         initial_capital = data.get("initial_capital")
         start_date = data.get("start_date")
         end_date = data.get("end_date")
+        strategy_name = data.get("strategy_name")
 
         # 准备额外参数
         other_params = data.copy()
@@ -78,7 +83,8 @@ class StrategyConfig(BaseModel):
         other_params.pop("start_date", None)
         other_params.pop("end_date", None)
         other_params.pop("strategy_cls", None)
-        
+        other_params.pop("strategy_name", None)
+
         # 创建并返回策略配置对象
         return strategy_config_cls(
             symbols=symbols,
@@ -87,6 +93,7 @@ class StrategyConfig(BaseModel):
             start_date=start_date,
             end_date=end_date,
             strategy_cls=strategy_cls_name,
+            strategy_name=strategy_name,
             **other_params,
         )
 

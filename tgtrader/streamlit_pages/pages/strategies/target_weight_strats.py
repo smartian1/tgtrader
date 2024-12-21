@@ -137,31 +137,50 @@ def run(strategy_id: int = None):
         # 显示回测结果
         display_backtest_results(strategy)
 
-    # 修改保存策略按钮的逻辑
-    if st.session_state.get('strategy') is not None and col2.button('保存策略'):
-        try:
-            # 从session_state获取保存的数据
-            symbols = st.session_state.symbols
-            weights = st.session_state.weights
-            params = st.session_state.strategy_params
+    # 显示策略名称输入框和保存按钮
+    if st.session_state.get('strategy') is not None:
+        strategy_name = col2.text_input('请输入策略名称:', key='strategy_name_input_target_weight')
+        
+        if col2.button('保存策略'):
+            try:
+                # 检查是否选择了标的
+                if not symbol_multiselect:
+                    st.error('请选择至少一个标的')
+                    return
+                    
+                # 检查是否输入了策略名称
+                if not strategy_name:
+                    st.error('请输入策略名称')
+                    return
+                
+                if st.session_state.strategy is None:
+                    st.error('请先回测')
+                    return
+                
+                # 从session_state获取保存的数据
+                symbols = st.session_state.symbols
+                weights = st.session_state.weights
+                params = st.session_state.strategy_params
 
+                # 准备策略配置
+                strategy_config = TargetWeightStrategyConfig(
+                    symbols=symbols,
+                    rebalance_period=params['rebalance_period'],
+                    initial_capital=params['initial_capital'],
+                    start_date=params['start_date'],
+                    end_date=params['end_date'],
+                    strategy_cls=TargetWeightStrategy.__name__,
+                    target_weights_dict=weights,
+                    strategy_name=strategy_name  # 添加策略名称
+                )
+                
+                # 保存策略
+                UserStrategyService.create_strategy(user_id=st.session_state['user_info']['id'], strategy_config=strategy_config)
 
-            # 准备策略配置
-            strategy_config = TargetWeightStrategyConfig(
-                symbols=symbols,
-                rebalance_period=params['rebalance_period'],
-                initial_capital=params['initial_capital'],
-                start_date=params['start_date'],
-                end_date=params['end_date'],
-                strategy_cls=TargetWeightStrategy.__name__,
-                target_weights_dict=weights
-            )
-            
-            # 保存策略
-            UserStrategyService.create_strategy(user_id=st.session_state['user_info']['id'], strategy_config=strategy_config)
+                # 清空策略
+                st.session_state.strategy = None
 
-            st.success('策略保存成功!')
-            
-        except Exception as e:
-            st.error(f'保存策略时发生错误: {str(e)}')
-            
+                st.success('策略保存成功!')
+
+            except Exception as e:
+                st.error(f'保存策略时发生错误: {str(e)}')
