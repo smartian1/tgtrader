@@ -2,7 +2,6 @@
 from loguru import logger
 from tgtrader.strategy_config import StrategyConfig
 from tgtrader.streamlit_pages.dao.t_user_strategy import UserStrategy
-from tgtrader.strategies.bt.target_weight_strategy import TargetWeightStrategyConfig
 import json
 
 class UserStrategyService:
@@ -22,6 +21,26 @@ class UserStrategyService:
         except Exception as e:
             logger.exception(e)
             raise Exception(f"获取用户策略失败: {str(e)}")
+    
+    @classmethod
+    def get_strategy(cls, strategy_id: int) -> UserStrategy:
+        """获取用户策略
+        
+        Args:
+            strategy_id: 策略ID
+            
+        Returns:
+            UserStrategy: 策略对象
+        """
+        try:
+            ret = UserStrategy.get_strategy(strategy_id)
+            return ret
+        except UserStrategy.DoesNotExist as e:
+            logger.exception(e)
+            raise Exception(f"策略不存在: {strategy_id}")
+        except Exception as e:
+            logger.exception(e)
+            raise Exception(f"获取策略失败: {str(e)}")
 
     @classmethod 
     def create_strategy(cls, user_id: int, strategy_config: StrategyConfig):

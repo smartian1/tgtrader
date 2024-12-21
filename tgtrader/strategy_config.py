@@ -3,9 +3,9 @@
 from abc import abstractmethod
 import json
 from typing import Any, Dict, Type
+from loguru import logger
 from pydantic import BaseModel, Field
-from tgtrader.common import SecurityType
-from tgtrader.strategy import RebalancePeriod
+from tgtrader.common import SecurityType, RebalancePeriod
 
 def serialize_enum(enum_value):
     if enum_value is None:
@@ -41,6 +41,19 @@ class StrategyConfig(BaseModel):
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'StrategyConfig':
         """反序列化方法，从字典创建 StrategyConfig 对象."""
+        logger.debug(f"Loading strategy config from dict: {data}")
+        
+        strategy_cls_name = data.get("strategy_cls")
+        
+        if strategy_cls_name:
+            from tgtrader.strategy import StrategyConfigRegistry
+            strategy_config_cls = StrategyConfigRegistry.get(f"{strategy_cls_name}Config")
+            if strategy_config_cls is None:
+                raise ValueError(f"找不到策略config类: {strategy_cls_name}Config")
+        else:
+            strategy_config_cls = cls  # 如果没有指定策略类，使用当前类
+        
+        # 处理 symbols 数据
         symbols_data = data.get("symbols", {})
         symbols = {}
         for key, value in symbols_data.items():
@@ -48,17 +61,33 @@ class StrategyConfig(BaseModel):
                 security_type = SecurityType(key)
                 symbols[security_type] = value
             except ValueError:
-                # Handle invalid SecurityType string (optional: log a warning, raise an error, etc.)
-                print(f"Warning: Invalid SecurityType '{key}' encountered during deserialization.")
-                continue  # Or raise ValueError
+                logger.warning(f"Warning: Invalid SecurityType '{key}' encountered during deserialization.")
+                continue
 
-        return cls(
+        # 处理其他字段
+        rebalance_period = RebalancePeriod(data.get("rebalance_period"))
+        initial_capital = data.get("initial_capital")
+        start_date = data.get("start_date")
+        end_date = data.get("end_date")
+
+        # 准备额外参数
+        other_params = data.copy()
+        other_params.pop("symbols", None)
+        other_params.pop("rebalance_period", None)
+        other_params.pop("initial_capital", None)
+        other_params.pop("start_date", None)
+        other_params.pop("end_date", None)
+        other_params.pop("strategy_cls", None)
+        
+        # 创建并返回策略配置对象
+        return strategy_config_cls(
             symbols=symbols,
-            rebalance_period=RebalancePeriod(data.get("rebalance_period")),
-            initial_capital=data.get("initial_capital"),
-            start_date=data.get("start_date"),
-            end_date=data.get("end_date"),
-            strategy_cls=data.get("strategy_cls"),
+            rebalance_period=rebalance_period,
+            initial_capital=initial_capital,
+            start_date=start_date,
+            end_date=end_date,
+            strategy_cls=strategy_cls_name,
+            **other_params,
         )
 
     def to_json(self) -> str:

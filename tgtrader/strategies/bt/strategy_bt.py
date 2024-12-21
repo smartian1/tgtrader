@@ -6,9 +6,9 @@ from typing import Dict
 import pandas as pd
 from tgtrader import bt
 from tgtrader.bt.core import Algo
-from tgtrader.common import SecurityType
+from tgtrader.common import SecurityType, RebalancePeriod
 from tgtrader.data import DEFAULT_DATA_PROVIDER, DataGetter
-from tgtrader.strategy import RebalancePeriod, StrategyDef
+from tgtrader.strategy import StrategyDef
 
 
 

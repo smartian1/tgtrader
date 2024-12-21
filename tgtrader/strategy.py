@@ -7,16 +7,9 @@ from dataclasses import dataclass
 import pandas as pd
 import ffn
 
-from tgtrader.common import Period, PriceAdjust, SecurityType
+from tgtrader.common import Period, PriceAdjust, SecurityType, RebalancePeriod
 from tgtrader.data import DataGetter
-
-# 调仓周期
-class RebalancePeriod(enum.Enum):
-    Daily = 1
-    Weekly = 2
-    Monthly = 3
-    Quarterly = 4
-    Yearly = 5
+from tgtrader.strategy_config import StrategyConfig
 
 
 @dataclass
@@ -278,4 +271,30 @@ class StrategyRegistry:
 def strategy_def(cls: Type[StrategyDef]) -> Type[StrategyDef]:
     """Decorator to register strategy definitions"""
     StrategyRegistry.register(cls.__name__, cls)
+    return cls
+
+class StrategyConfigRegistry:
+    """Strategy registry for storing strategy class mappings"""
+    _strategies: Dict[str, Type['StrategyConfig']] = {}
+
+    @classmethod
+    def register(cls, name: str, strategy_cls: Type['StrategyConfig']) -> None:
+        """Register a strategy class with given name"""
+        if name in cls._strategies:
+            raise ValueError(f"Strategy {name} already registered")
+        cls._strategies[name] = strategy_cls
+    
+    @classmethod
+    def get(cls, name: str) -> Optional[Type['StrategyConfig']]:
+        """Get strategy class by name"""
+        return cls._strategies.get(name)
+    
+    @classmethod
+    def list_strategies(cls) -> List[str]:
+        """List all registered strategy names"""
+        return list(cls._strategies.keys())
+
+def strategy_config_def(cls: Type[StrategyConfig]) -> Type[StrategyConfig]:
+    """Decorator to register strategy definitions"""
+    StrategyConfigRegistry.register(cls.__name__, cls)
     return cls

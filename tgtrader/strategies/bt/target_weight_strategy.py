@@ -9,7 +9,7 @@ from tgtrader import bt
 from tgtrader.bt.core import Algo
 from tgtrader.data import DataGetter
 from tgtrader.strategies.bt.strategy_bt import BtStrategy
-from tgtrader.strategy import RebalancePeriod, strategy_def
+from tgtrader.strategy import RebalancePeriod, strategy_config_def, strategy_def
 from tgtrader.data import DataGetter, DEFAULT_DATA_PROVIDER
 from tgtrader.common import SecurityType
 from typing import Dict, Any
@@ -17,21 +17,9 @@ import json
 from pydantic import Field, validator
 from tgtrader.strategy_config import StrategyConfig
 
+@strategy_config_def
 class TargetWeightStrategyConfig(StrategyConfig):
-    """
-    格式定义：
-    | 标的类型 | 标的代码 | 目标权重 |
-    | ETF | 000001 | 10.0 |
-    | stocks | 600000 | 20.0 |
-    """
     target_weights_dict: Dict[str, Any] = Field(default_factory=dict, description="目标权重")
-
-    @property
-    def target_weights(self) -> pd.DataFrame:
-        """将字典转换为 DataFrame"""
-        if not self.target_weights_dict:
-            return pd.DataFrame()
-        return pd.DataFrame.from_dict(self.target_weights_dict)
 
     def to_dict(self) -> dict:
         """转换为字典格式"""

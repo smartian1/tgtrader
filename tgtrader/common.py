@@ -19,6 +19,12 @@ class SecurityType(enum.Enum):
     Fund = 'fund'
     Futures = 'futures'
 
+class RebalancePeriod(enum.Enum):
+    """调仓周期"""
+    Daily = 1
+    Weekly = 2  
+    Monthly = 3
+    Quarterly = 4
 
 class DataProvider:
     def __init__(self):

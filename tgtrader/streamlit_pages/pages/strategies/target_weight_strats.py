@@ -7,32 +7,41 @@ from datetime import datetime
 from tgtrader.common import SecurityType
 from tgtrader.data import DataGetter
 from tgtrader.strategies.bt.target_weight_strategy import TargetWeightStrategy, TargetWeightStrategyConfig
+from tgtrader.strategy_config import StrategyConfig
 from tgtrader.streamlit_pages.pages.component.stock_dropdown_list import StockDropdownSelectItem, build_stock_dropdown_list
 from tgtrader.streamlit_pages.pages.component.weight_editor import weight_editor
 from tgtrader.streamlit_pages.pages.component.backtest_params import build_backtest_params
 from tgtrader.streamlit_pages.pages.component.backtest_results import display_backtest_results
 from tgtrader.streamlit_pages.service.user_strategy import UserStrategyService
+from loguru import logger
 
-def run():
+def run(strategy_id: int = None):
     st.title('目标权重策略')
-    
+
+    if strategy_id is not None:
+        # 获取策略对象
+        strategy_obj = UserStrategyService.get_strategy(strategy_id)
+        if strategy_obj is None:
+            st.error('策略不存在!')
+            return
+        
+        strategy_dict = json.loads(strategy_obj.strategy)
+        strategy_config = StrategyConfig.from_dict(strategy_dict)
+
     # 1. 标的选择
     data_getter = DataGetter()
-    default_symbols: list[StockDropdownSelectItem] = []
-    # 计算每个标的的等权重
-    if default_symbols:
-        default_weight = 100.0 / len(default_symbols)
-    else:
-        default_weight = None
-        
-    symbol_multiselect: list[StockDropdownSelectItem] = build_stock_dropdown_list(src_page='target_weight_strats', data_getter=data_getter)
+    
+    symbol_multiselect: list[StockDropdownSelectItem] = build_stock_dropdown_list(src_page='target_weight_strats', 
+                                                                                  data_getter=data_getter, 
+                                                                                  strategy_config=strategy_config)
 
     # 2. 已选择标的表格
     if symbol_multiselect:
         edited_df, cash_weight, weights_valid = weight_editor(
             src_page='target_weight_strats',
             symbol_multiselect=symbol_multiselect,
-            show_weights=True
+            show_weights=True,
+            strategy_config=strategy_config
         )
     
     # 3. 回测参数

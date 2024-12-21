@@ -39,6 +39,12 @@ class UserStrategy(BaseModel):
         """获取用户的所有策略，按更新时间倒序排列"""
         with db:
             return list(cls.select().where(cls.user_id == user_id).order_by(cls.update_time.desc()))
+        
+    @classmethod
+    def get_strategy(cls, strategy_id: int):
+        """获取策略"""
+        with db:
+            return cls.get(cls.id == strategy_id)
 
     @classmethod
     def create_strategy(cls, user_id: int, strategy: str):

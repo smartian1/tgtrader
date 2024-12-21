@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from tgtrader.strategy import RebalancePeriod
+from tgtrader.common import RebalancePeriod
 
 def build_backtest_params(default_rebalance_period='日'):
     """构建回测参数UI组件

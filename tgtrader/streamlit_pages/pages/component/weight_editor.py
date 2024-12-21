@@ -1,17 +1,20 @@
 import streamlit as st
 import pandas as pd
+from tgtrader.strategy_config import StrategyConfig
 from tgtrader.streamlit_pages.pages.component.stock_dropdown_list import StockDropdownSelectItem
 
 def validate_weights(weights, cash_weight=0.0):
     """验证权重之和是否为100%"""
     return abs(sum(weights) + cash_weight - 100.0) < 0.01
 
-def weight_editor(src_page:str, symbol_multiselect: list[StockDropdownSelectItem], show_weights=True):
+def weight_editor(src_page:str, 
+                  symbol_multiselect: list[StockDropdownSelectItem], 
+                  show_weights=True, 
+                  strategy_config: StrategyConfig = None):
     """创建并显示权重编辑器组件"""
     if not symbol_multiselect:
         return None, False
         
-    
     # 创建新的DataFrame
     new_df = pd.DataFrame([
         {
@@ -22,10 +25,16 @@ def weight_editor(src_page:str, symbol_multiselect: list[StockDropdownSelectItem
         } for symbol in symbol_multiselect
     ])
 
-    # 之前保存的权重
-    if f'{src_page}_symbol_multiselect' in st.session_state:
+    # 如果有策略配置，使用配置中的权重
+    if strategy_config is not None and strategy_config.target_weights_dict:
+        print(strategy_config.target_weights_dict)
+        for index, row in new_df.iterrows():
+            symbol_key = f"{row['代码']}"
+            if symbol_key in strategy_config.target_weights_dict:
+                new_df.at[index, '权重(%)'] = strategy_config.target_weights_dict[symbol_key] * 100
+    # 否则使用之前保存的权重
+    elif f'{src_page}_symbol_multiselect' in st.session_state:
         old_df = st.session_state[f'{src_page}_symbol_multiselect']
-    
         # 遍历，更新权重
         for index, row in new_df.iterrows():
             old_row = old_df[(old_df['类型'] == row['类型']) & (old_df['代码'] == row['代码'])]
