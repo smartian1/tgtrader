@@ -90,10 +90,6 @@ def run():
         if stock_symbols:
             symbols[SecurityType.Stocks] = stock_symbols
 
-        # 如果权重中包含现金，则删除
-        if 'CASH' in weights:
-            del weights['CASH']
-
         progress_bar.progress(30, text='正在运行策略...')
 
         # 创建策略实例
