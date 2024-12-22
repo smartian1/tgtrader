@@ -3,7 +3,7 @@ from loguru import logger
 from peewee import *
 from datetime import datetime
 import bcrypt
-from .common import BaseModel, db
+from tgtrader.streamlit_pages.dao.common import BaseModel, db
 
 class User(BaseModel):
     id = AutoField()

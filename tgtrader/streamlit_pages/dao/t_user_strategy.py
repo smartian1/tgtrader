@@ -2,14 +2,13 @@
 from loguru import logger
 from peewee import *
 from datetime import datetime
-from .common import BaseModel, db
-from .t_user import User
+from tgtrader.streamlit_pages.dao.common import BaseModel, db
 
 class UserStrategy(BaseModel):
     # 主键自增id
     id = AutoField()
-    # 关联到用户表的外键
-    user = ForeignKeyField(User, backref='strategies')
+    # 用户id
+    user_id = IntegerField()
     # 策略配置JSON
     strategy = TextField()
     # 创建时间

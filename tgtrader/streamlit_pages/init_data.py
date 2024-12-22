@@ -3,56 +3,58 @@
 import os
 import sys
 from getpass import getpass
+
+from loguru import logger
 from tgtrader.streamlit_pages.service.account_service import AccountService
 from tgtrader.streamlit_pages.service.user_strategy import UserStrategyService
 
 def init_db():
-    # 确保data目录存在
+    # Ensure data directory exists
     data_dir = os.path.join(os.getcwd(), 'data')
     os.makedirs(data_dir, exist_ok=True)
     
     try:
-        # 初始化用户服务
+        # Initialize user service
         account_service = AccountService()
         
-        # 初始化表结构
-        account_service.init_table()
+        # Initialize strategy service
+        user_strategy_service = UserStrategyService()
         
-        # 检查管理员账户是否已存在
+        # Initialize tables
+        user_strategy_service.init_table()  # Initialize strategy table first
+        account_service.init_table()        # Then initialize user table
+        
+        # Check if admin account exists
         existing_admin = account_service.get_user_by_username("admin")
         if existing_admin:
-            print("管理员账户已存在，无需重新创建")
+            print("Admin account already exists, no need to recreate")
             return
             
-        # 获取管理员密码并确认
+        # Get admin password and confirm
         while True:
-            print("请输入管理员密码:")
+            print("Please enter admin password:")
             admin_password = getpass()
             
             if not admin_password:
-                print("错误: 密码不能为空")
+                print("Error: Password cannot be empty")
                 continue
                 
-            print("请再次输入密码确认:")
+            print("Please enter password again to confirm:")
             confirm_password = getpass()
             
             if admin_password != confirm_password:
-                print("错误: 两次输入的密码不一致，请重新输入")
+                print("Error: Passwords do not match, please try again")
                 continue
             
             break
             
-        # 创建管理员账户
+        # Create admin account
         account_service.create_user("admin", admin_password)
-        print("管理员账户创建成功!")
-
-        # 初始化策略表
-        user_strategy_service = UserStrategyService()
-        user_strategy_service.init_table()
-        print("策略表初始化成功!")
+        print("Admin account created successfully!")
+        print("Strategy table initialized successfully!")
         
     except Exception as e:
-        print(f"初始化失败: {str(e)}")
+        logger.exception(f"Initialization failed: {str(e)}")
         sys.exit(1)
 
 if __name__ == "__main__":
