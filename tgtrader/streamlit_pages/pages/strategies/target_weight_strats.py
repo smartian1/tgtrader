@@ -18,7 +18,6 @@ from loguru import logger
 import inspect
 
 def run(strategy_id: int = None):
-    print(f"----{strategy_id}----")
     # 每个策略类都需要获取当前模块名，用于保存策略
     current_frame = inspect.currentframe()
     module = inspect.getmodule(current_frame)

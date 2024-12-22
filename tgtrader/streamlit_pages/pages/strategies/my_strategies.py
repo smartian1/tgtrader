@@ -93,6 +93,15 @@ def run():
 
         if selected is not None:
             strategy_id_selected = selected.iloc[0]['id']  # Get the id of the selected strategy
+            if 'selected_strategy_id' in st.session_state:
+                old_strategy_id = st.session_state['selected_strategy_id']
+                if old_strategy_id != strategy_id_selected:
+                    if 'confirm_view' in st.session_state:
+                        del st.session_state['confirm_view']
+                    if 'confirm_delete' in st.session_state:
+                        del st.session_state['confirm_delete']
+            st.session_state['selected_strategy_id'] = strategy_id_selected
+
             module_name_selected = selected.iloc[0]['模块名']
             col1, col2 = st.columns(2, gap='small')
 
@@ -120,7 +129,7 @@ def run():
             with col3:
                 if st.button('确认删除', key="confirm_delete_button"):
                     try:
-                        UserStrategyService.delete_strategy(st.session_state['confirm_delete'])
+                        UserStrategyService.delete_strategy(user_id, st.session_state['confirm_delete'])
                         st.success(f'策略 {st.session_state["confirm_delete"]} 已删除')
                         logger.warning(f"Deleted strategy: {st.session_state['confirm_delete']}")
                         del st.session_state['confirm_delete']
@@ -177,10 +186,11 @@ def view_strategy(strategy_id):
             )
         
         # 运行回测
-        end_date = datetime.now().strftime('%Y-%m-%d')
-        strategy.backtest(strategy_config.start_date, end_date)
-        
-        display_backtest_results(strategy, strategy_config.end_date)
+        with st.spinner('运行中...'):
+            end_date = datetime.now().strftime('%Y-%m-%d')
+            strategy.backtest(strategy_config.start_date, end_date)
+            
+            display_backtest_results(strategy, strategy_config.end_date)
         
     except Exception as e:
         logger.exception(e)
