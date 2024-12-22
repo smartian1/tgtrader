@@ -23,7 +23,7 @@ class UserStrategyService:
             raise Exception(f"获取用户策略失败: {str(e)}")
     
     @classmethod
-    def get_strategy(cls, strategy_id: int) -> UserStrategy:
+    def get_strategy(cls, user_id: int, strategy_id: int) -> UserStrategy:
         """获取用户策略
         
         Args:
@@ -33,7 +33,7 @@ class UserStrategyService:
             UserStrategy: 策略对象
         """
         try:
-            ret = UserStrategy.get_strategy(strategy_id)
+            ret = UserStrategy.get_strategy(user_id, strategy_id)
             return ret
         except UserStrategy.DoesNotExist as e:
             logger.exception(e)
@@ -64,7 +64,7 @@ class UserStrategyService:
             raise Exception(f"创建策略失败: {str(e)}")
 
     @classmethod
-    def update_strategy(cls, strategy_id: int, strategy_config: StrategyConfig):
+    def update_strategy(cls, user_id: int, strategy_id: int, strategy_config: StrategyConfig):
         """更新策略"""
         try:
             # 验证策略配置格式
@@ -72,6 +72,7 @@ class UserStrategyService:
             
             # 更新策略
             UserStrategy.update_strategy(
+                user_id=user_id,
                 strategy_id=strategy_id,
                 strategy=config
             )
@@ -80,10 +81,10 @@ class UserStrategyService:
             raise Exception(f"更新策略失败: {str(e)}")
 
     @classmethod
-    def delete_strategy(cls, strategy_id: int):
+    def delete_strategy(cls, user_id: int, strategy_id: int):
         """删除策略"""
         try:
-            UserStrategy.delete_strategy(strategy_id)
+            UserStrategy.delete_strategy(user_id, strategy_id)
         except Exception as e:
             logger.exception(e) 
             raise Exception(f"删除策略失败: {str(e)}")

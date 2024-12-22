@@ -7,6 +7,7 @@ from datetime import datetime
 from tgtrader.common import SecurityType
 from tgtrader.data import DataGetter
 from tgtrader.strategies.bt.target_weight_strategy import TargetWeightStrategy, TargetWeightStrategyConfig
+from tgtrader.strategy import StrategyRegistry
 from tgtrader.strategy_config import StrategyConfig
 from tgtrader.streamlit_pages.pages.component.stock_dropdown_list import StockDropdownSelectItem, build_stock_dropdown_list
 from tgtrader.streamlit_pages.pages.component.weight_editor import weight_editor
@@ -14,8 +15,15 @@ from tgtrader.streamlit_pages.pages.component.backtest_params import build_backt
 from tgtrader.streamlit_pages.pages.component.backtest_results import display_backtest_results
 from tgtrader.streamlit_pages.service.user_strategy import UserStrategyService
 from loguru import logger
+import inspect
 
 def run(strategy_id: int = None):
+    print(f"----{strategy_id}----")
+    # 每个策略类都需要获取当前模块名，用于保存策略
+    current_frame = inspect.currentframe()
+    module = inspect.getmodule(current_frame)
+    module_name = module.__name__
+
     st.title('目标权重策略')
 
     strategy_config = None
@@ -169,9 +177,10 @@ def run(strategy_id: int = None):
                     initial_capital=params['initial_capital'],
                     start_date=params['start_date'],
                     end_date=params['end_date'],
-                    strategy_cls=TargetWeightStrategy.__name__,
+                    strategy_cls=StrategyRegistry.get_pkg_name(TargetWeightStrategy),
                     target_weights_dict=weights,
-                    strategy_name=strategy_name  # 添加策略名称
+                    strategy_name=strategy_name,
+                    module_name=module_name
                 )
                 
                 # 保存策略

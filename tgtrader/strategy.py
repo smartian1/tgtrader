@@ -1,7 +1,7 @@
 # encoding: utf-8
 from abc import abstractmethod
 import enum
-from typing import Dict, List, Optional, Type
+from typing import Dict, List, Optional, Type, Union
 from dataclasses import dataclass
 
 import pandas as pd
@@ -249,37 +249,38 @@ class StrategyCompare:
 
 class StrategyRegistry:
     """策略注册表，用于存储策略类映射"""
-    _strategies: Dict[str, Type['StrategyDef']] = {}
-    _strategy_names: Dict[str, str] = {}  # 存储策略显示名称
+    _strategies_pkg_names: Dict[str, str] = {}  # 存储策略包名
+    _strategies_names: Dict[str, str] = {}  # 存储策略名称
 
     @classmethod
-    def register(cls, class_name: str, strategy_cls: Type['StrategyDef'], display_name: str = None) -> None:
+    def register(cls, name: str, strategy_cls: Type['StrategyDef'], pkg_name: str = None) -> None:
         """注册策略类
         
         Args:
-            class_name: 策略类名
+            name: 策略名称
             strategy_cls: 策略类
-            display_name: 策略显示名称
         """
-        if class_name in cls._strategies:
-            raise ValueError(f"策略 {class_name} 已经注册")
-        cls._strategies[class_name] = strategy_cls
-        cls._strategy_names[class_name] = display_name or class_name
+        if strategy_cls.__name__ in cls._strategies_pkg_names:
+            raise ValueError(f"策略 {strategy_cls.__name__} 已经注册")
+        cls._strategies_pkg_names[strategy_cls.__name__] = pkg_name
+        cls._strategies_names[strategy_cls.__name__] = name
     
     @classmethod
-    def get(cls, name: str) -> Optional[Type['StrategyDef']]:
-        """根据类名获取策略类"""
-        return cls._strategies.get(name)
+    def get_pkg_name(cls, strategy_cls: Union[Type['StrategyDef'], str]) -> str:
+        """获取策略包名"""
+        if isinstance(strategy_cls, str):
+            return cls._strategies_pkg_names.get(strategy_cls, strategy_cls)
+        else:
+            return cls._strategies_pkg_names.get(strategy_cls.__name__, strategy_cls.__name__)
     
     @classmethod
-    def get_display_name(cls, class_name: str) -> str:
-        """获取策略显示名称"""
-        return cls._strategy_names.get(class_name, class_name)
+    def get_name(cls, strategy_cls: Union[Type['StrategyDef'], str]) -> str:
+        """获取策略名称"""
+        if isinstance(strategy_cls, str):
+            return cls._strategies_names.get(strategy_cls, strategy_cls)
+        else:
+            return cls._strategies_names.get(strategy_cls.__name__, strategy_cls.__name__)
     
-    @classmethod
-    def list_strategies(cls) -> List[str]:
-        """列出所有已注册的策略类名"""
-        return list(cls._strategies.keys())
 
 def strategy_def(name: str = None):
     """策略定义装饰器
@@ -288,7 +289,9 @@ def strategy_def(name: str = None):
         name: 策略显示名称，如果不传则使用类名
     """
     def decorator(cls: Type[StrategyDef]) -> Type[StrategyDef]:
-        StrategyRegistry.register(cls.__name__, cls, name)
+        # 获取类的完整包名
+        pkg_name = f"{cls.__module__}.{cls.__name__}"
+        StrategyRegistry.register(name, cls, pkg_name)
         return cls
     return decorator
 

@@ -1,7 +1,11 @@
+from functools import partial
+import importlib
 import streamlit as st
 import pandas as pd
 import json
+from tgtrader.strategies.bt.strategy_bt import BtStrategy
 from tgtrader.strategy import StrategyRegistry
+from tgtrader.streamlit_pages.pages.component.backtest_results import display_backtest_results
 from tgtrader.streamlit_pages.service.user_strategy import UserStrategyService
 from tgtrader.strategy_config import StrategyConfig, StrategyConfigRegistry
 from loguru import logger
@@ -36,7 +40,11 @@ def run():
 
             strategy_name = strategy_config.strategy_name
 
-            strategy_type = StrategyRegistry.get_display_name(strategy_config.strategy_cls)
+            strategy_cls = strategy_config.strategy_cls
+
+            strategy_type = StrategyRegistry.get_name(strategy_cls.split('.')[-1])
+
+            module_name = strategy_config.module_name
 
             symbols_str = ", ".join([f"{code}_{security_type.value}" for security_type, codes in strategy_config.symbols.items() for code in codes])
 
@@ -57,6 +65,7 @@ def run():
                 '开始日期': strategy_config.start_date,
                 '结束日期': strategy_config.end_date,
                 '其他参数': str(other_params),
+                '模块名': module_name,
                 '创建时间': create_time.strftime('%Y-%m-%d %H:%M:%S'),
                 '更新时间': update_time.strftime('%Y-%m-%d %H:%M:%S'),
             })
@@ -83,20 +92,27 @@ def run():
         selected = grid_response['selected_rows']
 
         if selected is not None:
-            strategy_id_to_delete = selected.iloc[0]['id']  # Get the id of the selected strategy
+            strategy_id_selected = selected.iloc[0]['id']  # Get the id of the selected strategy
+            module_name_selected = selected.iloc[0]['模块名']
             col1, col2 = st.columns(2, gap='small')
 
             with col1:
-                if st.button('查看', use_container_width=True, key=f"view_{strategy_id_to_delete}"):
+                if st.button('查看', use_container_width=True, key=f"view_{strategy_id_selected}"):
                     
                     if 'confirm_delete' in st.session_state:
                         del st.session_state['confirm_delete']
 
-                    view_strategy(strategy_id_to_delete)
+                    st.session_state['confirm_view'] = {
+                        'strategy_id': strategy_id_selected,
+                        'module_name': module_name_selected
+                    }
 
             with col2:
-                if st.button('删除', use_container_width=True, key=f"delete_{strategy_id_to_delete}"):
-                    st.session_state['confirm_delete'] = strategy_id_to_delete # Store the strategy ID
+                if st.button('删除', use_container_width=True, key=f"delete_{strategy_id_selected}"):
+                    if 'confirm_view' in st.session_state:
+                        del st.session_state['confirm_view']
+                    
+                    st.session_state['confirm_delete'] = strategy_id_selected # Store the strategy ID
 
         if 'confirm_delete' in st.session_state:
             st.warning(f'确定要删除策略: {st.session_state["confirm_delete"]} 吗?', icon="⚠️")
@@ -116,7 +132,8 @@ def run():
                 if st.button('取消', key="cancel_delete_button"):
                     del st.session_state['confirm_delete']
                     st.rerun()
-
+        elif 'confirm_view' in st.session_state:
+            view_strategy(st.session_state['confirm_view']['strategy_id'])
         else:
             st.info('请选择一行以执行操作')
 
@@ -125,18 +142,45 @@ def run():
         st.error(f'获取策略列表失败: {str(e)}')
 
 def view_strategy(strategy_id):
-    st.write(f'查看策略: {strategy_id}')
-    # 在这里添加更多的查看逻辑，例如显示策略详细信息
+    try:
+        user_id = st.session_state['user_info']['id']
 
-# def delete_strategy(strategy_id): # Removed the separate delete_strategy function
-#     confirm = st.warning('确定要删除这个策略吗?', icon="⚠️")
-#     if st.button('确认删除'):
-#         try:
-#             # 调用删除 API
-#             UserStrategyService.delete_strategy(strategy_id)
-#             # 显示删除成功提示
-#             st.success(f'策略 {strategy_id} 已删除')
-#             st.rerun()
-#         except Exception as e:
-#             logger.exception(e)
-#             st.error(f'删除策略失败: {str(e)}')
+        # 获取策略对象
+        strategy_obj = UserStrategyService.get_strategy(user_id, strategy_id)
+        if strategy_obj is None:
+            st.error('策略不存在!')
+            return
+            
+        # 将策略配置字符串解析为字典
+        strategy_dict = json.loads(strategy_obj.strategy)
+        strategy_config = StrategyConfig.from_dict(strategy_dict)
+        
+        # 获取策略类名和模块名
+        strategy_cls_name = strategy_config.strategy_cls
+
+        # 导入策略模块
+        module_name = '.'.join(strategy_cls_name.split('.')[0:-1])
+        cls_name = strategy_cls_name.split('.')[-1]
+
+        module = importlib.import_module(module_name)
+        strategy_cls = getattr(module, cls_name)
+
+        # 检查策略类是否是 BtStrategy 的子类
+        if issubclass(strategy_cls, BtStrategy):
+            strategy = strategy_cls(
+                symbols=strategy_config.symbols,
+                rebalance_period=strategy_config.rebalance_period,
+                integer_positions=True,
+                commissions=lambda q, p: 0.0,
+                backtest_field='close',
+                weights=strategy_config.target_weights_dict
+            )
+        
+        # 运行回测
+        strategy.backtest(strategy_config.start_date, strategy_config.end_date)
+        
+        display_backtest_results(strategy)
+        
+    except Exception as e:
+        logger.exception(e)
+        st.error(f'查看策略失败: {str(e)}')

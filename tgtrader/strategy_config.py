@@ -29,6 +29,9 @@ class StrategyConfig(BaseModel):
     # 策略名称
     strategy_name: str = Field(default="", description="策略名称")
 
+    # 模块名
+    module_name: str = Field(default="", description="模块名")
+
     @abstractmethod
     def to_dict(self) -> dict:
         # Convert enum keys to their string values
@@ -40,7 +43,8 @@ class StrategyConfig(BaseModel):
             "start_date": self.start_date,
             "end_date": self.end_date,
             "strategy_cls": self.strategy_cls,
-            "strategy_name": self.strategy_name
+            "strategy_name": self.strategy_name,
+            "module_name": self.module_name
         }
 
     @classmethod
@@ -51,7 +55,7 @@ class StrategyConfig(BaseModel):
         strategy_cls_name = data.get("strategy_cls")
         
         if strategy_cls_name:
-            strategy_config_cls = StrategyConfigRegistry.get(f"{strategy_cls_name}Config")
+            strategy_config_cls = StrategyConfigRegistry.get(f"{strategy_cls_name.split('.')[-1]}Config")
             if strategy_config_cls is None:
                 raise ValueError(f"找不到策略config类: {strategy_cls_name}Config")
         else:
@@ -74,6 +78,7 @@ class StrategyConfig(BaseModel):
         start_date = data.get("start_date")
         end_date = data.get("end_date")
         strategy_name = data.get("strategy_name")
+        module_name = data.get("module_name")
 
         # 准备额外参数
         other_params = data.copy()
@@ -84,6 +89,7 @@ class StrategyConfig(BaseModel):
         other_params.pop("end_date", None)
         other_params.pop("strategy_cls", None)
         other_params.pop("strategy_name", None)
+        other_params.pop("module_name", None)
 
         # 创建并返回策略配置对象
         return strategy_config_cls(
@@ -94,6 +100,7 @@ class StrategyConfig(BaseModel):
             end_date=end_date,
             strategy_cls=strategy_cls_name,
             strategy_name=strategy_name,
+            module_name=module_name,
             **other_params,
         )
 

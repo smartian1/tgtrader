@@ -40,10 +40,10 @@ class UserStrategy(BaseModel):
             return list(cls.select().where(cls.user_id == user_id).order_by(cls.update_time.desc()))
         
     @classmethod
-    def get_strategy(cls, strategy_id: int):
+    def get_strategy(cls, user_id: int, strategy_id: int):
         """获取策略"""
         with db:
-            return cls.get(cls.id == strategy_id)
+            return cls.get(cls.id == strategy_id, cls.user_id == user_id)
 
     @classmethod
     def create_strategy(cls, user_id: int, strategy: str):
@@ -55,17 +55,17 @@ class UserStrategy(BaseModel):
             )
 
     @classmethod
-    def update_strategy(cls, strategy_id: int, strategy: str):
+    def update_strategy(cls, user_id: int, strategy_id: int, strategy: str):
         """更新策略"""
         with db:
             query = cls.update(
                 strategy=strategy,
                 update_time=int(datetime.now().timestamp())
-            ).where(cls.id == strategy_id)
+            ).where(cls.id == strategy_id, cls.user_id == user_id)
             return query.execute()
 
     @classmethod
-    def delete_strategy(cls, strategy_id: int):
+    def delete_strategy(cls, user_id: int, strategy_id: int):
         """删除策略"""
         with db:
-            return cls.delete().where(cls.id == strategy_id).execute()
+            return cls.delete().where(cls.id == strategy_id, cls.user_id == user_id).execute()
