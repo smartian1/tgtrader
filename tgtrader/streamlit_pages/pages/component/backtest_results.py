@@ -1,37 +1,75 @@
 import streamlit as st
 import pandas as pd
 import altair as alt  # Streamlit recommends Altair for interactive charts
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from tgtrader.strategy import PerformanceStats, StrategyDef
 
-def plot_returns_chart(prices: pd.DataFrame):
-    """绘制策略收益率曲线"""
+def plot_returns_chart(prices: pd.DataFrame, backtest_end_date: Optional[str] = None):
+    """绘制策略收益率曲线，若提供backtest_end_date，则分割回测与非回测部分并加粗非回测部分的线条"""
     
-    # Get the column name (strategy name) from the DataFrame
-    strategy_col = prices.columns[0]
-    
-    # Reset index to make date a column and rename columns
+    print(prices.iloc[0])
+    print(prices.iloc[-1])
+    print(backtest_end_date)
+
+    # 确保日期列为datetime类型
     plot_df = prices.reset_index()
     plot_df.columns = ['date', 'returns']
+    plot_df['date'] = pd.to_datetime(plot_df['date'])
     
-    # Calculate min and max returns for y-axis domain
-    min_return = plot_df['returns'].min()
-    max_return = plot_df['returns'].max()
-    # Add 5% padding to the range
-    y_padding = (max_return - min_return) * 0.05
-    
-    chart = alt.Chart(plot_df).mark_line().encode(
-        x=alt.X('date:T', title='日期'),
-        y=alt.Y('returns:Q', 
-                title='累计收益率',
-                scale=alt.Scale(
-                    domain=[min_return - y_padding, max_return + y_padding]
-                )),
-        tooltip=['date:T', 'returns:Q']
-    ).properties(
-        height=500
-    )
+    if backtest_end_date:
+        backtest_end = pd.to_datetime(backtest_end_date)
+        # 分割数据为回测和非回测部分
+        backtest_df = plot_df[plot_df['date'] <= backtest_end]
+        non_backtest_df = plot_df[plot_df['date'] > backtest_end]
+        
+        # 最小和最大收益率，用于y轴范围
+        min_return = plot_df['returns'].min()
+        max_return = plot_df['returns'].max()
+        y_padding = (max_return - min_return) * 0.05
+        
+        # 创建回测部分的线
+        backtest_line = alt.Chart(backtest_df).mark_line(color='blue').encode(
+            x=alt.X('date:T', title='日期'),
+            y=alt.Y('returns:Q', 
+                    title='累计收益率',
+                    scale=alt.Scale(
+                        domain=[min_return - y_padding, max_return + y_padding]
+                    ))
+        )
+        
+        # 创建非回测部分的线，线条更粗
+        non_backtest_line = alt.Chart(non_backtest_df).mark_line(color='red', strokeWidth=3).encode(
+            x='date:T',
+            y='returns:Q'
+        )
+        
+        # 创建分割竖线
+        rule = alt.Chart(pd.DataFrame({'date': [backtest_end]})).mark_rule(color='green').encode(
+            x='date:T'
+        )
+        
+        # 合并所有图层
+        chart = (backtest_line + non_backtest_line + rule).properties(
+            height=500
+        )
+    else:
+        # 如果没有提供backtest_end_date，则绘制普通的线图
+        min_return = plot_df['returns'].min()
+        max_return = plot_df['returns'].max()
+        y_padding = (max_return - min_return) * 0.05
+        
+        chart = alt.Chart(plot_df).mark_line().encode(
+            x=alt.X('date:T', title='日期'),
+            y=alt.Y('returns:Q', 
+                    title='累计收益率',
+                    scale=alt.Scale(
+                        domain=[min_return - y_padding, max_return + y_padding]
+                    )),
+            tooltip=['date:T', 'returns:Q']
+        ).properties(
+            height=500
+        )
     
     return chart
 
@@ -81,12 +119,12 @@ def display_statistics(stats: PerformanceStats):
         risk_df = pd.DataFrame.from_dict(risk_metrics, orient='index', columns=['值'])
         st.dataframe(risk_df, use_container_width=True)
 
-def display_backtest_results(strategy: StrategyDef):
+def display_backtest_results(strategy: StrategyDef, backtest_end_date: Optional[str] = None):
     """显示回测结果的主函数"""
     st.header("回测结果")
     
     # 绘制收益率曲线
-    chart = plot_returns_chart(strategy.get_prices())
+    chart = plot_returns_chart(strategy.get_prices(), backtest_end_date)
     st.altair_chart(chart, use_container_width=True)
     
     display_statistics(strategy.performance_stats())

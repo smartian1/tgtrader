@@ -177,9 +177,10 @@ def view_strategy(strategy_id):
             )
         
         # 运行回测
-        strategy.backtest(strategy_config.start_date, strategy_config.end_date)
+        end_date = datetime.now().strftime('%Y-%m-%d')
+        strategy.backtest(strategy_config.start_date, end_date)
         
-        display_backtest_results(strategy)
+        display_backtest_results(strategy, strategy_config.end_date)
         
     except Exception as e:
         logger.exception(e)

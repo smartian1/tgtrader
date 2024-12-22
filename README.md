@@ -66,6 +66,16 @@ run()
 ![目标权重策略](https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/target_weight_strategy.png)
 ![目标权重策略](https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/target_weight_strategy_result.png)
 
+#### 我的策略
+策略回测完成之后，可以保存到“我的策略”
+![alt text](https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/save_strategy.png)
+
+进入“我的策略”，可以查看保存的策略列表
+![alt text](https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/my_strategies.png)
+
+选中某个策略，并点击“查看”，可以查看策略的收益绩效。蓝色部分是回测收益曲线，红色部分是回测之后时间段的收益曲线。通过观察红线，可以了解策略仍然有效
+![alt text](https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/my_strategies_backtest.png)
+
 ## SDK使用说明
 
 ### 获取数据
