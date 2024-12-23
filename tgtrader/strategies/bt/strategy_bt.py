@@ -23,8 +23,9 @@ class BtStrategy(StrategyDef):
                  data_getter: DataGetter = DEFAULT_DATA_PROVIDER,
                  integer_positions: bool = True,
                  commissions = lambda q, p: 0.0,
-                 backtest_field: str = 'close'):
-        super().__init__(name, symbols, rebalance_period, data_getter)
+                 backtest_field: str = 'close',
+                 initial_capital: float = 1000000.0):
+        super().__init__(name, symbols, rebalance_period, data_getter, initial_capital)
         self.integer_positions = integer_positions
         self.commissions = commissions
         self.backtest_field = backtest_field
@@ -54,8 +55,9 @@ class BtTreeStrategy(BtStrategy):
                  data_getter: DataGetter = DEFAULT_DATA_PROVIDER,
                  integer_positions: bool = True,
                  commissions = lambda q, p: 0.0,
-                 backtest_field: str = 'close'):
-        super().__init__(name, symbols, rebalance_period, data_getter, integer_positions, commissions, backtest_field)
+                 backtest_field: str = 'close',
+                 initial_capital: float = 1000000.0):
+        super().__init__(name, symbols, rebalance_period, data_getter, initial_capital, integer_positions, commissions, backtest_field)
         self.strategies: list[BtStrategy] = []
 
     def add_strategy(self, strategy: BtStrategy):

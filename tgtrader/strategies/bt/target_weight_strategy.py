@@ -41,20 +41,22 @@ class TargetWeightStrategyConfig(StrategyConfig):
 class TargetWeightStrategy(BtStrategy):
     def __init__(self, 
                  symbols: Dict[SecurityType, list[str]], 
-                 weights: dict[str, float],
+                 target_weights_dict: dict[str, float],
                  rebalance_period: RebalancePeriod = RebalancePeriod.Daily, 
                  data_getter: DataGetter = DEFAULT_DATA_PROVIDER, 
                  integer_positions: bool = True, 
                  commissions = lambda q, p: 0.0,
-                 backtest_field: str = 'close'):
+                 backtest_field: str = 'close',
+                 initial_capital: float = 1000000.0):
         super().__init__(name="TargetWeightStrategy", 
                          symbols=symbols, 
                          rebalance_period=rebalance_period, 
                          data_getter=data_getter, 
                          integer_positions=integer_positions, 
                          commissions=commissions,
-                         backtest_field=backtest_field)
-        self.weights = weights
+                         backtest_field=backtest_field,
+                         initial_capital=initial_capital)
+        self.target_weights_dict = target_weights_dict
 
     def _get_algos(self) -> list[Algo]:
         if self.rebalance_period == RebalancePeriod.Daily:
@@ -69,7 +71,7 @@ class TargetWeightStrategy(BtStrategy):
         self.algos = [
             period_run_algo,
             bt.algos.SelectAll(),
-            bt.algos.WeighSpecified(**self.weights),
+            bt.algos.WeighSpecified(**self.target_weights_dict),
             bt.algos.Rebalance()]
         
         return self.algos

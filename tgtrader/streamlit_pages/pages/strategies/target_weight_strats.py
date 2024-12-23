@@ -115,7 +115,7 @@ def run(strategy_id: int = None):
         # 创建策略实例
         strategy = TargetWeightStrategy(
             symbols=symbols,
-            weights=weights,
+            target_weights_dict=weights,
             rebalance_period=rebalance_period_enum,
             integer_positions=True
         )

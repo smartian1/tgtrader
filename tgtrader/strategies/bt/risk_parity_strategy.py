@@ -35,14 +35,16 @@ class RiskParityStrategy(BtStrategy):
                  data_getter: DataGetter = DEFAULT_DATA_PROVIDER, 
                  integer_positions: bool = True, 
                  commissions = lambda q, p: 0.0,
-                 backtest_field: str = 'close'):
+                 backtest_field: str = 'close',
+                 initial_capital: float = 1000000.0):
         super().__init__(name="RiskParityStrategy", 
                          symbols=symbols, 
                          rebalance_period=rebalance_period, 
                          data_getter=data_getter, 
                          integer_positions=integer_positions, 
                          commissions=commissions,
-                         backtest_field=backtest_field)
+                         backtest_field=backtest_field,
+                         initial_capital=initial_capital)
 
     def _get_algos(self) -> list[Algo]:
         if self.rebalance_period == RebalancePeriod.Daily:

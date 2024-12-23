@@ -176,14 +176,30 @@ def view_strategy(strategy_id):
 
         # 检查策略类是否是 BtStrategy 的子类
         if issubclass(strategy_cls, BtStrategy):
-            strategy = strategy_cls(
-                symbols=strategy_config.symbols,
-                rebalance_period=strategy_config.rebalance_period,
-                integer_positions=True,
-                commissions=lambda q, p: 0.0,
-                backtest_field='close',
-                target_weights=strategy_config.target_weights_dict
-            )
+            # 获取基本参数
+            base_params = {
+                'symbols': strategy_config.symbols,
+                'rebalance_period': strategy_config.rebalance_period,
+                'integer_positions': True,
+                'commissions': lambda q, p: 0.0,
+                'backtest_field': 'close',
+                'initial_capital': strategy_config.initial_capital
+            }
+
+            filter_params = [
+                'start_date',
+                'end_date',
+                'strategy_cls',
+                'strategy_name',
+                'module_name'
+            ]
+            
+            # 获取额外参数
+            other_params = {k: v for k, v in strategy_config.__dict__.items() 
+                          if k not in base_params and not k.startswith('_') and k not in filter_params}
+            
+            # 合并所有参数并创建策略实例
+            strategy = strategy_cls(**base_params, **other_params)
         
         # 运行回测
         with st.spinner('运行中...'):

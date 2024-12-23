@@ -177,11 +177,13 @@ class StrategyDef:
                  name: str, 
                  symbols: Dict[SecurityType, list[str]],
                  rebalance_period: RebalancePeriod = RebalancePeriod.Daily,
-                 data_getter: DataGetter = None):
+                 data_getter: DataGetter = None,
+                 initial_capital: float = 1000000.0):
         self.data_getter = data_getter
         self.name: str = name
         self.symbols: Dict[SecurityType, list[str]] = symbols
         self.rebalance_period: RebalancePeriod = rebalance_period
+        self.initial_capital: float = initial_capital
         self.backtest_result: ffn.GroupStats = None
 
 

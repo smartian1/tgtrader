@@ -66,6 +66,9 @@ run()
 ![目标权重策略](https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/target_weight_strategy.png)
 ![目标权重策略](https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/target_weight_strategy_result.png)
 
+#### 风险平价策略
+![alt text](https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/risk_parity_strategy.png)
+
 #### 我的策略
 策略回测完成之后，可以保存到“我的策略”
 ![alt text](https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/save_strategy.png)
