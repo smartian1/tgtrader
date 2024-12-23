@@ -182,7 +182,7 @@ def view_strategy(strategy_id):
                 integer_positions=True,
                 commissions=lambda q, p: 0.0,
                 backtest_field='close',
-                weights=strategy_config.target_weights_dict
+                target_weights=strategy_config.target_weights_dict
             )
         
         # 运行回测

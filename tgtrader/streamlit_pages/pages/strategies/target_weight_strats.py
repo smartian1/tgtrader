@@ -164,7 +164,7 @@ def run(strategy_id: int = None):
                     st.error('请先回测')
                     return
                 
-                # 从session_state获取保存的数据
+                # 从sessio  n_state获取保存的数据
                 symbols = st.session_state.symbols
                 weights = st.session_state.weights
                 params = st.session_state.strategy_params
