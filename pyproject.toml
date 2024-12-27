@@ -35,7 +35,8 @@ dependencies = [
     "peewee",
     "bcrypt",
     "pydantic",
-    "streamlit-aggrid"
+    "streamlit-aggrid",
+    "duckdb"
 ]
 
 [project.urls]
