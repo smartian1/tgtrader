@@ -2,8 +2,10 @@
 
 import enum
 
+import pandas as pd
+
 class PriceAdjust(enum.Enum):
-    NO = "NO"
+    NO = "nfq"
     HFQ = "hfq"
     QFQ = "qfq"
 
@@ -30,7 +32,7 @@ class DataProvider:
     def __init__(self):
         pass
 
-    def get_data(self,
+    def get_price(self,
                  symbol_list: list[str],
                  start_date: str,
                  end_date: str,
@@ -39,6 +41,16 @@ class DataProvider:
                  adjust: str = "hfq",
                  fields: list[str] = ["open", "high", "low", "close", "volume"]):
         raise NotImplementedError
+    
+    def get_all_symbols(self, security_type: SecurityType):
+        raise NotImplementedError
 
     def standardize_symbol(self, symbol: str):
+        raise NotImplementedError
+
+    def save_data(self, 
+                  data: pd.DataFrame,
+                  security_type: SecurityType,
+                  period: Period,
+                  adjust: PriceAdjust):
         raise NotImplementedError

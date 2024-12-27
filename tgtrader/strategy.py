@@ -31,7 +31,7 @@ class PerformanceStats:
     # 期间收益
     mtd: float                      # 当月收益
     three_month: float              # 3个月收益
-    six_month: float                # 6个月收益
+    six_month: float                # 6个月��益
     ytd: float                      # 年初至今收益
     one_year: float                 # 1年收益
     three_year: float               # 3年年化收益
@@ -191,7 +191,7 @@ class StrategyDef:
         # 遍历每个证券类型，获取数据
         dfs = []
         for security_type, symbols in self.symbols.items():
-            df = self.data_getter.get_data(symbols,
+            df = self.data_getter.get_price(symbols,
                                          start_date,
                                          end_date,
                                          period=Period.Day,

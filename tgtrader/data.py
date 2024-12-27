@@ -20,7 +20,7 @@ class DataGetter:
         ret = self.provider.get_all_symbols(security_type)
         return ret
 
-    def get_data(self, 
+    def get_price(self, 
                  symbol_list: list[str], 
                  start_date: str, 
                  end_date: str,
@@ -54,4 +54,4 @@ class DataGetter:
         # 标准化symbol，因为不同数据提供者的symbol格式可能不一样
         symbol_list = [self.provider.standardize_symbol(symbol) for symbol in symbol_list]
 
-        return self.provider.get_data(symbol_list, start_date, end_date, security_type, period, adjust, fields)
+        return self.provider.get_price(symbol_list, start_date, end_date, security_type, period, adjust, fields)

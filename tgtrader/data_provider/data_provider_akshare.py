@@ -69,7 +69,7 @@ class AkshareDataProvider(DataProvider):
             return pd.DataFrame()
 
     @validate_arguments
-    def get_data(self, 
+    def get_price(self, 
                  symbol_list: list[str], 
                  start_date: str, 
                  end_date: str,

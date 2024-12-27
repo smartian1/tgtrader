@@ -102,7 +102,7 @@ symbols = [
 
 
 data_getter = DataGetter()
-df = data_getter.get_data(symbols, 
+df = data_getter.get_price(symbols, 
                             "2010-01-01", 
                             "2024-11-30", 
                             period=Period.Day, 
