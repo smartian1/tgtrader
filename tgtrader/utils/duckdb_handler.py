@@ -5,7 +5,6 @@ import duckdb
 from typing import List, Optional, Tuple
 from peewee import *
 
-from peewee import AutoField
 
 class DuckDBDatabase(Database):
 
