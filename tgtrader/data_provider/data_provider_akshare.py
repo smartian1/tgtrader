@@ -7,9 +7,18 @@ from tqdm import tqdm
 from pydantic import validate_arguments
 
 from tgtrader.common import Period, DataProvider, PriceAdjust, SecurityType
+from tgtrader.data_provider.data_provider_duckdb import DataProviderDuckDB
 
 class AkshareDataProvider(DataProvider):
     def __init__(self):
+        """
+        初始化Akshare数据提供者
+
+        Args:
+            directory_path: 存储Akshare数据文件的目录路径
+        """
+        super().__init__()
+
         # 字段名映射：标准英文名到akshare中文列名的映射
         self.field_map = {
             "date": "日期",
@@ -34,7 +43,11 @@ class AkshareDataProvider(DataProvider):
             PriceAdjust.QFQ: "qfq",
             PriceAdjust.NO: ""
         }
-    
+
+    def init_db(self):
+        DataProviderDuckDB().init_db()
+
+        
     def get_all_symbols(self, security_type: SecurityType):
         """获取所有证券代码
         Args:
@@ -184,3 +197,13 @@ class AkshareDataProvider(DataProvider):
     def standardize_symbol(self, symbol: str):
         """标准化证券代码格式"""
         return symbol
+    
+    def save_data(
+        self,
+        data: pd.DataFrame,
+        security_type: SecurityType,
+        period: Period,
+        adjust: PriceAdjust
+    ):
+        DataProviderDuckDB().save_data(data, security_type, period, adjust)
+
