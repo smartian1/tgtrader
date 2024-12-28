@@ -1,9 +1,47 @@
 # encoding: utf-8
-
 from loguru import logger
 import duckdb
 from typing import List, Optional, Tuple
 from peewee import *
+
+
+class DuckDBCursor:
+    def __init__(self, connection):
+        self.connection = connection
+        self.result = None
+        self.description = None  # 初始化 description 属性
+        self.rowcount = 0  # 初始化 rowcount 属性
+
+    def execute(self, sql, params=None):
+        if params:
+            self.result = self.connection.execute(sql, params)
+        else:
+            self.result = self.connection.execute(sql)
+        # 获取描述信息
+        if self.result:
+            self.description = self.result.description
+            self.rowcount = self.result.rowcount if hasattr(self.result, 'rowcount') else 0
+        else:
+            self.description = None
+            self.rowcount = 0
+        return self.result
+
+    def fetchone(self):
+        if self.result is not None:
+            return self.result.fetchone()
+        return None
+
+    def fetchall(self):
+        if self.result is not None:
+            return self.result.fetchall()
+        return []
+
+    def close(self):
+        """关闭游标"""
+        if self.result:
+            self.result = None
+        self.description = None
+        self.rowcount = 0
 
 
 class DuckDBDatabase(Database):
@@ -22,10 +60,9 @@ class DuckDBDatabase(Database):
         super(DuckDBDatabase, self).__init__(database, *args, **kwargs)
         self._functions = {}
         self._extensions = set()
-
-    def init(self, database, timeout=5, **kwargs):
-        self._timeout = timeout
-        super(DuckDBDatabase, self).init(database, **kwargs)
+    
+    def cursor(self):
+        return DuckDBCursor(self.connection())
 
     def _connect(self):
         try:
@@ -34,7 +71,8 @@ class DuckDBDatabase(Database):
             version_info = conn.execute("SELECT version()").fetchone()
             if version_info:
                 version_str = version_info[0][1:]
-                self.server_version = tuple(map(int, version_str.split('.')[:3]))
+                self.server_version = tuple(
+                    map(int, version_str.split('.')[:3]))
             return conn
         except duckdb.Error as e:
             logger.error(f"Failed to connect to DuckDB: {e}")
@@ -50,10 +88,9 @@ class DuckDBDatabase(Database):
 
     def execute_sql(self, sql, params=None):
         try:
-            if params:
-                return self.connection().execute(sql, params).fetchall()
-            else:
-                return self.connection().execute(sql).fetchall()
+            cursor = self.cursor()
+            cursor.execute(sql, params)
+            return cursor
         except duckdb.Error as e:
             logger.error(f"SQL execution failed: {e}")
             raise DatabaseError(e)
@@ -119,7 +156,8 @@ class DuckDBDatabase(Database):
                 "SELECT table_name FROM information_schema.tables WHERE table_schema = ?",
                 (schema or 'main',)
             )
-            return [row[0] for row in cursor]
+            rows = cursor.fetchall()
+            return [row[0] for row in rows]
         except DatabaseError as e:
             logger.error(f"Failed to retrieve tables: {e}")
             return []
@@ -139,7 +177,8 @@ class DuckDBDatabase(Database):
             )
             return [(row[0], row[1]) for row in cursor]
         except DatabaseError as e:
-            logger.error(f"Failed to retrieve columns for table '{table}': {e}")
+            logger.error(
+                f"Failed to retrieve columns for table '{table}': {e}")
             return []
 
     def get_primary_keys(self, table, schema=None):
@@ -157,7 +196,8 @@ class DuckDBDatabase(Database):
             )
             return [row[0] for row in cursor]
         except DatabaseError as e:
-            logger.error(f"Failed to retrieve primary keys for table '{table}': {e}")
+            logger.error(
+                f"Failed to retrieve primary keys for table '{table}': {e}")
             return []
 
     def get_indexes(self, table, schema=None):
@@ -175,7 +215,8 @@ class DuckDBDatabase(Database):
             )
             return [row[0] for row in cursor]
         except DatabaseError as e:
-            logger.error(f"Failed to retrieve indexes for table '{table}': {e}")
+            logger.error(
+                f"Failed to retrieve indexes for table '{table}': {e}")
             return []
 
     def get_foreign_keys(self, table, schema=None):
@@ -189,40 +230,66 @@ class DuckDBDatabase(Database):
         return []
 
     def conflict_statement(self, on_conflict, query):
-        """
-        Generate the ON CONFLICT clause for DuckDB.
+        action = on_conflict._action.lower() if on_conflict._action else ''
+        if action and action not in ('nothing', 'update'):
+            return SQL('INSERT OR %s' % on_conflict._action.upper())
 
-        DuckDB supports the following syntax:
-        ON CONFLICT (column_list) DO UPDATE SET column1 = excluded.column1, ...
+    def conflict_update(self, oc, query):
+        action = oc._action.lower() if oc._action else ''
+        if action and action not in ('nothing', 'update', ''):
+            return
 
-        :param on_conflict: A dictionary specifying conflict resolution.
-                            Example:
-                            {
-                                'columns': ['valid_from'],
-                                'update': {'value': 'excluded.value'}
-                            }
-        :param query: The query object (if needed for additional context).
-        :return: A string containing the ON CONFLICT clause.
-        """
-        if not on_conflict:
-            return ''
+        if action == 'nothing':
+            return SQL('ON CONFLICT DO NOTHING')
+        elif not oc._update and not oc._preserve:
+            raise ValueError('If you are not performing any updates (or '
+                             'preserving any INSERTed values), then the '
+                             'conflict resolution action should be set to '
+                             '"NOTHING".')
+        elif oc._conflict_constraint:
+            raise ValueError('SQLite does not support specifying named '
+                             'constraints for conflict resolution.')
+        elif not oc._conflict_target:
+            raise ValueError('SQLite requires that a conflict target be '
+                             'specified when doing an upsert.')
 
-        conflict_columns = on_conflict.get('columns', [])
-        update_dict = on_conflict.get('update', {})
+        return self._build_on_conflict_update(oc, query)
+    
+    # def conflict_statement(self, on_conflict, query):
+    #     """
+    #     Generate the ON CONFLICT clause for DuckDB.
 
-        if not conflict_columns:
-            logger.error("ON CONFLICT clause requires at least one column to specify conflict target.")
-            raise ValueError("ON CONFLICT requires at least one column.")
+    #     DuckDB supports the following syntax:
+    #     ON CONFLICT (column_list) DO UPDATE SET column1 = excluded.column1, ...
 
-        conflict_clause = f"ON CONFLICT ({', '.join(conflict_columns)})"
+    #     :param on_conflict: An OnConflict object specifying conflict resolution.
+    #     :param query: The query object (if needed for additional context).
+    #     :return: A string containing the ON CONFLICT clause.
+    #     """
+    #     if not on_conflict:
+    #         return ''
 
-        if update_dict:
-            set_clause = ', '.join([f"{col} = excluded.{col}" for col in update_dict.keys()])
-            conflict_clause += f" DO UPDATE SET {set_clause}"
-        else:
-            conflict_clause += " DO NOTHING"
+    #     conflict_target = on_conflict.conflict_target
+    #     update_dict = on_conflict.update
 
-        return conflict_clause
+    #     if not conflict_target:
+    #         logger.error(
+    #             "ON CONFLICT clause requires at least one column to specify conflict target."
+    #         )
+    #         raise ValueError("ON CONFLICT requires at least one column.")
+
+    #     conflict_clause = f"ON CONFLICT ({', '.join([col._name for col in conflict_target])})"
+
+    #     if update_dict:
+    #         set_clause = ', '.join(
+    #             [f"{col._name} = excluded.{col._name}" for col in update_dict.keys()]
+    #         )
+    #         conflict_clause += f" DO UPDATE SET {set_clause}"
+    #     else:
+    #         conflict_clause += " DO NOTHING"
+
+    #     return conflict_clause
+
 
     def truncate_date(self, date_part, date_field):
         """
@@ -271,157 +338,33 @@ class DuckDBDatabase(Database):
         """
         return cursor.rowcount if hasattr(cursor, 'rowcount') else None
 
-    def insert_with_conflict(self, table, data, on_conflict=None):
-        """
-        Insert data into a table with optional conflict resolution.
+    # def insert_with_conflict(self, table, data, on_conflict=None):
+    #     """
+    #     Insert data into a table with optional conflict resolution.
 
-        :param table: The table name.
-        :param data: A dictionary of column-value pairs to insert.
-        :param on_conflict: A dictionary specifying conflict resolution.
-                            Example:
-                            {
-                                'columns': ['valid_from'],
-                                'update': {'value': 'excluded.value'}
-                            }
-        :return: Result of the insert operation.
-        """
-        columns = ', '.join(data.keys())
-        placeholders = ', '.join(['?'] * len(data))
-        sql = f"INSERT INTO {table} ({columns}) VALUES ({placeholders})"
+    #     :param table: The table name.
+    #     :param data: A dictionary of column-value pairs to insert.
+    #     :param on_conflict: A dictionary specifying conflict resolution.
+    #                         Example:
+    #                         {
+    #                             'columns': ['valid_from'],
+    #                             'update': {'value': 'excluded.value'}
+    #                         }
+    #     :return: Result of the insert operation.
+    #     """
+    #     columns = ', '.join(data.keys())
+    #     placeholders = ', '.join(['?'] * len(data))
+    #     sql = f"INSERT INTO {table} ({columns}) VALUES ({placeholders})"
 
-        conflict_clause = self.conflict_statement(on_conflict, None)
-        if conflict_clause:
-            sql += f" {conflict_clause}"
+    #     conflict_clause = self.conflict_statement(on_conflict, None)
+    #     if conflict_clause:
+    #         sql += f" {conflict_clause}"
 
-        params = tuple(data.values())
+    #     params = tuple(data.values())
 
-        try:
-            self.execute_sql(sql, params)
-            return True
-        except DatabaseError as e:
-            logger.error(f"Failed to insert data into '{table}': {e}")
-            return False
-
-
-
-"""
-不使用peewee, 直接操作duckdb
-"""
-class DuckDBHandler:
-    """
-    DuckDB 操作类，支持基本的 CRUD 操作，并使用上下文管理器自动管理连接。
-    """
-
-    def __init__(self, db_path: Optional[str] = None):
-        """
-        初始化 DuckDBHandler。
-
-        :param db_path: 数据库文件路径。如果为 None，则使用内存数据库。
-        """
-        self.db_path = db_path
-        self.conn = None
-
-    def __enter__(self):
-        """
-        进入上下文管理器时建立数据库连接。
-        """
-        self.conn = duckdb.connect(database=self.db_path, read_only=False)
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """
-        退出上下文管理器时关闭数据库连接。
-        如果在上下文中发生异常，事务将被回滚；否则，提交事务。
-        """
-        if self.conn:
-            if exc_type is None:
-                try:
-                    self.conn.commit()
-                except Exception as e:
-                    logger.error(f"提交事务时出错: {e}")
-            else:
-                try:
-                    self.conn.rollback()
-                except Exception as e:
-                    logger.error(f"回滚事务时出错: {e}")
-            self.conn.close()
-
-    def select_one(self, query: str, params: object = None) -> Optional[Tuple]:
-        """
-        执行查询并返回单个结果。
-
-        :param query: SQL 查询语句。
-        :param params: 查询参数。
-        :return: 单个结果元组或 None。
-        """
-        try:
-            result = self.conn.execute(query, params or ()).fetchone()
-            return result
-        except Exception as e:
-            logger.exception(e)
-
-    def select_many(self, query: str, params: object = None) -> List[Tuple]:
-        """
-        执行查询并返回所有结果。
-
-        :param query: SQL 查询语句。
-        :param params: 查询参数。
-        :return: 结果元组列表。
-        """
-        try:
-            result = self.conn.execute(query, params or ()).fetchall()
-            return result
-        except Exception as e:
-            logger.exception(e)
-
-    def insert(self, query: str, params: object = None) -> bool:
-        """
-        执行单条插入操作。
-
-        :param query: SQL 插入语句。
-        :param params: 插入参数。
-        :return: 成功与否。
-        """
-        try:
-            self.conn.execute(query, params or ())
-        except Exception as e:
-            logger.exception(e)
-
-    def insert_batch(self, query: str, params_list: List[object]) -> bool:
-        """
-        执行批量插入操作。
-
-        :param query: SQL 插入语句。
-        :param params_list: 插入参数列表。
-        :return: 成功与否。
-        """
-        try:
-            self.conn.executemany(query, params_list)
-        except Exception as e:
-            logger.exception(e)
-
-    def update(self, query: str, params: object = None) -> bool:
-        """
-        执行更新操作。
-
-        :param query: SQL 更新语句。
-        :param params: 更新参数。
-        :return: 成功与否。
-        """
-        try:
-            self.conn.execute(query, params or ())
-        except Exception as e:
-            logger.exception(e)
-
-    def delete(self, query: str, params: object = None) -> bool:
-        """
-        执行删除操作。
-
-        :param query: SQL 删除语句。
-        :param params: 删除参数。
-        :return: 成功与否。
-        """
-        try:
-            self.conn.execute(query, params or ())
-        except Exception as e:
-            logger.exception(e)
+    #     try:
+    #         self.execute_sql(sql, params)
+    #         return True
+    #     except DatabaseError as e:
+    #         logger.error(f"Failed to insert data into '{table}': {e}")
+    #         return False

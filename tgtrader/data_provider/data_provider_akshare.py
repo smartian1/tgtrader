@@ -7,7 +7,6 @@ from tqdm import tqdm
 from pydantic import validate_arguments
 
 from tgtrader.common import Period, DataProvider, PriceAdjust, SecurityType
-from tgtrader.data_provider.data_provider_duckdb import DataProviderDuckDB
 
 class AkshareDataProvider(DataProvider):
     def __init__(self):
@@ -205,5 +204,4 @@ class AkshareDataProvider(DataProvider):
         period: Period,
         adjust: PriceAdjust
     ):
-        DataProviderDuckDB().save_data(data, security_type, period, adjust)
-
+        raise NotImplementedError("AkshareDataProvider does not support save_data")
