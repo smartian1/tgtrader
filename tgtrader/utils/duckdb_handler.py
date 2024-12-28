@@ -2,47 +2,12 @@
 
 from loguru import logger
 import duckdb
-from typing import Any, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
+from peewee import *
 
-
-"""
-peewee 的 Database 类不支持 DuckDB，需要自己实现一个
-"""
-import peewee
-import duckdb
-
-import duckdb
-from peewee import Database, fn, CharField, AutoField, BigIntegerField, BooleanField, DoubleField, SmallIntegerField, UUIDField, TextField, IntegerField, FloatField, TimestampField, DatabaseError
-import logging
-from datetime import datetime
-
-logger = logging.getLogger(__name__)
-
-import duckdb
-import logging
-
-# Configure the logger
-logger = logging.getLogger(__name__)
-
-# Assuming the base Database class and field types are defined elsewhere
-# from your_module import Database, AutoField, BigIntegerField, BooleanField, DoubleField,
-# SmallIntegerField, UUIDField, TextField, IntegerField, FloatField, TimestampField, CharField, DatabaseError, fn
+from peewee import AutoField
 
 class DuckDBDatabase(Database):
-    field_types = {
-        'BIGAUTO': AutoField,
-        'BIGINT': BigIntegerField,
-        'BOOL': BooleanField,
-        'DOUBLE': DoubleField,
-        'SMALLINT': SmallIntegerField,
-        'UUID': UUIDField,
-        'TEXT': TextField,
-        'INTEGER': IntegerField,
-        'FLOAT': FloatField,
-        'TIMESTAMP': TimestampField,
-        'CHAR': CharField,  # Corrected to 'CHAR' to avoid duplicate 'TEXT' key
-        # Add other necessary field types as needed
-    }
 
     operations = {
         'LIKE': 'ILIKE',  # DuckDB uses ILIKE for case-insensitive LIKE operations
@@ -69,8 +34,7 @@ class DuckDBDatabase(Database):
             # Optionally retrieve and set server_version dynamically
             version_info = conn.execute("SELECT version()").fetchone()
             if version_info:
-                # Example version string: 'DuckDB 0.3.2'
-                version_str = version_info[0].split()[1]  # Extract '0.3.2'
+                version_str = version_info[0][1:]
                 self.server_version = tuple(map(int, version_str.split('.')[:3]))
             return conn
         except duckdb.Error as e:
@@ -95,7 +59,7 @@ class DuckDBDatabase(Database):
             logger.error(f"SQL execution failed: {e}")
             raise DatabaseError(e)
 
-    def last_insert_id(self):
+    def last_insert_id(self, cursor, query_type=None):
         # DuckDB doesn't support last_insert_id() natively, so we return None
         return None
 
@@ -383,7 +347,7 @@ class DuckDBHandler:
                     logger.error(f"回滚事务时出错: {e}")
             self.conn.close()
 
-    def select_one(self, query: str, params: Optional[Tuple[Any, ...]] = None) -> Optional[Tuple]:
+    def select_one(self, query: str, params: object = None) -> Optional[Tuple]:
         """
         执行查询并返回单个结果。
 
@@ -397,7 +361,7 @@ class DuckDBHandler:
         except Exception as e:
             logger.exception(e)
 
-    def select_many(self, query: str, params: Optional[Tuple[Any, ...]] = None) -> List[Tuple]:
+    def select_many(self, query: str, params: object = None) -> List[Tuple]:
         """
         执行查询并返回所有结果。
 
@@ -411,7 +375,7 @@ class DuckDBHandler:
         except Exception as e:
             logger.exception(e)
 
-    def insert(self, query: str, params: Optional[Tuple[Any, ...]] = None) -> bool:
+    def insert(self, query: str, params: object = None) -> bool:
         """
         执行单条插入操作。
 
@@ -424,7 +388,7 @@ class DuckDBHandler:
         except Exception as e:
             logger.exception(e)
 
-    def insert_batch(self, query: str, params_list: List[Tuple[Any, ...]]) -> bool:
+    def insert_batch(self, query: str, params_list: List[object]) -> bool:
         """
         执行批量插入操作。
 
@@ -437,7 +401,7 @@ class DuckDBHandler:
         except Exception as e:
             logger.exception(e)
 
-    def update(self, query: str, params: Optional[Tuple[Any, ...]] = None) -> bool:
+    def update(self, query: str, params: object = None) -> bool:
         """
         执行更新操作。
 
@@ -450,7 +414,7 @@ class DuckDBHandler:
         except Exception as e:
             logger.exception(e)
 
-    def delete(self, query: str, params: Optional[Tuple[Any, ...]] = None) -> bool:
+    def delete(self, query: str, params: object = None) -> bool:
         """
         执行删除操作。
 
