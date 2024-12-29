@@ -5,8 +5,11 @@ import pandas as pd
 from loguru import logger
 from tqdm import tqdm
 from pydantic import validate_arguments
+import time
 
 from tgtrader.common import Period, DataProvider, PriceAdjust, SecurityType
+from tgtrader.database import main_db, T_KData, T_Meta
+from tgtrader.data_provider.service.akshare_data_service import AkshareDataService
 
 class AkshareDataProvider(DataProvider):
     def __init__(self):
@@ -17,6 +20,7 @@ class AkshareDataProvider(DataProvider):
             directory_path: 存储Akshare数据文件的目录路径
         """
         super().__init__()
+        self.data_service = AkshareDataService()
 
         # 字段名映射：标准英文名到akshare中文列名的映射
         self.field_map = {
@@ -200,4 +204,35 @@ class AkshareDataProvider(DataProvider):
         period: Period,
         adjust: PriceAdjust
     ):
-        raise NotImplementedError("AkshareDataProvider does not support save_data")
+        """保存数据到数据库
+        
+        Args:
+            data: DataFrame with MultiIndex(code, date)
+            security_type: 证券类型
+            period: 周期
+            adjust: 复权方式
+        """
+        try:
+            if data.empty:
+                logger.warning("No data to save")
+                return
+            
+            # 保存K线数据
+            self.data_service.batch_save_kdata(
+                data=data,
+                adjust=adjust
+            )
+            
+            # 更新元信息
+            start_time = data.reset_index()['date'].min().strftime('%Y-%m-%d')
+            end_time = data.reset_index()['date'].max().strftime('%Y-%m-%d')
+            self.data_service.update_meta_info(
+                security_type=security_type,
+                period=period,
+                start_time=start_time,
+                end_time=end_time
+            )
+            
+        except Exception as e:
+            logger.error(f"Error saving data to database: {str(e)}")
+        

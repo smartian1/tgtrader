@@ -1,10 +1,12 @@
 # encoding: utf-8
 from peewee import *
-from tgtrader.data_provider.dao.common import BaseModel, main_db
+from tgtrader.data_provider.dao.akshare.common import BaseModel, main_db
 
 class T_Meta(BaseModel):
     # 数据类型
     data_type = CharField()
+    # 时间周期
+    period = CharField()
     # 数据来源
     source = CharField()
     # 起始时间
@@ -19,7 +21,7 @@ class T_Meta(BaseModel):
     update_time = BigIntegerField()
 
     class Meta:
-        primary_key = CompositeKey('data_type', 'source')
+        primary_key = CompositeKey('data_type', 'period', 'source')
         table_name = 't_meta'
 
     @classmethod
