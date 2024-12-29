@@ -42,10 +42,6 @@ class AkshareDataProvider(DataProvider):
             PriceAdjust.QFQ: "qfq",
             PriceAdjust.NO: ""
         }
-
-    def init_db(self):
-        DataProviderDuckDB().init_db()
-
         
     def get_all_symbols(self, security_type: SecurityType):
         """获取所有证券代码

@@ -9,37 +9,26 @@ class DuckDBCursor:
     def __init__(self, connection):
         self.connection = connection
         self.result = None
-        self.description = None  # 初始化 description 属性
-        self.rowcount = 0  # 初始化 rowcount 属性
+        self.description = None
+        self.rowcount = 0
 
     def execute(self, sql, params=None):
         if params:
             self.result = self.connection.execute(sql, params)
         else:
             self.result = self.connection.execute(sql)
-        # 获取描述信息
-        if self.result:
-            self.description = self.result.description
-            self.rowcount = self.result.rowcount if hasattr(self.result, 'rowcount') else 0
-        else:
-            self.description = None
-            self.rowcount = 0
+        self.description = self.result.description if self.result else None
+        self.rowcount = self.result.rowcount if self.result else 0
         return self.result
 
     def fetchone(self):
-        if self.result is not None:
-            return self.result.fetchone()
-        return None
+        return self.result.fetchone() if self.result else None
 
     def fetchall(self):
-        if self.result is not None:
-            return self.result.fetchall()
-        return []
+        return self.result.fetchall() if self.result else []
 
     def close(self):
-        """关闭游标"""
-        if self.result:
-            self.result = None
+        self.result = None
         self.description = None
         self.rowcount = 0
 
@@ -60,9 +49,19 @@ class DuckDBDatabase(Database):
         super(DuckDBDatabase, self).__init__(database, *args, **kwargs)
         self._functions = {}
         self._extensions = set()
+
+    def __enter__(self):
+        if self.is_closed():
+            self.connect()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if not self.is_closed():
+            self.close()
     
     def cursor(self):
         return DuckDBCursor(self.connection())
+
 
     def _connect(self):
         try:
@@ -78,13 +77,14 @@ class DuckDBDatabase(Database):
             logger.error(f"Failed to connect to DuckDB: {e}")
             raise DatabaseError(e)
 
-    def close(self):
+    def _close(self, conn):
         try:
             if not self.is_closed():
-                self.connection().close()
+                conn.close()
         except duckdb.Error as e:
             logger.error(f"Failed to close DuckDB connection: {e}")
             raise DatabaseError(e)
+
 
     def execute_sql(self, sql, params=None):
         try:

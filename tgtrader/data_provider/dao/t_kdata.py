@@ -4,7 +4,7 @@ from tgtrader.data_provider.dao.common import BaseModel, main_db
 
 class T_KData(BaseModel):
     # 股票代码
-    code = CharField(max_length=64)
+    code = CharField()
     # 日期
     date = CharField()
     # 开盘价
@@ -18,14 +18,16 @@ class T_KData(BaseModel):
     # 成交量
     volume = FloatField()
     # 复权方式
-    adjust_type = CharField(max_length=64)
+    adjust_type = CharField()
+    # 来源
+    source = CharField()
     # 创建时间
     create_time = BigIntegerField()
     # 更新时间
     update_time = BigIntegerField()
 
     class Meta:
-        primary_key = CompositeKey('code', 'date')
+        primary_key = CompositeKey('code', 'date', 'source')
         table_name = 't_kdata'
 
     @classmethod
