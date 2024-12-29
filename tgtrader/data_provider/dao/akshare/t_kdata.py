@@ -2,7 +2,7 @@
 from peewee import *
 from tqdm import tqdm
 from loguru import logger
-from tgtrader.data_provider.dao.common import BaseModel, main_db
+from tgtrader.data_provider.dao.akshare.common import BaseModel, main_db
 
 class T_KData(BaseModel):
     # 股票代码

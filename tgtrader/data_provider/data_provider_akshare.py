@@ -8,7 +8,6 @@ from pydantic import validate_arguments
 import time
 
 from tgtrader.common import Period, DataProvider, PriceAdjust, SecurityType
-from tgtrader.database import main_db, T_KData, T_Meta
 from tgtrader.data_provider.service.akshare_data_service import AkshareDataService
 
 class AkshareDataProvider(DataProvider):
