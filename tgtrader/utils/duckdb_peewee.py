@@ -120,30 +120,6 @@ class DuckDBDatabase(Database):
             logger.error(f"Failed to rollback transaction: {e}")
             raise DatabaseError(e)
 
-    def register_function(self, fn, name=None, num_params=-1, deterministic=None):
-        name = name or fn.__name__
-        self._functions[name] = (fn, num_params, deterministic)
-        if not self.is_closed():
-            self._load_functions(self.connection())
-
-    def _load_functions(self, conn):
-        for name, (fn, n_params, deterministic) in self._functions.items():
-            try:
-                conn.create_function(name, n_params, fn)
-            except duckdb.Error as e:
-                logger.error(f"Failed to load function '{name}': {e}")
-                raise DatabaseError(e)
-
-    def load_extension(self, extension):
-        self._extensions.add(extension)
-        if not self.is_closed():
-            conn = self.connection()
-            try:
-                conn.load_extension(extension)
-            except duckdb.Error as e:
-                logger.error(f"Failed to load extension '{extension}': {e}")
-                raise DatabaseError(e)
-
     def get_tables(self, schema=None):
         """
         Retrieve a list of table names from the specified schema.
@@ -254,42 +230,6 @@ class DuckDBDatabase(Database):
                              'specified when doing an upsert.')
 
         return self._build_on_conflict_update(oc, query)
-    
-    # def conflict_statement(self, on_conflict, query):
-    #     """
-    #     Generate the ON CONFLICT clause for DuckDB.
-
-    #     DuckDB supports the following syntax:
-    #     ON CONFLICT (column_list) DO UPDATE SET column1 = excluded.column1, ...
-
-    #     :param on_conflict: An OnConflict object specifying conflict resolution.
-    #     :param query: The query object (if needed for additional context).
-    #     :return: A string containing the ON CONFLICT clause.
-    #     """
-    #     if not on_conflict:
-    #         return ''
-
-    #     conflict_target = on_conflict.conflict_target
-    #     update_dict = on_conflict.update
-
-    #     if not conflict_target:
-    #         logger.error(
-    #             "ON CONFLICT clause requires at least one column to specify conflict target."
-    #         )
-    #         raise ValueError("ON CONFLICT requires at least one column.")
-
-    #     conflict_clause = f"ON CONFLICT ({', '.join([col._name for col in conflict_target])})"
-
-    #     if update_dict:
-    #         set_clause = ', '.join(
-    #             [f"{col._name} = excluded.{col._name}" for col in update_dict.keys()]
-    #         )
-    #         conflict_clause += f" DO UPDATE SET {set_clause}"
-    #     else:
-    #         conflict_clause += " DO NOTHING"
-
-    #     return conflict_clause
-
 
     def truncate_date(self, date_part, date_field):
         """
@@ -337,34 +277,3 @@ class DuckDBDatabase(Database):
         :return: Number of rows affected or None.
         """
         return cursor.rowcount if hasattr(cursor, 'rowcount') else None
-
-    # def insert_with_conflict(self, table, data, on_conflict=None):
-    #     """
-    #     Insert data into a table with optional conflict resolution.
-
-    #     :param table: The table name.
-    #     :param data: A dictionary of column-value pairs to insert.
-    #     :param on_conflict: A dictionary specifying conflict resolution.
-    #                         Example:
-    #                         {
-    #                             'columns': ['valid_from'],
-    #                             'update': {'value': 'excluded.value'}
-    #                         }
-    #     :return: Result of the insert operation.
-    #     """
-    #     columns = ', '.join(data.keys())
-    #     placeholders = ', '.join(['?'] * len(data))
-    #     sql = f"INSERT INTO {table} ({columns}) VALUES ({placeholders})"
-
-    #     conflict_clause = self.conflict_statement(on_conflict, None)
-    #     if conflict_clause:
-    #         sql += f" {conflict_clause}"
-
-    #     params = tuple(data.values())
-
-    #     try:
-    #         self.execute_sql(sql, params)
-    #         return True
-    #     except DatabaseError as e:
-    #         logger.error(f"Failed to insert data into '{table}': {e}")
-    #         return False
