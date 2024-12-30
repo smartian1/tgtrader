@@ -14,9 +14,14 @@ from tgtrader.data_provider.service.data_service import DataService
 class AkshareDataService(DataService):
     """Akshare数据服务实现类"""
 
+    @classmethod
+    def init_data(cls):
+        """初始化数据"""
+        with main_db:
+            main_db.create_tables([T_Meta, T_KData])
+
     def batch_save_kdata(self,
                         data: Optional[pd.DataFrame] = None,
-                        data_list: Optional[List[dict]] = None,
                         adjust: Optional[PriceAdjust] = None,
                         source: str = 'akshare',
                         batch_size: int = 1000) -> int:
@@ -85,20 +90,20 @@ class AkshareDataService(DataService):
             raise
 
     def update_meta_info(self, 
+                        meta_name: str,
                         security_type: SecurityType,
                         period: Period,
                         start_time: str,
                         end_time: str,
-                        source: str = 'akshare') -> bool:
+                        source: str = 'akshare',
+                        table_name: str = 't_kdata') -> bool:
         """更新元数据信息"""
         try:
-            data_type = security_type.value
+            meta_name = meta_name
             
             # 查询现有的元信息记录
             existing_meta = T_Meta.select().where(
-                T_Meta.data_type == data_type,
-                T_Meta.period == period.value,
-                T_Meta.source == source
+                T_Meta.meta_name == meta_name
             ).first()
             
             # 合并时间范围
@@ -111,19 +116,20 @@ class AkshareDataService(DataService):
 
             current_time = int(time.time() * 1000)
             meta_data = {
-                'data_type': data_type,
+                'meta_name': meta_name,
+                'security_type': security_type.value,
                 'period': period.value,
                 'source': source,
                 'start_time': merged_start,
                 'end_time': merged_end,
-                'table_name': 't_kdata',
+                'table_name': table_name,
                 'create_time': current_time,
                 'update_time': current_time
             }
             
             # 插入或更新元信息
             T_Meta.insert(**meta_data).on_conflict(
-                conflict_target=[T_Meta.data_type, T_Meta.period, T_Meta.source],
+                conflict_target=[T_Meta.meta_name],
                 action='UPDATE',
                 update={
                     T_Meta.start_time: meta_data['start_time'],
@@ -132,7 +138,15 @@ class AkshareDataService(DataService):
                 }
             ).execute()
             
-            logger.info(f"Successfully updated meta information for {data_type} {period.value}")
+            logger.info(
+                f"Successfully updated meta information for {meta_name}, "
+                f"security_type: {security_type.value}, "
+                f"period: {period.value}, "
+                f"source: {source}, "
+                f"start_time: {merged_start}, "
+                f"end_time: {merged_end}, "
+                f"table_name: {table_name}"
+            )
             return True
             
         except Exception as e:

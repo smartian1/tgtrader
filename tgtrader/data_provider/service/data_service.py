@@ -12,7 +12,6 @@ class DataService(ABC):
     @abstractmethod
     def batch_save_kdata(self, 
                         data: Optional[pd.DataFrame] = None,
-                        data_list: Optional[List[dict]] = None,
                         adjust: Optional[PriceAdjust] = None,
                         source: str = 'akshare',
                         batch_size: int = 1000) -> int:
@@ -32,20 +31,23 @@ class DataService(ABC):
 
     @abstractmethod
     def update_meta_info(self, 
+                        meta_name: str,
                         security_type: SecurityType,
                         period: Period,
                         start_time: str,
                         end_time: str,
-                        source: str) -> bool:
+                        source: str,
+                        table_name: str) -> bool:
         """更新元数据信息
 
         Args:
+            meta_name: 元数据名称
             security_type: 证券类型
             period: 周期
             start_time: 开始时间 YYYY-MM-DD
             end_time: 结束时间 YYYY-MM-DD
             source: 数据来源
-
+            table_name: 表名
         Returns:
             bool: 是否更新成功
         """

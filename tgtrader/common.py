@@ -1,5 +1,6 @@
 # encoding: utf-8
 
+from abc import abstractmethod
 import enum
 
 import pandas as pd
@@ -54,9 +55,12 @@ class DataProvider:
     def standardize_symbol(self, symbol: str):
         raise NotImplementedError
 
-    def save_data(self, 
-                  data: pd.DataFrame,
-                  security_type: SecurityType,
-                  period: Period,
-                  adjust: PriceAdjust):
+    @abstractmethod
+    def save_price_data(
+            self,
+            data: pd.DataFrame,
+            security_type: SecurityType,
+            period: Period,
+            adjust: PriceAdjust
+    ):
         raise NotImplementedError

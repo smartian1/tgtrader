@@ -6,7 +6,7 @@ from loguru import logger
 from tgtrader.utils.duckdb_peewee import DuckDBDatabase
 
 
-db_path = './data/main_data.db'
+db_path = './data/akshare_data.db'
 main_db = DuckDBDatabase(db_path)
 
 

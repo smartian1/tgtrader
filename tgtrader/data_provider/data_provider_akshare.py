@@ -196,7 +196,7 @@ class AkshareDataProvider(DataProvider):
         """标准化证券代码格式"""
         return symbol
     
-    def save_data(
+    def save_price_data(
         self,
         data: pd.DataFrame,
         security_type: SecurityType,
@@ -219,17 +219,23 @@ class AkshareDataProvider(DataProvider):
             # 保存K线数据
             self.data_service.batch_save_kdata(
                 data=data,
-                adjust=adjust
+                adjust=adjust,
+                source='akshare',
+                batch_size=1000
             )
             
             # 更新元信息
             start_time = data.reset_index()['date'].min().strftime('%Y-%m-%d')
             end_time = data.reset_index()['date'].max().strftime('%Y-%m-%d')
+            meta_name = f"{security_type.value}_{period.value}_{adjust.value}_kdata"
             self.data_service.update_meta_info(
+                meta_name=meta_name,
                 security_type=security_type,
                 period=period,
                 start_time=start_time,
-                end_time=end_time
+                end_time=end_time,
+                source='akshare',
+                table_name='t_kdata'
             )
             
         except Exception as e:
