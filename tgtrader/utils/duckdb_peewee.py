@@ -82,8 +82,7 @@ class DuckDBDatabase(Database):
             if not self.is_closed():
                 conn.close()
         except duckdb.Error as e:
-            logger.error(f"Failed to close DuckDB connection: {e}")
-            raise DatabaseError(e)
+            raise e
 
 
     def execute_sql(self, sql, params=None):
@@ -92,8 +91,7 @@ class DuckDBDatabase(Database):
             cursor.execute(sql, params)
             return cursor
         except duckdb.Error as e:
-            logger.error(f"SQL execution failed: {e}")
-            raise DatabaseError(e)
+            raise e
 
     def last_insert_id(self, cursor, query_type=None):
         # DuckDB doesn't support last_insert_id() natively, so we return None
@@ -103,22 +101,19 @@ class DuckDBDatabase(Database):
         try:
             self.connection().execute('BEGIN')
         except duckdb.Error as e:
-            logger.error(f"Failed to begin transaction: {e}")
-            raise DatabaseError(e)
+            raise e
 
     def _commit(self):
         try:
             self.connection().commit()
         except duckdb.Error as e:
-            logger.error(f"Failed to commit transaction: {e}")
-            raise DatabaseError(e)
+            raise e
 
     def _rollback(self):
         try:
             self.connection().rollback()
         except duckdb.Error as e:
-            logger.error(f"Failed to rollback transaction: {e}")
-            raise DatabaseError(e)
+            raise e
 
     def get_tables(self, schema=None):
         """
@@ -135,8 +130,7 @@ class DuckDBDatabase(Database):
             rows = cursor.fetchall()
             return [row[0] for row in rows]
         except DatabaseError as e:
-            logger.error(f"Failed to retrieve tables: {e}")
-            return []
+            raise e
 
     def get_columns(self, table, schema=None):
         """
@@ -153,9 +147,7 @@ class DuckDBDatabase(Database):
             )
             return [(row[0], row[1]) for row in cursor]
         except DatabaseError as e:
-            logger.error(
-                f"Failed to retrieve columns for table '{table}': {e}")
-            return []
+            raise e
 
     def get_primary_keys(self, table, schema=None):
         """
@@ -172,9 +164,7 @@ class DuckDBDatabase(Database):
             )
             return [row[0] for row in cursor]
         except DatabaseError as e:
-            logger.error(
-                f"Failed to retrieve primary keys for table '{table}': {e}")
-            return []
+            raise e
 
     def get_indexes(self, table, schema=None):
         """
@@ -191,9 +181,7 @@ class DuckDBDatabase(Database):
             )
             return [row[0] for row in cursor]
         except DatabaseError as e:
-            logger.error(
-                f"Failed to retrieve indexes for table '{table}': {e}")
-            return []
+            raise e
 
     def get_foreign_keys(self, table, schema=None):
         """
