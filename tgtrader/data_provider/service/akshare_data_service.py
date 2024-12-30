@@ -4,6 +4,7 @@ import pandas as pd
 from tqdm import tqdm
 from loguru import logger
 import time
+from peewee import SQL
 
 from tgtrader.data_provider.dao.akshare.common import main_db
 from tgtrader.data_provider.dao.akshare.t_kdata import T_KData
@@ -71,13 +72,13 @@ class AkshareDataService(DataService):
                         conflict_target=[T_KData.code, T_KData.date, T_KData.source],
                         action='UPDATE',
                         update={
-                            T_KData.open: T_KData.open,
-                            T_KData.high: T_KData.high,
-                            T_KData.low: T_KData.low,
-                            T_KData.close: T_KData.close,
-                            T_KData.volume: T_KData.volume,
-                            T_KData.adjust_type: T_KData.adjust_type,
-                            T_KData.update_time: T_KData.update_time
+                            T_KData.open: SQL('EXCLUDED.open'),
+                            T_KData.high: SQL('EXCLUDED.high'),
+                            T_KData.low: SQL('EXCLUDED.low'),
+                            T_KData.close: SQL('EXCLUDED.close'),
+                            T_KData.volume: SQL('EXCLUDED.volume'),
+                            T_KData.adjust_type: SQL('EXCLUDED.adjust_type'),
+                            T_KData.update_time: SQL('EXCLUDED.update_time')
                         }
                     ).execute()
                     total_count += len(batch)
@@ -132,9 +133,9 @@ class AkshareDataService(DataService):
                 conflict_target=[T_Meta.meta_name],
                 action='UPDATE',
                 update={
-                    T_Meta.start_time: meta_data['start_time'],
-                    T_Meta.end_time: meta_data['end_time'],
-                    T_Meta.update_time: meta_data['update_time']
+                    T_Meta.start_time: SQL('EXCLUDED.start_time'),
+                    T_Meta.end_time: SQL('EXCLUDED.end_time'),
+                    T_Meta.update_time: SQL('EXCLUDED.update_time')
                 }
             ).execute()
             
