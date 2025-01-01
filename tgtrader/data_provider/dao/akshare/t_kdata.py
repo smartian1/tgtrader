@@ -3,13 +3,13 @@ from peewee import *
 from tqdm import tqdm
 from loguru import logger
 from tgtrader.common import DataSource
-from tgtrader.data_provider.dao.akshare.common import BaseModel, main_db
+from tgtrader.data_provider.dao.akshare.common import main_db
 from tgtrader.data_provider.dao.models.common import register_model
 from tgtrader.data_provider.dao.models.t_kdata_model import T_KData_Model
 
 
 @register_model(DataSource.Akshare, 't_kdata')
-class T_KData(BaseModel, T_KData_Model):
+class T_KData(T_KData_Model):
 
     @classmethod
     def init_table(cls):

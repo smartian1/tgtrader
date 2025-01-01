@@ -48,7 +48,7 @@ class DataProvider:
         pass
 
     @classmethod
-    def get_provider(cls, data_source: DataSource):
+    def get_provider(cls, data_source: DataSource) -> 'DataProvider':
         """获取数据提供者"""
         if data_source == DataSource.Akshare:
             from tgtrader.data_provider.data_provider_akshare import AkshareDataProvider
@@ -69,7 +69,8 @@ class DataProvider:
                  security_type: SecurityType,
                  period: Period = Period.Day,
                  adjust: str = "hfq",
-                 fields: list[str] = ["open", "high", "low", "close", "volume"]):
+                 fields: list[str] = ["open", "high", "low", "close", "volume"],
+                 multi_thread_cnt: int = -1):
         raise NotImplementedError
     
     def get_all_symbols(self, security_type: SecurityType):
@@ -97,7 +98,7 @@ class DataDbService(ABC):
         raise NotImplementedError
 
     @classmethod
-    def get_data_service(cls, data_source: DataSource):
+    def get_data_service(cls, data_source: DataSource) -> 'DataDbService':
         """获取数据服务"""
         if data_source == DataSource.Akshare:
             from tgtrader.data_provider.service.akshare_data_service import AkshareDataService
@@ -110,7 +111,7 @@ class DataDbService(ABC):
                          data: Optional[pd.DataFrame] = None,
                          adjust: Optional[PriceAdjust] = None,
                          source: str = 'akshare',
-                         batch_size: int = 1000) -> int:
+                         batch_size: int = 100000) -> int:
         """批量保存K线数据
 
         Args:

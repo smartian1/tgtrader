@@ -28,7 +28,7 @@ class AkshareDataService(DataDbService):
                         data: Optional[pd.DataFrame] = None,
                         adjust: Optional[PriceAdjust] = None,
                         source: str = 'akshare',
-                        batch_size: int = 1000) -> int:
+                        batch_size: int = 100000) -> int:
         """批量保存K线数据"""
         try:
             # 如果传入DataFrame，转换为data_list
@@ -120,7 +120,7 @@ class AkshareDataService(DataDbService):
                     merged_end = end_time
 
                 # 获取总数据量
-                total_count = ModelRegister.get_model(DataSource.Akshare, table_name).count()
+                total_count = ModelRegister.get_model(DataSource.Akshare, table_name).select().count()
 
                 current_time = int(time.time() * 1000)
                 meta_data = {

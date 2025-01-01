@@ -1,13 +1,12 @@
 # encoding: utf-8
-from peewee import *
 from tgtrader.common import DataSource
-from tgtrader.data_provider.dao.akshare.common import BaseModel, main_db
+from tgtrader.data_provider.dao.akshare.common import main_db
 from tgtrader.data_provider.dao.models.t_meta_model import T_Meta_Model
 from tgtrader.data_provider.dao.models.common import register_model
 
 
 @register_model(DataSource.Akshare, 't_meta')
-class T_Meta(BaseModel, T_Meta_Model):
+class T_Meta(T_Meta_Model):
     
     @classmethod
     def init_table(cls):

@@ -1,8 +1,11 @@
 # encoding: utf-8
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import akshare as ak
+from more_itertools import chunked
 import pandas as pd
 from loguru import logger
+from tenacity import retry, stop_after_attempt, wait_exponential, wait_fixed
 from tqdm import tqdm
 from pydantic import validate_arguments
 import time
@@ -79,41 +82,65 @@ class AkshareDataProvider(DataProvider):
             logger.error(f"Error getting symbols: {str(e)}")
             return pd.DataFrame()
 
+    @retry(stop=stop_after_attempt(10), wait=wait_fixed(10))
     @validate_arguments
-    def get_price(self, 
-                 symbol_list: list[str], 
-                 start_date: str, 
-                 end_date: str,
-                 security_type: SecurityType, 
-                 period: Period = Period.Day, 
-                 adjust: PriceAdjust = PriceAdjust.HFQ, 
-                 fields: list[str] = ["open", "high", "low", "close", "volume"]):
-        """获取证券数据，支持ETF和股票
-        
-        Args:
-            symbol_list: 证券代码列表
-            start_date: 开始日期，格式：YYYY-MM-DD
-            end_date: 结束日期，格式：YYYY-MM-DD
-            period: 周期，默认为日线数据
-            adjust: 复权方式，默认为后复权
-            fields: 需要的字段列表
-            security_type: 证券类型，默认为ETF
-            
-        Returns:
-            DataFrame with MultiIndex(code, date)
-        """
+    def get_price(self,
+                  symbol_list: list[str],
+                  start_date: str,
+                  end_date: str,
+                  security_type: SecurityType,
+                  period: Period = Period.Day,
+                  adjust: PriceAdjust = PriceAdjust.HFQ,
+                  fields: list[str] = [
+                      "open", "high", "low", "close", "volume"],
+                  multi_thread_cnt: int = -1):
+        """获取证券数据，支持ETF和股票"""
         fields = ["date"] + fields
-        
         try:
-            if security_type == SecurityType.ETF:
-                return self._get_etf_data(symbol_list, start_date, end_date, 
-                                        period, adjust, fields)
-            elif security_type == SecurityType.Stocks:
-                return self._get_stock_data(symbol_list, start_date, end_date, 
-                                          period, adjust, fields)
+            if multi_thread_cnt != -1:
+                # 将symbol_list分块，每个并行任务处理一个块
+                chunk_size = max(1, len(symbol_list) // multi_thread_cnt)
+                symbol_chunks = list(chunked(symbol_list, chunk_size))
+                results = []
+
+                with ThreadPoolExecutor(max_workers=multi_thread_cnt) as executor:
+                    if security_type == SecurityType.ETF:
+                        futures = [
+                            executor.submit(self._get_etf_data, chunk, start_date, end_date, period, adjust, fields)
+                            for chunk in symbol_chunks
+                        ]
+                    elif security_type == SecurityType.Stocks:
+                        futures = [
+                            executor.submit(self._get_stock_data, chunk, start_date, end_date, period, adjust, fields)
+                            for chunk in symbol_chunks
+                        ]
+                    else:
+                        logger.error(f"Unsupported security type: {security_type}")
+                        return pd.DataFrame()
+
+                    # 获取所有future的结果
+                    for future in as_completed(futures):
+                        try:
+                            result = future.result()
+                            if not result.empty:
+                                results.append(result)
+                        except Exception as e:
+                            logger.error(f"Error in thread execution: {str(e)}")
+
+                # 合并所有结果
+                if not results:
+                    return pd.DataFrame()
+                return pd.concat(results, axis=0)
             else:
-                logger.error(f"Unsupported security type: {security_type}")
-                return pd.DataFrame()
+                if security_type == SecurityType.ETF:
+                    return self._get_etf_data(symbol_list, start_date, end_date,
+                                            period, adjust, fields)
+                elif security_type == SecurityType.Stocks:
+                    return self._get_stock_data(symbol_list, start_date, end_date,
+                                                period, adjust, fields)
+                else:
+                    logger.error(f"Unsupported security type: {security_type}")
+                    return pd.DataFrame()
         except Exception as e:
             logger.error(f"Error fetching data: {str(e)}")
             return pd.DataFrame()
@@ -221,7 +248,7 @@ class AkshareDataProvider(DataProvider):
                 data=data,
                 adjust=adjust,
                 source='akshare',
-                batch_size=1000
+                batch_size=100000
             )
             
             # 更新元信息

@@ -1,5 +1,6 @@
 # encoding: utf-8
 from peewee import *
+from tgtrader.data_provider.dao.akshare.common import main_db
 
 class T_Meta_Model(Model):
     # 元数据名称
@@ -24,5 +25,6 @@ class T_Meta_Model(Model):
     update_time = BigIntegerField()
 
     class Meta:
+        database = main_db
         primary_key = CompositeKey('meta_name')
         table_name = 't_meta'
