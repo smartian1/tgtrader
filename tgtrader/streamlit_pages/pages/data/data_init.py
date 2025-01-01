@@ -59,8 +59,13 @@ def update_price_data(security_type: SecurityType,
     fetch_time_ranges = __get_fetch_time_range(meta_info)
 
     progress_bar = st.progress(0)
+    status_text = st.empty()
+    
     for i, (start_time, end_time) in enumerate(fetch_time_ranges):
-        progress_bar.progress(i / len(fetch_time_ranges))
+        progress = i / len(fetch_time_ranges)
+        progress_bar.progress(progress)
+        status_text.text(f"更新数据： {start_time} 至 {end_time}...")
+        
         df = data_provider.get_price(all_symbols,
                                      start_time,
                                      end_time,
@@ -75,7 +80,11 @@ def update_price_data(security_type: SecurityType,
         time.sleep(0.1)
         
     progress_bar.progress(1.0)
+    status_text.text("更新完成!")
+    time.sleep(1)
+    
     progress_bar.empty()
+    status_text.empty()
 
     st.rerun()
 
