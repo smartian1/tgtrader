@@ -10,6 +10,8 @@ from tgtrader.data_provider.dao.models.t_kdata_model import T_KData_Model
 
 @register_model(DataSource.Akshare, 't_kdata')
 class T_KData(T_KData_Model):
+    class Meta:
+        database = main_db
 
     @classmethod
     def init_table(cls):

@@ -56,11 +56,13 @@ def update_price_data(security_type: SecurityType,
     all_symbols = data_provider.get_all_symbols(security_type)
     all_symbols = list(all_symbols['code'])
 
+    all_symbols = all_symbols[:10]
+
     fetch_time_ranges = __get_fetch_time_range(meta_info)
 
     progress_bar = st.progress(0)
     status_text = st.empty()
-    
+
     for i, (start_time, end_time) in enumerate(fetch_time_ranges):
         progress = i / len(fetch_time_ranges)
         progress_bar.progress(progress)

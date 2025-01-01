@@ -26,6 +26,5 @@ class T_KData_Model(Model):
     update_time = BigIntegerField()
 
     class Meta:
-        database = main_db
         primary_key = CompositeKey('code', 'date', 'source')
         table_name = 't_kdata'

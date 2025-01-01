@@ -56,12 +56,6 @@ class DataProvider:
         else:
             raise NotImplementedError(f'数据源 {data_source} 不支持')
 
-    def init_db(self):
-        """
-        初始化数据库以及表（即使是外部数据源，如果需要保存到本地，也需要初始化）
-        """
-        raise NotImplementedError
-
     def get_price(self,
                  symbol_list: list[str],
                  start_date: str,

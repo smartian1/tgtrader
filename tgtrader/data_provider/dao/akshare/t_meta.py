@@ -7,6 +7,8 @@ from tgtrader.data_provider.dao.models.common import register_model
 
 @register_model(DataSource.Akshare, 't_meta')
 class T_Meta(T_Meta_Model):
+    class Meta:
+        database = main_db
     
     @classmethod
     def init_table(cls):

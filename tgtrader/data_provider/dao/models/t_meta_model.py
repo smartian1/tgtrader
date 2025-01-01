@@ -25,6 +25,5 @@ class T_Meta_Model(Model):
     update_time = BigIntegerField()
 
     class Meta:
-        database = main_db
         primary_key = CompositeKey('meta_name')
         table_name = 't_meta'
