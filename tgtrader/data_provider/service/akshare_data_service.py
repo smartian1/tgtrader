@@ -9,14 +9,17 @@ from peewee import SQL
 from tgtrader.data_provider.dao.akshare.common import main_db
 from tgtrader.data_provider.dao.akshare.t_kdata import T_KData
 from tgtrader.data_provider.dao.akshare.t_meta import T_Meta
-from tgtrader.common import SecurityType, Period, PriceAdjust
-from tgtrader.data_provider.service.data_service import DataService
+from tgtrader.common import DataSource, MetaType, SecurityType, Period, PriceAdjust
+from tgtrader.common import DataDbService
+from tgtrader.data_provider.dao.models.common import ModelRegister
+from tgtrader.data_provider.dao.models.t_meta_model import T_Meta_Model
 
-class AkshareDataService(DataService):
+
+class AkshareDataService(DataDbService):
     """Akshare数据服务实现类"""
-
+    
     @classmethod
-    def init_data(cls):
+    def init_database(cls):
         """初始化数据"""
         with main_db:
             main_db.create_tables([T_Meta, T_KData])
@@ -91,7 +94,7 @@ class AkshareDataService(DataService):
             raise
 
     def update_meta_info(self, 
-                        meta_name: str,
+                        meta_type: MetaType,
                         security_type: SecurityType,
                         period: Period,
                         start_time: str,
@@ -100,56 +103,71 @@ class AkshareDataService(DataService):
                         table_name: str = 't_kdata') -> bool:
         """更新元数据信息"""
         try:
-            meta_name = meta_name
-            
-            # 查询现有的元信息记录
-            existing_meta = T_Meta.select().where(
-                T_Meta.meta_name == meta_name
-            ).first()
-            
-            # 合并时间范围
-            if existing_meta:
-                merged_start = min(existing_meta.start_time, start_time)
-                merged_end = max(existing_meta.end_time, end_time)
-            else:
-                merged_start = start_time
-                merged_end = end_time
+            meta_name = meta_type.value
 
-            current_time = int(time.time() * 1000)
-            meta_data = {
-                'meta_name': meta_name,
-                'security_type': security_type.value,
-                'period': period.value,
-                'source': source,
-                'start_time': merged_start,
-                'end_time': merged_end,
-                'table_name': table_name,
-                'create_time': current_time,
-                'update_time': current_time
-            }
-            
-            # 插入或更新元信息
-            T_Meta.insert(**meta_data).on_conflict(
-                conflict_target=[T_Meta.meta_name],
-                action='UPDATE',
-                update={
-                    T_Meta.start_time: SQL('EXCLUDED.start_time'),
-                    T_Meta.end_time: SQL('EXCLUDED.end_time'),
-                    T_Meta.update_time: SQL('EXCLUDED.update_time')
+            with main_db:
+                # 查询现有的元信息记录
+                existing_meta = T_Meta.select().where(
+                    T_Meta.meta_name == meta_name
+                ).first()
+                
+                # 合并时间范围
+                if existing_meta:
+                    merged_start = min(existing_meta.start_time, start_time)
+                    merged_end = max(existing_meta.end_time, end_time)
+                else:
+                    merged_start = start_time
+                    merged_end = end_time
+
+                # 获取总数据量
+                total_count = ModelRegister.get_model(DataSource.Akshare, table_name).count()
+
+                current_time = int(time.time() * 1000)
+                meta_data = {
+                    'meta_name': meta_name,
+                    'security_type': security_type.value,
+                    'period': period.value,
+                    'source': source,
+                    'start_time': merged_start,
+                    'end_time': merged_end,
+                    'table_name': table_name,
+                    'total_count': total_count,
+                    'create_time': current_time,
+                    'update_time': current_time
                 }
-            ).execute()
-            
-            logger.info(
-                f"Successfully updated meta information for {meta_name}, "
-                f"security_type: {security_type.value}, "
-                f"period: {period.value}, "
-                f"source: {source}, "
-                f"start_time: {merged_start}, "
-                f"end_time: {merged_end}, "
-                f"table_name: {table_name}"
-            )
-            return True
+                
+                # 插入或更新元信息
+                T_Meta.insert(**meta_data).on_conflict(
+                    conflict_target=[T_Meta.meta_name],
+                    action='UPDATE',
+                    update={
+                        T_Meta.start_time: SQL('EXCLUDED.start_time'),
+                        T_Meta.end_time: SQL('EXCLUDED.end_time'),
+                        T_Meta.total_count: SQL('EXCLUDED.total_count'),
+                        T_Meta.update_time: SQL('EXCLUDED.update_time')
+                    }
+                ).execute()
+                
+                logger.info(
+                    f"Successfully updated meta information for {meta_name}, "
+                    f"security_type: {security_type.value}, "
+                    f"period: {period.value}, "
+                    f"source: {source}, "
+                    f"start_time: {merged_start}, "
+                    f"end_time: {merged_end}, "
+                    f"table_name: {table_name}, "
+                    f"total_count: {total_count}"
+                )
+                return True
             
         except Exception as e:
             logger.error(f"Error updating meta info: {str(e)}")
             return False
+        
+    def get_metadata(self, meta_type: MetaType) -> Optional[T_Meta_Model]:
+        with main_db:
+            meta_name = meta_type.value
+            meta_info = T_Meta.select().where(
+                T_Meta.meta_name == meta_name
+            ).first()
+            return meta_info

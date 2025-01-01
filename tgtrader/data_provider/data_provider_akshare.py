@@ -7,7 +7,7 @@ from tqdm import tqdm
 from pydantic import validate_arguments
 import time
 
-from tgtrader.common import Period, DataProvider, PriceAdjust, SecurityType
+from tgtrader.common import MetaType, Period, DataProvider, PriceAdjust, SecurityType
 from tgtrader.data_provider.service.akshare_data_service import AkshareDataService
 
 class AkshareDataProvider(DataProvider):
@@ -227,9 +227,9 @@ class AkshareDataProvider(DataProvider):
             # 更新元信息
             start_time = data.reset_index()['date'].min().strftime('%Y-%m-%d')
             end_time = data.reset_index()['date'].max().strftime('%Y-%m-%d')
-            meta_name = f"{security_type.value}_{period.value}_{adjust.value}_kdata"
+            meta_type = MetaType(f"{security_type.value}_{period.value}_{adjust.value}_kdata")  
             self.data_service.update_meta_info(
-                meta_name=meta_name,
+                meta_type=meta_type,
                 security_type=security_type,
                 period=period,
                 start_time=start_time,

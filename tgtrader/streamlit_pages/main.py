@@ -7,6 +7,8 @@ from tgtrader.streamlit_pages.pages.strategies.target_weight_strats import run a
 from tgtrader.streamlit_pages.pages.strategies.risk_parity_strats import run as risk_parity_strats_run
 from tgtrader.streamlit_pages.pages.strategies.my_strategies import run as my_strategies_run
 from tgtrader.streamlit_pages.pages.accounts.settings import run as settings_run
+from tgtrader.streamlit_pages.pages.data.data_init import run as data_init_run
+
 
 def logout():
     # Clear session state
@@ -25,6 +27,10 @@ def run():
 
         welcome_page = st.Page(welcome_run, title='欢迎', icon=':material/home:', default=True, url_path='welcome')
         strategy_pages['欢迎'] = [welcome_page]
+
+        data_init_page = st.Page(
+            data_init_run, title='数据初始化', icon=':material/database:', url_path='data_init')
+        strategy_pages['数据'] = [data_init_page]
 
         target_weights_page = st.Page(target_weight_strats_run, title='目标权重策略', icon=':material/target:', url_path='strategies_target_weights')
         risk_parity_page = st.Page(risk_parity_strats_run, title='风险平价策略', icon=':material/balance:', url_path='strategies_risk_parity')
