@@ -49,7 +49,7 @@ class AkshareDataProvider(DataProvider):
             PriceAdjust.NO: ""
         }
         
-    def get_all_symbols(self, security_type: SecurityType):
+    def get_all_symbols(self, security_type: SecurityType) -> pd.DataFrame:
         """获取所有证券代码
         Args:
             security_type: 证券类型

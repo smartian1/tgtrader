@@ -42,6 +42,7 @@ class DataSource(enum.Enum):
 class MetaType(enum.Enum):
     """元数据类型"""
     Stocks1dHfqKdata = 'stocks_1d_hfq_kdata'
+    ETF1dHfqKdata = 'etf_1d_hfq_kdata'
 
 class DataProvider:
     def __init__(self):
@@ -67,7 +68,7 @@ class DataProvider:
                  multi_thread_cnt: int = -1):
         raise NotImplementedError
     
-    def get_all_symbols(self, security_type: SecurityType):
+    def get_all_symbols(self, security_type: SecurityType) -> pd.DataFrame:
         raise NotImplementedError
 
     def standardize_symbol(self, symbol: str):

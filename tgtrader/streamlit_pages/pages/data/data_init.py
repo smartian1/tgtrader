@@ -39,7 +39,7 @@ def update_data(data_source: str,
     else:
         raise NotImplementedError(f'数据源 {data_source} 不支持')
     
-    if meta_type == MetaType.Stocks1dHfqKdata:
+    if meta_type in [MetaType.Stocks1dHfqKdata, MetaType.ETF1dHfqKdata]:
         update_price_data(security_type,
                           Period.Day,
                           PriceAdjust.HFQ,
@@ -55,8 +55,6 @@ def update_price_data(security_type: SecurityType,
                       meta_info: T_Meta_Model):
     all_symbols = data_provider.get_all_symbols(security_type)
     all_symbols = list(all_symbols['code'])
-
-    all_symbols = all_symbols[:10]
 
     fetch_time_ranges = __get_fetch_time_range(meta_info)
 
@@ -151,30 +149,65 @@ def __get_fetch_time_range_by_month(start_time: int, end_time: int) -> list:
 
 def create_card(data_source: str, meta_type: MetaType, title: str, security_type: SecurityType):
     meta_info = get_meta_info(data_source, meta_type)
+    
+    # 1. 先插入自定义的 CSS，给一个名叫 "my-card" 的类增加边框样式
+    st.markdown(
+        """
+        <style>
+        .my-card {
+            /* 边框：1 像素实线 + 浅灰色 */
+            border: 1px solid #E2E2E2;
+            /* 圆角可自由调 */
+            border-radius: 0.5rem;
+            /* 内边距让内容不至于贴到边框上 */
+            padding: 1rem;
+            /* 背景色（可按需修改） */
+            background-color: #F9F9F9;
+            /* 让这块和其它组件之间有点间距 */
+            margin-bottom: 1rem;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
 
     with st.container():
         st.subheader(title)
 
-    col1, col2 = st.columns(2)
+        col1, col2 = st.columns(2)
+        with col1:
+            st.text(f"起始时间：{meta_info.start_time if meta_info else 'N/A'}")
+            st.text(f"结束时间：{meta_info.end_time if meta_info else 'N/A'}")
 
-    with col1:
-        # 起始时间
-        st.text(f"起始时间：{meta_info.start_time if meta_info else 'N/A'}")
-        # 结束时间 
-        st.text(f"结束时间：{meta_info.end_time if meta_info else 'N/A'}")
-        
-        
-    with col2:
-        # 更新时间
-        st.text(
-            f"更新时间：{arrow.get(meta_info.update_time, tzinfo='UTC').to('Asia/Shanghai').format('YYYY-MM-DD HH:mm:ss') if meta_info else 'N/A'}")
-        # 数据量
-        st.text(f"数据量：{meta_info.total_count if meta_info else 'N/A'}")
-        
-    # 更新按钮
-    btn = st.button('更新', key=f'{data_source}_{meta_type}_update')
-    if btn:
-        update_data(data_source, meta_type, security_type, meta_info)
+        with col2:
+            st.text(
+                f"更新时间：{arrow.get(meta_info.update_time, tzinfo='UTC').to('Asia/Shanghai').format('YYYY-MM-DD HH:mm:ss') if meta_info else 'N/A'}"
+            )
+            st.text(f"数据量：{meta_info.total_count if meta_info else 'N/A'}")
+
+        # 添加时间段选择组件
+        col3, col4 = st.columns(2)
+        with col3:
+            # 如果meta有值，使用meta的结束时间，否则使用2017-01-01
+            default_start = (
+                datetime.strptime(meta_info.end_time, '%Y-%m-%d').date() 
+                if meta_info and meta_info.end_time
+                else datetime.strptime('2017-01-01', '%Y-%m-%d').date()
+            )
+            start_date = st.date_input("选择起始时间", 
+                                     value=default_start,
+                                     key=f"{data_source}_{meta_type}_start_date")
+        with col4:
+            # 结束时间默认为今天
+            end_date = st.date_input("选择结束时间",
+                                   value=datetime.now().date(),
+                                   key=f"{data_source}_{meta_type}_end_date")
+
+        btn = st.button("更新", key=f"{data_source}_{meta_type}_update")
+        if btn:
+            update_data(data_source, meta_type, security_type, meta_info)
+
+
 
 def run():
     st.title('数据初始化')
@@ -206,8 +239,8 @@ def run():
                 title='股票历史行情(日)', 
                 security_type=SecurityType.Stocks)
 
-    # # ETF历史行情更新区域 
-    # with st.container():
-    #     st.subheader('ETF历史行情(日)')
-        
-    #     create_card(data_source, MetaType.Stocks1dHfqKdata)
+    # ETF历史行情更新区域 
+    create_card(data_source, 
+                meta_type=MetaType.ETF1dHfqKdata, 
+                title='ETF历史行情(日)', 
+                security_type=SecurityType.ETF)
