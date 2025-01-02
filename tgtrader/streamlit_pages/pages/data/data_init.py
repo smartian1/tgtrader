@@ -33,7 +33,9 @@ def get_meta_info(data_source: str,
 def update_data(data_source: str, 
                 meta_type: MetaType, 
                 security_type: SecurityType,
-                meta_info: T_Meta_Model):
+                meta_info: T_Meta_Model,
+                sel_start_date: str,
+                sel_end_date: str):
     if data_source == 'AKshare':
         data_provider = DataProvider.get_provider(DataSource.Akshare)
     else:
@@ -44,7 +46,9 @@ def update_data(data_source: str,
                           Period.Day,
                           PriceAdjust.HFQ,
                           data_provider,
-                          meta_info)
+                          meta_info,
+                          sel_start_date,
+                          sel_end_date)
     else:
         raise NotImplementedError(f'元数据类型 {meta_type} 不支持')
 
@@ -52,11 +56,13 @@ def update_price_data(security_type: SecurityType,
                       period: Period,
                       adjust: PriceAdjust,
                       data_provider: DataProvider,
-                      meta_info: T_Meta_Model):
+                      meta_info: T_Meta_Model,
+                      sel_start_date: str,
+                      sel_end_date: str):
     all_symbols = data_provider.get_all_symbols(security_type)
     all_symbols = list(all_symbols['code'])
 
-    fetch_time_ranges = __get_fetch_time_range(meta_info)
+    fetch_time_ranges = __get_fetch_time_range(sel_start_date, sel_end_date)
 
     progress_bar = st.progress(0)
     status_text = st.empty()
@@ -65,7 +71,7 @@ def update_price_data(security_type: SecurityType,
         progress = i / len(fetch_time_ranges)
         progress_bar.progress(progress)
         status_text.text(f"更新数据： {start_time} 至 {end_time}...")
-        
+
         df = data_provider.get_price(all_symbols,
                                      start_time,
                                      end_time,
@@ -89,18 +95,10 @@ def update_price_data(security_type: SecurityType,
     st.rerun()
 
 
-def __get_fetch_time_range(meta_info: T_Meta_Model):
-    all_start_time = arrow.get('2017-01-01', tzinfo='+08:00').timestamp()
-    all_end_time = arrow.now(tz="+08:00").timestamp()
+def __get_fetch_time_range(sel_start_date: str, sel_end_date: str):
+    return __get_fetch_time_range_by_month(arrow.get(sel_start_date, tzinfo='+08:00').timestamp(),
+                                           arrow.get(sel_end_date, tzinfo='+08:00').timestamp())
 
-    if meta_info is None:
-        return __get_fetch_time_range_by_month(all_start_time, all_end_time)
-    else:
-        if meta_info.end_time < arrow.now(tz="+08:00").format('YYYY-MM-DD'):
-            return __get_fetch_time_range_by_month(arrow.get(meta_info.end_time, tzinfo='+08:00').timestamp(), 
-                                                   all_end_time)
-        else:
-            return []
 
 def __get_fetch_time_range_by_month(start_time: int, end_time: int) -> list:
     """按年拆分时间范围
@@ -113,8 +111,8 @@ def __get_fetch_time_range_by_month(start_time: int, end_time: int) -> list:
         list: [(start_time, end_time), ...] 按年拆分的时间范围列表
     """
     # 转换为arrow对象
-    start_date = arrow.get(start_time)
-    end_date = arrow.get(end_time)
+    start_date = arrow.get(start_time, tzinfo='+08:00')
+    end_date = arrow.get(end_time, tzinfo='+08:00')
 
     # 初始化结果列表
     time_ranges = []
@@ -205,7 +203,7 @@ def create_card(data_source: str, meta_type: MetaType, title: str, security_type
 
         btn = st.button("更新", key=f"{data_source}_{meta_type}_update")
         if btn:
-            update_data(data_source, meta_type, security_type, meta_info)
+            update_data(data_source, meta_type, security_type, meta_info, start_date, end_date)
 
 
 
