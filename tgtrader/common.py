@@ -129,8 +129,7 @@ class DataDbService(ABC):
                          period: Period,
                          start_time: str,
                          end_time: str,
-                         source: str,
-                         table_name: str) -> bool:
+                         source: str) -> bool:
         """更新元数据信息
 
         Args:

@@ -25,6 +25,22 @@ class AkshareDataService(DataDbService):
         with main_db:
             main_db.create_tables([T_Meta, T_KData, T_ETF_KData])
 
+    def __get_kdata_model_cls(self, security_type: SecurityType):
+        if security_type == SecurityType.Stocks:
+            return T_KData
+        elif security_type == SecurityType.ETF:
+            return T_ETF_KData
+        else:
+            raise ValueError(f"Unsupported security type: {security_type}")
+    
+    def __get_data_model_by_meta_type(self, meta_type: MetaType):
+        if meta_type == MetaType.Stocks1dHfqKdata:
+            return T_KData
+        elif meta_type == MetaType.ETF1dHfqKdata:
+            return T_ETF_KData
+        else:
+            raise ValueError(f"Unsupported meta type: {meta_type}")
+
     def batch_save_kdata(self,
                         data: Optional[pd.DataFrame] = None,
                         security_type: SecurityType = SecurityType.Stocks,
@@ -68,12 +84,7 @@ class AkshareDataService(DataDbService):
 
             total_count = 0
 
-            if security_type == SecurityType.Stocks:
-                db_model_cls = T_KData
-            elif security_type == SecurityType.ETF:
-                db_model_cls = T_ETF_KData
-            else:
-                raise ValueError(f"Unsupported security type: {security_type}")
+            db_model_cls = self.__get_kdata_model_cls(security_type)
             
             with main_db:
                 # 使用tqdm显示进度
@@ -108,8 +119,7 @@ class AkshareDataService(DataDbService):
                         period: Period,
                         start_time: str,
                         end_time: str,
-                        source: str = 'akshare',
-                        table_name: str = 't_kdata') -> bool:
+                        source: str = 'akshare') -> bool:
         """更新元数据信息"""
         try:
             meta_name = meta_type.value
@@ -128,8 +138,11 @@ class AkshareDataService(DataDbService):
                     merged_start = start_time
                     merged_end = end_time
 
+                db_model_cls = self.__get_data_model_by_meta_type(meta_type)
+                table_name = db_model_cls._meta.table_name
+
                 # 获取总数据量
-                total_count = ModelRegister.get_model(DataSource.Akshare, table_name).select().count()
+                total_count = db_model_cls.select().count()
 
                 current_time = int(time.time() * 1000)
                 meta_data = {
@@ -153,7 +166,10 @@ class AkshareDataService(DataDbService):
                         T_Meta.start_time: SQL('EXCLUDED.start_time'),
                         T_Meta.end_time: SQL('EXCLUDED.end_time'),
                         T_Meta.total_count: SQL('EXCLUDED.total_count'),
-                        T_Meta.update_time: SQL('EXCLUDED.update_time')
+                        T_Meta.update_time: SQL('EXCLUDED.update_time'),
+                        T_Meta.security_type: SQL('EXCLUDED.security_type'),
+                        T_Meta.source: SQL('EXCLUDED.source'),
+                        T_Meta.period: SQL('EXCLUDED.period')
                     }
                 ).execute()
                 

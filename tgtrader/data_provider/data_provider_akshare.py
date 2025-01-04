@@ -262,8 +262,7 @@ class AkshareDataProvider(DataProvider):
                 period=period,
                 start_time=start_time,
                 end_time=end_time,
-                source='akshare',
-                table_name='t_kdata'
+                source='akshare'
             )
             
         except Exception as e:
