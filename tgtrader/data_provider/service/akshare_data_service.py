@@ -68,7 +68,7 @@ class AkshareDataService(DataDbService):
 
             total_count = 0
 
-            if security_type == SecurityType.STOCK:
+            if security_type == SecurityType.Stocks:
                 db_model_cls = T_KData
             elif security_type == SecurityType.ETF:
                 db_model_cls = T_ETF_KData
