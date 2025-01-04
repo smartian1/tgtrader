@@ -246,6 +246,7 @@ class AkshareDataProvider(DataProvider):
             # 保存K线数据
             self.data_service.batch_save_kdata(
                 data=data,
+                security_type=security_type,
                 adjust=adjust,
                 source='akshare',
                 batch_size=100000

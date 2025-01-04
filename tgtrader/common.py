@@ -104,6 +104,7 @@ class DataDbService(ABC):
     @abstractmethod
     def batch_save_kdata(self,
                          data: Optional[pd.DataFrame] = None,
+                         security_type: SecurityType = SecurityType.Stocks,
                          adjust: Optional[PriceAdjust] = None,
                          source: str = 'akshare',
                          batch_size: int = 100000) -> int:

@@ -8,6 +8,7 @@ from peewee import SQL
 
 from tgtrader.data_provider.dao.akshare.common import main_db
 from tgtrader.data_provider.dao.akshare.t_kdata import T_KData
+from tgtrader.data_provider.dao.akshare.t_etf_kdata import T_ETF_KData
 from tgtrader.data_provider.dao.akshare.t_meta import T_Meta
 from tgtrader.common import DataSource, MetaType, SecurityType, Period, PriceAdjust
 from tgtrader.common import DataDbService
@@ -22,10 +23,11 @@ class AkshareDataService(DataDbService):
     def init_database(cls):
         """初始化数据"""
         with main_db:
-            main_db.create_tables([T_Meta, T_KData])
+            main_db.create_tables([T_Meta, T_KData, T_ETF_KData])
 
     def batch_save_kdata(self,
                         data: Optional[pd.DataFrame] = None,
+                        security_type: SecurityType = SecurityType.Stocks,
                         adjust: Optional[PriceAdjust] = None,
                         source: str = 'akshare',
                         batch_size: int = 100000) -> int:
@@ -65,23 +67,30 @@ class AkshareDataService(DataDbService):
                 return 0
 
             total_count = 0
+
+            if security_type == SecurityType.STOCK:
+                db_model_cls = T_KData
+            elif security_type == SecurityType.ETF:
+                db_model_cls = T_ETF_KData
+            else:
+                raise ValueError(f"Unsupported security type: {security_type}")
             
             with main_db:
                 # 使用tqdm显示进度
                 for i in tqdm(range(0, len(data_list), batch_size), 
                             desc="Saving kdata"):
                     batch = data_list[i:i + batch_size]
-                    rows = T_KData.insert_many(batch).on_conflict(
-                        conflict_target=[T_KData.code, T_KData.date, T_KData.source],
+                    rows = db_model_cls.insert_many(batch).on_conflict(
+                        conflict_target=[db_model_cls.code, db_model_cls.date, db_model_cls.source],
                         action='UPDATE',
                         update={
-                            T_KData.open: SQL('EXCLUDED.open'),
-                            T_KData.high: SQL('EXCLUDED.high'),
-                            T_KData.low: SQL('EXCLUDED.low'),
-                            T_KData.close: SQL('EXCLUDED.close'),
-                            T_KData.volume: SQL('EXCLUDED.volume'),
-                            T_KData.adjust_type: SQL('EXCLUDED.adjust_type'),
-                            T_KData.update_time: SQL('EXCLUDED.update_time')
+                            db_model_cls.open: SQL('EXCLUDED.open'),
+                            db_model_cls.high: SQL('EXCLUDED.high'),
+                            db_model_cls.low: SQL('EXCLUDED.low'),
+                            db_model_cls.close: SQL('EXCLUDED.close'),
+                            db_model_cls.volume: SQL('EXCLUDED.volume'),
+                            db_model_cls.adjust_type: SQL('EXCLUDED.adjust_type'),
+                            db_model_cls.update_time: SQL('EXCLUDED.update_time')
                         }
                     ).execute()
                     total_count += len(batch)
