@@ -4,6 +4,14 @@
 - 对于小白，可以直接使用可视化分析工具，零代码开启量化分析
 - 对于有一定经验的开发者，结合使用sdk开发，更加灵活
 
+## 微信公众号： 天工量化
+**关注即可获取**：
+1. tgtrader的最佳实践：如何用好tgtrader以提高投研效率
+2. 研报复现：各大券商研报复现，源码公开
+3. 策略分享：基于tg量化工具集，实现各类策略
+4. 实盘跟踪：已上线的实盘策略持续跟进
+
+
 ## 源码地址
 - github: https://github.com/smartian1/tgtrader
 - gitee: https://gitee.com/smartian123/tgtrader   
@@ -76,10 +84,12 @@ run()
 tgtrader底层使用duckdb存储数据，使用duckdb sql即可进行查询
 
 **为什么用duckdb**：
-1. sql与标准sql基本一致，使用sql进行数据分析效率更高，更加灵活
-2. duckdb性能非常高，适合OLAP分析类场景
-3. 在量化交易中，需要频繁的对行情数据做时间序列和截面的计算，duckdb对此有比较好的支持。基本上pandas能够做的，duckdb都可以做，而且duckdb的性能更高
+1. duckdb sql**与标准sql基本一致**，使用sql进行数据分析效率更高，更加灵活
+2. duckdb**性能非常高**，同样的功能，duckdb比pandas性能要高数倍
+3. 可以**与pandas完美结合**，可以用sql对dataframe进行查询，效率翻倍提升
+4. 在量化交易中，需要频繁的对行情数据做**时间序列和截面的计算**，duckdb对此有比较好的支持。使用窗口函数，可以非常方便的进行各种时间和截面的计算
 ![alt text](https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/data_query.png)
+
 
 ### 二、策略模块
 #### 2.1 已支持的内置策略
@@ -107,7 +117,9 @@ tgtrader底层使用duckdb存储数据，使用duckdb sql即可进行查询
 
 ## SDK使用说明
 
-### 获取数据
+### 一、数据模块
+
+#### 1.1 获取外部数据
 
 ```python
 from tgtrader.data import DataGetter
@@ -148,9 +160,48 @@ df
 
 ![get_data](https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/get_data.png)
 
-## 微信公众号： 天工量化
-**关注即可获取**：
-1. tgtrader的最佳实践：如何用好tgtrader以提高投研效率
-2. 研报复现：各大券商研报复现，源码公开
-3. 策略分享：基于tg量化工具集，实现各类策略
-4. 实盘跟踪：已上线的实盘策略持续跟进
+
+#### 1.2 查询本地数据库
+
+```python
+from tgtrader.utils.duckdb_query import DuckDBQuery
+from tgtrader.common import DataSource
+
+# 设置读取数据库文件的db_query
+data_source = DataSource.Akshare
+db_query = DuckDBQuery(data_source)
+
+# fetch_df：输入sql，输出dataframe
+df = db_query.fetch_df("select * from t_kdata limit 10")
+
+# fetch_all: 输入sql，输出list[dict]
+data = db_query.fetch_all("select * from t_kdata limit 10")
+
+```
+
+#### 1.3 使用sql，对dataframe进行分析
+
+```python
+from tgtrader.utils.duckdb_query_df import DuckDBQueryDF
+
+# 将dataframe传入到DuckDBQueryDF实例，构建一个查询器
+duckdb_df_query = DuckDBQueryDF(df)
+
+# 可用sql对df进行分析了，例如计算20日SMA
+sql = """
+  SELECT
+    code,
+    date,
+    open,
+    low,
+    high,
+    close,
+    volume,
+    -- 计算 20 日 SMA
+    AVG(close) OVER (PARTITION BY code ORDER BY date ROWS BETWEEN 19 PRECEDING AND CURRENT ROW) AS sma_20
+  FROM df
+"""
+
+df_duck = duckdb_df_query.query(sql)
+
+```
