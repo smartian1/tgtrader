@@ -40,6 +40,7 @@ dependencies = [
     "arrow==1.3.0",
     "more-itertools==10.5.0",
     "streamlit-monaco==0.1.3",
+    "plotly==5.24.1",
     "nbconvert==7.16.5",
 ]
 

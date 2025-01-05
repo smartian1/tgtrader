@@ -1,5 +1,5 @@
 # encoding: utf-8
-from typing import List, Optional
+from typing import List, Optional, Tuple
 import pandas as pd
 from tqdm import tqdm
 from loguru import logger
@@ -14,6 +14,7 @@ from tgtrader.common import DataSource, MetaType, SecurityType, Period, PriceAdj
 from tgtrader.common import DataDbService
 from tgtrader.data_provider.dao.models.common import ModelRegister
 from tgtrader.data_provider.dao.models.t_meta_model import T_Meta_Model
+from tgtrader.utils.model_inspector import FieldInfo, get_model_info
 
 
 class AkshareDataService(DataDbService):
@@ -196,3 +197,7 @@ class AkshareDataService(DataDbService):
                 T_Meta.meta_name == meta_name
             ).first()
             return meta_info
+
+    def get_db_model_info_by_meta_type(self, meta_type: MetaType) -> Tuple[str, List[FieldInfo]]:
+        db_model_cls = self.__get_data_model_by_meta_type(meta_type)
+        return get_model_info(db_model_cls)

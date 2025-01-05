@@ -144,10 +144,26 @@ def __get_fetch_time_range_by_month(start_time: int, end_time: int) -> list:
 
     return time_ranges
 
+def get_table_name(meta_type: MetaType):
+    if meta_type == MetaType.Stocks1dHfqKdata:
+        return 't_kdata'
+    elif meta_type == MetaType.ETF1dHfqKdata:
+        return 't_etf_kdata'
+    else:
+        raise NotImplementedError(f'元数据类型 {meta_type} 不支持')
+    
+def get_db_model_info_by_meta_type(data_source: str, meta_type: MetaType):
+    if data_source == 'AKshare':
+        data_service = DataDbService.get_data_service(DataSource.Akshare)
+    else:
+        raise NotImplementedError(f'数据源 {data_source} 不支持')
+    
+    return data_service.get_db_model_info_by_meta_type(meta_type)
 
 def create_card(data_source: str, meta_type: MetaType, title: str, security_type: SecurityType):
     meta_info = get_meta_info(data_source, meta_type)
-    
+    table_name, fields = get_db_model_info_by_meta_type(data_source, meta_type)
+
     # 1. 先插入自定义的 CSS，给一个名叫 "my-card" 的类增加边框样式
     st.markdown(
         """
@@ -176,12 +192,22 @@ def create_card(data_source: str, meta_type: MetaType, title: str, security_type
         with col1:
             st.text(f"起始时间：{meta_info.start_time if meta_info else 'N/A'}")
             st.text(f"结束时间：{meta_info.end_time if meta_info else 'N/A'}")
+            st.text(f"表名： {table_name}")
 
         with col2:
             st.text(
                 f"更新时间：{arrow.get(meta_info.update_time, tzinfo='UTC').to('Asia/Shanghai').format('YYYY-MM-DD HH:mm:ss') if meta_info else 'N/A'}"
             )
             st.text(f"数据量：{meta_info.total_count if meta_info else 'N/A'}")
+
+        # 显示字段信息
+        field_data = {
+            '字段名': [field.name for field in fields],
+            '类型': [str(field.field_type) for field in fields],
+            '说明': [field.comment for field in fields]
+        }
+        df = pd.DataFrame(field_data)
+        st.table(df)
 
         # 添加时间段选择组件
         col3, col4 = st.columns(2)

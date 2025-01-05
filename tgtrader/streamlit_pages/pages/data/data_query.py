@@ -55,7 +55,7 @@ def run() -> None:
         index=0
     )
 
-    sql = st.text_area("请输入sql语句(可输入多条语句，用分号分隔)", height=200)
+    sql = st.text_area("请输入sql语句(可输入多条语句，用分号分隔)。表字段信息请参考“数据初始化”页面", height=200)
     
     col1, col2, col3 = st.columns([1, 1, 7])
 
