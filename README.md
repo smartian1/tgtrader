@@ -63,20 +63,37 @@ run()
    streamlit run tgtrader_cli.py
 ```
 
-### 已支持的内置策略
+### 一、数据模块
+#### 1.1 数据下载
+点击“数据初始化”，进入下载页面。选择需要更新的数据以及时间段，进行更新。
+**数据下载了有什么用**：
+1. 可在数据查询页面用sql进行查询，进行探索性分析
+2. 后续因子计算，直接用本地数据进行计算，提升效率
+![alt text](https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/data_init.png)
+
+#### 1.2 数据查询
+tgtrader底层使用duckdb存储数据，使用duckdb sql即可进行查询
+**为什么用duckdb**：
+1. sql与标准sql基本一致，使用sql进行数据分析效率更高，更加灵活
+2. duckdb性能非常高，适合OLAP分析类场景
+3. 在量化交易中，需要频繁的对行情数据做时间序列和截面的计算，duckdb对此有比较好的支持。基本上pandas能够做的，duckdb都可以做，而且duckdb的性能更高
+![alt text](https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/data_query.png)
+
+### 二、策略模块
+#### 2.1 已支持的内置策略
 | 策略名称 | 策略说明 | 适用场景 |
 |---------|---------|----------|
 | 目标权重策略 | 根据预设的目标权重定期调仓，是最基础的资产配置策略 | 适用于有明确资产配置目标的场景，如60/40策略、风险等级配置等 |
 | 风险平价策略 | 通过计算资产的风险贡献，使各资产的风险贡献相等，实现风险的平衡配置 | 适用于追求风险平衡、稳健收益的场景，特别是在市场波动较大时期 |
 
-#### 目标权重策略
+##### 2.1.1 目标权重策略
 ![目标权重策略](https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/target_weight_strategy.png)
 ![目标权重策略](https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/target_weight_strategy_result.png)
 
-#### 风险平价策略
+##### 2.1.2 风险平价策略
 ![alt text](https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/risk_parity_strategy.png)
 
-#### 我的策略
+#### 2.2 我的策略
 策略回测完成之后，可以保存到“我的策略”
 ![alt text](https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/save_strategy.png)
 
