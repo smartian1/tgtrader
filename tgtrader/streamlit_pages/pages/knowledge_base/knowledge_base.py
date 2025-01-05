@@ -12,7 +12,7 @@ def run() -> None:
     # 文章分类和对应的文章映射
     article_categories: Dict[str, Dict[str, str]] = {
         "技术文章": {
-            "DuckDB vs Pandas性能对比": "duckdb_pandas_compare.html"
+            "DuckDB + Pandas，数据分析黄金搭档，效率提升 10 倍！": "duckdb_pandas_compare.html"
         }
     }
     
