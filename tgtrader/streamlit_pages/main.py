@@ -9,6 +9,8 @@ from tgtrader.streamlit_pages.pages.strategies.my_strategies import run as my_st
 from tgtrader.streamlit_pages.pages.accounts.settings import run as settings_run
 from tgtrader.streamlit_pages.pages.data.data_init import run as data_init_run
 from tgtrader.streamlit_pages.pages.data.data_query import run as data_query_run
+from tgtrader.streamlit_pages.pages.knowledge_base.knowledge_base import run as knowledge_base_run
+
 
 def logout():
     # Clear session state
@@ -40,6 +42,9 @@ def run():
 
         my_strategies_page = st.Page(my_strategies_run, title='我的策略', icon=':material/person:', url_path='strategies_my')
         strategy_pages['策略分析'] = [my_strategies_page]
+
+        knowledge_base_page = st.Page(knowledge_base_run, title='知识库', icon=':material/book:', url_path='knowledge_base')
+        strategy_pages['知识库'] = [knowledge_base_page]
 
         account_settings_page = st.Page(settings_run, title='设置', icon=':material/settings:', url_path='accounts_settings')
         logout_page = st.Page(logout, title='退出', icon=':material/logout:')
