@@ -194,12 +194,14 @@ def create_card(data_source: str, meta_type: MetaType, title: str, security_type
             )
             start_date = st.date_input("选择起始时间", 
                                      value=default_start,
-                                     key=f"{data_source}_{meta_type}_start_date")
+                                     key=f"{data_source}_{meta_type}_start_date",
+                                     min_value=datetime.strptime('2010-01-01', '%Y-%m-%d').date())
         with col4:
             # 结束时间默认为今天
             end_date = st.date_input("选择结束时间",
                                    value=datetime.now().date(),
-                                   key=f"{data_source}_{meta_type}_end_date")
+                                   key=f"{data_source}_{meta_type}_end_date",
+                                   min_value=datetime.strptime('2010-01-01', '%Y-%m-%d').date())
 
         btn = st.button("更新", key=f"{data_source}_{meta_type}_update")
         if btn:
