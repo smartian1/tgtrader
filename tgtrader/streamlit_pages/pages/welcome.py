@@ -15,6 +15,10 @@ def run():
 - gitee: https://gitee.com/smartian123/tgtrader                
 
 ## 更新日志
+v1.0.1
+- 增加数据初始化、数据查询页面
+- 增加知识库页面，显示jupyter notebook
+
 v1.0.0
 
 可视化策略回测
