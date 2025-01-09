@@ -26,6 +26,10 @@ class AkshareDataService(DataDbService):
         with main_db:
             main_db.create_tables([T_Meta, T_KData, T_ETF_KData])
 
+    @classmethod
+    def get_table_names(cls) -> list[str]:
+        return ['t_kdata', 't_etf_kdata']
+
     def __get_kdata_model_cls(self, security_type: SecurityType):
         if security_type == SecurityType.Stocks:
             return T_KData
@@ -41,6 +45,14 @@ class AkshareDataService(DataDbService):
             return T_ETF_KData
         else:
             raise ValueError(f"Unsupported meta type: {meta_type}")
+        
+    def __get_data_model_by_table_name(self, table_name: str):
+        if table_name.lower() == 't_kdata':
+            return T_KData
+        elif table_name.lower() == 't_etf_kdata':
+            return T_ETF_KData
+        else:
+            raise ValueError(f"Unsupported table name: {table_name}")
 
     def batch_save_kdata(self,
                         data: Optional[pd.DataFrame] = None,
@@ -197,7 +209,18 @@ class AkshareDataService(DataDbService):
                 T_Meta.meta_name == meta_name
             ).first()
             return meta_info
+        
+    def get_metadata_by_table_name(self, table_name: str) -> Optional[T_Meta_Model]:
+        with main_db:
+            meta_info = T_Meta.select().where(
+                T_Meta.table_name == table_name
+            ).first()
+            return meta_info
 
     def get_db_model_info_by_meta_type(self, meta_type: MetaType) -> Tuple[str, List[FieldInfo]]:
         db_model_cls = self.__get_data_model_by_meta_type(meta_type)
+        return get_model_info(db_model_cls)
+    
+    def get_db_model_info_by_table_name(self, table_name: str) -> Tuple[str, List[FieldInfo]]:
+        db_model_cls = self.__get_data_model_by_table_name(table_name)
         return get_model_info(db_model_cls)

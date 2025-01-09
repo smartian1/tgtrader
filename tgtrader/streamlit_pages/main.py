@@ -35,7 +35,7 @@ def run():
         strategy_pages['欢迎'] = [welcome_page]
 
         data_init_page = st.Page(
-            data_init_run, title='数据初始化', icon=':material/database:', url_path='data_init')
+            data_init_run, title='数据更新', icon=':material/database:', url_path='data_init')
         data_query_page = st.Page(
             data_query_run, title='数据查询', icon=':material/query_stats:', url_path='data_query')
         data_process_page = st.Page(

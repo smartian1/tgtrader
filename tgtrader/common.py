@@ -2,12 +2,12 @@
 
 from abc import ABC, abstractmethod
 import enum
-from typing import Optional
+from typing import Optional, Tuple, List
 
 import pandas as pd
 
 from tgtrader.data_provider.dao.models.t_meta_model import T_Meta_Model
-
+from tgtrader.utils.model_inspector import FieldInfo
 
 class PriceAdjust(enum.Enum):
     NO = "nfq"
@@ -100,7 +100,7 @@ class DataDbService(ABC):
             return AkshareDataService()
         else:
             raise NotImplementedError(f'数据源 {data_source} 不支持')
-
+        
     @abstractmethod
     def batch_save_kdata(self,
                          data: Optional[pd.DataFrame] = None,
@@ -149,3 +149,21 @@ class DataDbService(ABC):
     def get_metadata(self, meta_type: MetaType) -> Optional[T_Meta_Model]:
         """获取元数据"""
         raise NotImplementedError
+
+    @abstractmethod
+    def get_metadata_by_table_name(self, table_name: str) -> Optional[T_Meta_Model]:
+        raise NotImplementedError
+
+    
+    @abstractmethod
+    def get_table_names(self) -> list[str]:
+        raise NotImplementedError
+    
+    @abstractmethod
+    def get_db_model_info_by_meta_type(self, meta_type: MetaType) -> Tuple[str, List[FieldInfo]]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_db_model_info_by_table_name(self, table_name: str) -> Tuple[str, List[FieldInfo]]:
+        raise NotImplementedError
+
