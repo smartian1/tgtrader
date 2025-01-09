@@ -7,6 +7,7 @@ import re
 
 from tgtrader.data_provider.dao.models.t_sql_history_model import SqlHistoryModel
 from tgtrader.utils.duckdb_query import DuckDBQuery
+from tgtrader.streamlit_pages.pages.component.data_meta import build_db_meta_info
 
 def add_limit_if_missing(sql: str, limit: int = 100) -> str:
     """
@@ -110,3 +111,5 @@ def run() -> None:
         
         # 显示历史记录表格
         st.dataframe(history_df, use_container_width=True)
+
+    build_db_meta_info(src_page='data_query')
