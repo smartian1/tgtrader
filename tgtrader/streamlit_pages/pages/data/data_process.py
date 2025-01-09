@@ -5,11 +5,15 @@ from streamlit_flow.state import StreamlitFlowState
 from streamlit_flow.layouts import TreeLayout
 import json
 from streamlit_ace import st_ace
-from streamlit_autorefresh import st_autorefresh
+
+node_type_dict = {
+    "data_source_db": "数据源(DB)",
+    "python_code": "处理节点(python代码)",
+    "sql": "处理节点(sql)",
+    "storage_db": "存储(DB)"
+}
 
 def run():
-    refresh_cnt = st_autorefresh(interval=1000)
-
     new_state = streamlit_flow('fully_interactive_flow', 
                 StreamlitFlowState([], []), # Start with an empty state, or with some pre-initialized state
                 fit_view=True,
@@ -27,20 +31,18 @@ def run():
     
     
     if new_state.selected_id and 'edge' not in new_state.selected_id:
-        node_type = st.selectbox("选择节点类型", ["数据源", "python代码", "sql", "存储"])
-        if node_type == "数据源":
-            data_source_config(refresh_cnt)
-        elif node_type == "python代码":
+        node_type = st.selectbox("选择节点类型", list(node_type_dict.values()))
+        if node_type == node_type_dict["data_source_db"]:
+            data_source_config()
+        elif node_type == node_type_dict["python_code"]:
             python_code_config()
-        elif node_type == "sql":
+        elif node_type == node_type_dict["sql"]:
             sql_config()
-        elif node_type == "存储":
+        elif node_type == node_type_dict["storage_db"]:
             storage_config()
 
-# 新增各节点类型的配置方法
 
-
-def data_source_config(refresh_cnt):
+def data_source_config():
     col1, col2 = st.columns(2)
     with col1:
         data_source = st.selectbox("数据源", ["Akshare"])
@@ -48,31 +50,34 @@ def data_source_config(refresh_cnt):
         table_name = st.selectbox("表名", get_table_names(data_source))
 
     sql_query = st_ace(language='sql', theme='dracula',
-                       height=300, auto_update=True)
-
-    btn = st.button("保存")
-
-    if refresh_cnt % 10 == 0 or btn:
-        st.write(sql_query)
-        st.success("自动保存成功")
+                       height=300, auto_update=True,
+                       placeholder="请输入sql语句",
+                       show_gutter=True,
+                       )
         
 
 def python_code_config():
-    # 配置 Python 代码节点
-    code = st.text_area("代码输入框")
-    # 在此处处理代码输入
+    python_code = st_ace(language='python', theme='dracula',
+                       height=300, auto_update=True,
+                       placeholder="请输入python代码",
+                       show_gutter=True,
+                       )
+
 
 def sql_config():
-    # 配置 SQL 节点
-    sql_query = st.text_area("SQL 输入框")
-    # 在此处处理 SQL 查询
+    sql_query = st_ace(language='sql', theme='dracula',
+                       height=300, auto_update=True,
+                       placeholder="请输入sql语句",
+                       show_gutter=True,
+                       )
+
 
 def storage_config():
-    # 配置存储节点
     create_table = st.checkbox("是否新建表")
     if create_table:
-        columns = st.text_area("表字段和类型")
-        # 在此处处理表字段和类型
+        columns = st.text_area("表字段和类型", placeholder="请输入表字段和类型",
+                               show_gutter=True,
+                               )
     # 其他存储配置
     
 def get_table_names(data_source):
