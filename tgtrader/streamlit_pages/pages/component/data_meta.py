@@ -31,7 +31,7 @@ def __get_db_model_info_by_table_name(data_source: str, table_name: str) -> Tupl
         return None, None
     
 def build_db_meta_info(src_page: str):
-    st.markdown("### 数据元数据")
+    st.markdown("### 表字段信息查询")
     col1, col2 = st.columns(2)
     with col1:
         data_source = st.selectbox("数据源", ["Akshare"], key=f"data_meta_build_data_source_{src_page}")
