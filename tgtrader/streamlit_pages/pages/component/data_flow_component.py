@@ -89,7 +89,7 @@ select * from df where code='000001'
 
 
 def sink_db_config(src_page: str):
-    is_create_table = st.checkbox("是否新建表", key=f"{src_page}_storage_config_create_table")
+    is_create_table = st.checkbox("是否新建表(保存时就会创建新表)", key=f"{src_page}_storage_config_create_table")
     col1, col2 = st.columns([1, 5])
     if is_create_table:
         with col1:
@@ -162,6 +162,8 @@ def sink_db_config(src_page: str):
 
 
     btn_save =st.button("保存配置", key=f"{src_page}_storage_config_save")
+
+    build_db_meta_info(src_page=f"{src_page}_storage_config")
 
     if btn_save:
         return {
