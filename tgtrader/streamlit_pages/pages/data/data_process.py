@@ -30,9 +30,16 @@ def run():
                 get_node_on_click=True
     )
 
-    ui.button(text="点击保存流程", key="styled_btn_tailwind", 
-                className="bg-orange-500 text-white w-full h-16 py-3")
+    ui.button(text="点击保存流程", key="styled_btn_save_flow", 
+                className="bg-orange-500 text-white w-full h-14 py-3")
     
+    col1, col2 = st.columns(2)
+    with col1:
+        btn_flow = ui.button(text="运行所有节点", key="styled_btn_run_all",
+                             className="bg-orange-500 text-white w-full h-14 py-3")
+    with col2:
+        btn_save = ui.button(text="运行到选择的节点", key="styled_btn_run_to_node",
+                             className="bg-orange-500 text-white w-full h-14 py-3")
 
     
     if new_state.selected_id and 'edge' not in new_state.selected_id:

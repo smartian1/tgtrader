@@ -4,17 +4,17 @@ from tgtrader.streamlit_pages.dao.common import BaseModel, db
 from peewee import AutoField, IntegerField, BigIntegerField, TextField, CompositeKey
 
 
-class FlowNodeCfg(BaseModel):
+class FlowCfg(BaseModel):
     # 主键自增id
     id = AutoField()
-    # 节点id
-    node_id = TextField()
-    # 节点类型
-    node_type = TextField()
-    # 节点配置JSON
-    node_cfg = TextField()
-    # 版本号
-    version = IntegerField(default=1)
+    # 流程名称
+    flow_name = TextField()
+    # 用户id
+    user_id = IntegerField()
+    # 节点列表
+    node_list = TextField()
+    # 边列表
+    edge_list = TextField()
     # 创建时间
     create_time = BigIntegerField(
         default=lambda: int(datetime.now().timestamp()))
@@ -23,19 +23,19 @@ class FlowNodeCfg(BaseModel):
         default=lambda: int(datetime.now().timestamp()))
 
     class Meta:
-        table_name = 't_flow_node_cfg'
-        primary_key = CompositeKey('node_id', 'node_type')
+        table_name = 't_flow'
 
     def save(self, *args, **kwargs):
         # 更新时间戳
         self.update_time = int(datetime.now().timestamp())
-        return super(FlowNodeCfg, self).save(*args, **kwargs)
+        return super(FlowCfg, self).save(*args, **kwargs)
 
     @classmethod
     def init_table(cls):
         # 初始化表
         with db:
-            if FlowNodeCfg.table_exists():
-                FlowNodeCfg.delete().execute()
+            if FlowCfg.table_exists():
+                FlowCfg.delete().execute()
             else:
-                db.create_tables([FlowNodeCfg])
+                db.create_tables([FlowCfg])
+
