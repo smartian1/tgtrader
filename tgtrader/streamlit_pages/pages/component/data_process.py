@@ -8,13 +8,13 @@ import streamlit_shadcn_ui as ui
 
 node_type_dict = {
     "data_source_db": "数据源(DB)",
-    "python_code": "处理节点(python代码)",
-    "sql": "处理节点(sql)",
-    "storage_db": "存储(DB)"
+    "processor_python_code": "处理节点(python代码)",
+    "processor_sql": "处理节点(sql)",
+    "sink_db": "存储(DB)"
 }
 
 
-def run():
+def build_flow_page(support_node_type_list: list):
     new_state = streamlit_flow('fully_interactive_flow', 
                 StreamlitFlowState([], []), # Start with an empty state, or with some pre-initialized state
                 fit_view=True,
@@ -43,13 +43,15 @@ def run():
 
     
     if new_state.selected_id and 'edge' not in new_state.selected_id:
-        node_type = st.selectbox("选择节点类型", list(node_type_dict.values()))
+        support_node_type_name = [node_type_dict[node_type] for node_type in support_node_type_list]
+
+        node_type = st.selectbox("选择节点类型", support_node_type_name)
         if node_type == node_type_dict["data_source_db"]:
             data_source_db_config(src_page="data_process")
-        elif node_type == node_type_dict["python_code"]:
+        elif node_type == node_type_dict["processor_python_code"]:
             python_code_config(src_page="data_process")
-        elif node_type == node_type_dict["sql"]:
+        elif node_type == node_type_dict["processor_sql"]:
             sql_config(src_page="data_process")
-        elif node_type == node_type_dict["storage_db"]:
+        elif node_type == node_type_dict["sink_db"]:
             sink_db_config(src_page="data_process")
 

@@ -9,8 +9,9 @@ from tgtrader.streamlit_pages.pages.strategies.my_strategies import run as my_st
 from tgtrader.streamlit_pages.pages.accounts.settings import run as settings_run
 from tgtrader.streamlit_pages.pages.data.data_init import run as data_init_run
 from tgtrader.streamlit_pages.pages.data.data_query import run as data_query_run
-from tgtrader.streamlit_pages.pages.data.data_process import run as data_process_run
 from tgtrader.streamlit_pages.pages.knowledge_base.knowledge_base import run as knowledge_base_run
+from tgtrader.streamlit_pages.pages.factors.factor_process import run as factor_process_run
+
 
 def logout():
     # Clear session state
@@ -38,9 +39,11 @@ def run():
             data_init_run, title='数据更新', icon=':material/database:', url_path='data_init')
         data_query_page = st.Page(
             data_query_run, title='数据查询', icon=':material/query_stats:', url_path='data_query')
-        data_process_page = st.Page(
-            data_process_run, title='数据处理', icon=':material/data_array:', url_path='data_process')
-        strategy_pages['数据'] = [data_init_page, data_query_page, data_process_page]
+        strategy_pages['数据'] = [data_init_page, data_query_page]
+
+        factor_process_page = st.Page(
+            factor_process_run, title='因子处理', icon=':material/scatter_plot:', url_path='factor_process')
+        strategy_pages['因子'] = [factor_process_page]
 
         target_weights_page = st.Page(target_weight_strats_run, title='目标权重策略', icon=':material/target:', url_path='strategies_target_weights')
         risk_parity_page = st.Page(risk_parity_strats_run, title='风险平价策略', icon=':material/balance:', url_path='strategies_risk_parity')
