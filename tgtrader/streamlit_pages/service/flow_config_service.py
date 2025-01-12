@@ -103,6 +103,7 @@ class FlowConfigService:
         for node in node_list:
             node_id = node['id']
             draft_nodes = FlowNodeCfg.select().where(
+                (FlowNodeCfg.flow_id == flow_id) & 
                 (FlowNodeCfg.node_id == node_id) & 
                 (FlowNodeCfg.is_draft == 1)
             )

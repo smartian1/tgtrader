@@ -141,11 +141,13 @@ def build_flow_page(flow_type: FlowType):
     1. 在内存里构建一个FlowCfg实例
     2. 编辑节点时，将节点信息存储进数据库，is_draft=1； 更新FlowCfg的信息（内存中）
     3. 保存流程时，将FlowCfg实例存储进数据库，节点的is_draft改为0
+    4. 如果flow没有保存，那么不会记录该flow的数据
 
     编辑：
     1. 流程配置读取到FlowCfg实例
     2. 编辑节点时，节点信息存储进数据库（新增一条记录），is_draft=1；更新FlowCfg的信息（内存中）
     3. 保存流程时，更新FlowCfg在数据库中的信息，节点is_draft改为0
+    4. 如果flow没有保存，则下次选中该flow时，将其关联的is_draft=1的节点，删除
 
     """
 
