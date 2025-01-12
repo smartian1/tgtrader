@@ -15,23 +15,62 @@ node_type_dict = {
 
 
 def build_flow_page(support_node_type_list: list):
-    new_state = streamlit_flow('fully_interactive_flow', 
-                StreamlitFlowState([], []), # Start with an empty state, or with some pre-initialized state
-                fit_view=True,
-                show_controls=True,
-                allow_new_edges=True,
-                animate_new_edges=True,
-                layout=TreeLayout("right"),
-                enable_pane_menu=True,
-                enable_edge_menu=True,
-                enable_node_menu=True,
-                height=600,
-                show_minimap=True,
-                get_node_on_click=True
-    )
+    """
+    新建：
+    1. 在内存里构建一个FlowCfg实例
+    2. 编辑节点时，将节点信息存储进数据库，is_draft=1； 更新FlowCfg的信息（内存中）
+    3. 保存流程时，将FlowCfg实例存储进数据库，节点的is_draft改为0
 
-    ui.button(text="点击保存流程", key="styled_btn_save_flow", 
-                className="bg-orange-500 text-white w-full h-14 py-3")
+    编辑：
+    1. 流程配置读取到FlowCfg实例
+    2. 编辑节点时，节点信息存储进数据库（新增一条记录），is_draft=1；更新FlowCfg的信息（内存中）
+    3. 保存流程时，更新FlowCfg在数据库中的信息，节点is_draft改为0
+
+    """
+
+    
+    flow_options = ['', "新建流程"] + ["流程1", "流程2", "流程3"] 
+    selected_flow = st.selectbox('选择流程', flow_options)
+    
+    if selected_flow == '':
+        return
+    if selected_flow == "新建流程":
+        new_state = streamlit_flow('new_flow', 
+                    StreamlitFlowState([], []), # Start with an empty state, or with some pre-initialized state
+                    fit_view=True,
+                    show_controls=True,
+                    allow_new_edges=True,
+                    animate_new_edges=True,
+                    layout=TreeLayout("right"),
+                    enable_pane_menu=True,
+                    enable_edge_menu=True,
+                    enable_node_menu=True,
+                    height=600,
+                    show_minimap=True,
+                    get_node_on_click=True,
+        )
+
+        flow_name = st.text_input('输入流程名称')
+        
+        ui.button(text="点击保存流程", key="styled_btn_save_flow",
+                    className="bg-orange-500 text-white w-full h-14 py-3")
+    else:
+        new_state = streamlit_flow('edit_flow',
+                                   StreamlitFlowState([], []),
+                                   fit_view=True,
+                                   show_controls=True,
+                                   allow_new_edges=True,
+                                   animate_new_edges=True,
+                                   layout=TreeLayout("right"),
+                                   enable_pane_menu=True,
+                                   enable_edge_menu=True,
+                                   enable_node_menu=True,
+                                   height=600,
+                                   show_minimap=True,
+                                   get_node_on_click=True
+                                   )
+        ui.button(text="点击保存流程", key="styled_btn_save_flow", 
+                    className="bg-orange-500 text-white w-full h-14 py-3")
     
     col1, col2 = st.columns(2)
     with col1:

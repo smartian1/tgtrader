@@ -9,18 +9,16 @@ class FlowCfg(BaseModel):
     id = AutoField()
     # 流程id
     flow_id = TextField()
+    # 流程类型: 1-因子加工
+    flow_type = IntegerField()
     # 流程名称
     flow_name = TextField()
     # 节点列表
     node_list = TextField()
     # 边列表
     edge_list = TextField()
-    # 是否草稿
-    is_draft = IntegerField(default=1)
     # 描述信息
     desc = TextField(null=True)
-    # 版本号
-    version = IntegerField(default=1)
     # 创建时间
     create_time = BigIntegerField(
         default=lambda: int(datetime.now().timestamp()))
@@ -30,7 +28,7 @@ class FlowCfg(BaseModel):
 
     class Meta:
         table_name = 't_flow'
-        primary_key = CompositeKey('flow_id', 'version')
+        primary_key = CompositeKey('flow_id')
 
     def save(self, *args, **kwargs):
         # 更新时间戳
