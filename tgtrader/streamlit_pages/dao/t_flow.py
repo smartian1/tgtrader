@@ -7,8 +7,10 @@ from peewee import AutoField, IntegerField, BigIntegerField, TextField, Composit
 class FlowCfg(BaseModel):
     # 主键自增id
     id = AutoField()
-    # 流程id
-    flow_id = TextField()
+    # 用户名
+    username = TextField()
+    # 流程id（唯一索引）
+    flow_id = TextField(unique=True)
     # 流程类型: 1-因子加工
     flow_type = IntegerField()
     # 流程名称
@@ -18,7 +20,7 @@ class FlowCfg(BaseModel):
     # 边列表
     edge_list = TextField()
     # 描述信息
-    desc = TextField(null=True)
+    desc = TextField(null=True, default='')
     # 创建时间
     create_time = BigIntegerField(
         default=lambda: int(datetime.now().timestamp()))
@@ -28,7 +30,9 @@ class FlowCfg(BaseModel):
 
     class Meta:
         table_name = 't_flow'
-        primary_key = CompositeKey('flow_id')
+        indexes = (
+            (('username', 'flow_type', 'flow_name'), True),
+        )
 
     def save(self, *args, **kwargs):
         # 更新时间戳
@@ -37,10 +41,7 @@ class FlowCfg(BaseModel):
 
     @classmethod
     def init_table(cls):
-        # 初始化表
         with db:
-            if FlowCfg.table_exists():
-                FlowCfg.delete().execute()
-            else:
+            if not FlowCfg.table_exists():
                 db.create_tables([FlowCfg])
 

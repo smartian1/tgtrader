@@ -7,6 +7,8 @@ from peewee import AutoField, IntegerField, BigIntegerField, TextField, Composit
 class FlowNodeCfg(BaseModel):
     # 主键自增id
     id = AutoField()
+    # flow_id
+    flow_id = TextField()
     # 节点id
     node_id = TextField()
     # 节点类型
@@ -18,7 +20,7 @@ class FlowNodeCfg(BaseModel):
     # 是否草稿
     is_draft = IntegerField(default=1)
     # 描述信息
-    desc = TextField(null=True)
+    desc = TextField(null=True, default="")
     # 创建时间
     create_time = BigIntegerField(
         default=lambda: int(datetime.now().timestamp()))
@@ -27,8 +29,11 @@ class FlowNodeCfg(BaseModel):
         default=lambda: int(datetime.now().timestamp()))
 
     class Meta:
-        table_name = 't_flow_node_cfg'
-        primary_key = CompositeKey('node_id', 'version')
+        table_name = 't_flow_node'
+        indexes = (
+            # 创建 node_id 和 version 的联合唯一索引
+            (('flow_id', 'node_id', 'version'), True),
+        )
 
     def save(self, *args, **kwargs):
         # 更新时间戳
@@ -37,9 +42,6 @@ class FlowNodeCfg(BaseModel):
 
     @classmethod
     def init_table(cls):
-        # 初始化表
         with db:
-            if FlowNodeCfg.table_exists():
-                FlowNodeCfg.delete().execute()
-            else:
+            if not FlowNodeCfg.table_exists():
                 db.create_tables([FlowNodeCfg])

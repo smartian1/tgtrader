@@ -6,10 +6,15 @@ import streamlit as st
 from streamlit_ace import st_ace
 from .data_meta import build_db_meta_info
 
-def data_source_db_config(src_page: str):
+def data_source_db_config(src_page: str, node_cfg: dict):
     col1, col2 = st.columns(2)
     with col1:
-        data_source = st.selectbox("数据源", ["Akshare"], key=f"data_source_config_{src_page}")
+        options = ["Akshare"]
+        default_value = node_cfg.get('data_source', 'Akshare') if node_cfg else 'Akshare'
+        default_index = options.index(default_value)
+        data_source = st.selectbox("数据源", options,
+                                key=f"data_source_config_{src_page}",
+                                index=default_index)
 
     placeholder = """
 输入：该节点必须为起始节点，不能有其他输入
@@ -23,19 +28,21 @@ select * from t_kdata where date>='2024-01-01'
                        auto_update=False,
                        placeholder=placeholder,
                        show_gutter=True,
-                       key=f"{src_page}_sql_query"
+                       key=f"{src_page}_sql_query",
+                       value=node_cfg.get('content', '') if node_cfg else ''
                        )
     
     build_db_meta_info(src_page=f"{src_page}_data_source_config")
 
     return {
         'type': 'data_source_db',
+        'data_source': data_source,
         'content': sql_query
     }
 
 
 
-def python_code_config(src_page: str):
+def python_code_config(src_page: str, node_cfg: dict):
     placeholder = """
 连接到该节点的前方边的名字，就是传入到该节点的入参名，可以直接对其进行操作
 
@@ -56,7 +63,8 @@ df['ma20'] = df['close'].rolling(20).mean()
                          height=300, auto_update=False,
                          placeholder=placeholder,
                          show_gutter=True,
-                         key=f"{src_page}_python_code_config"
+                         key=f"{src_page}_python_code_config",
+                         value=node_cfg.get('content', '') if node_cfg else ''
                          )
     
     return {
@@ -65,7 +73,7 @@ df['ma20'] = df['close'].rolling(20).mean()
     }
 
 
-def sql_config(src_page: str):
+def sql_config(src_page: str, node_cfg: dict):
     placeholder = """
 支持的输入：
 1. SQL语句
@@ -79,7 +87,8 @@ select * from df where code='000001'
                        height=300, auto_update=False,
                        placeholder=placeholder,
                        show_gutter=True,
-                       key=f"{src_page}_sql_config"
+                       key=f"{src_page}_sql_config",
+                       value=node_cfg.get('content', '') if node_cfg else ''
                        )
     
     return {
@@ -88,7 +97,7 @@ select * from df where code='000001'
     }
 
 
-def sink_db_config(src_page: str):
+def sink_db_config(src_page: str, node_cfg: dict):
     is_create_table = st.checkbox("是否新建表(保存时就会创建新表)", key=f"{src_page}_storage_config_create_table")
     col1, col2 = st.columns([1, 5])
     if is_create_table:
