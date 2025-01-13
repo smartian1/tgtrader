@@ -53,7 +53,7 @@ def create_select_flow_component(flow_type: FlowType) -> tuple[str, str]:
     """
     username = get_user_name()
     all_user_flow_info = FlowConfigService.get_all_user_flow_info(username, flow_type.value)
-    flow_options = ['', "新建流程"] + [flow_info.flow_name for flow_info in all_user_flow_info]
+    flow_options = ["新建流程"] + [flow_info.flow_name for flow_info in all_user_flow_info]
     selected_flow = st.selectbox('选择流程', flow_options, key='select_box_flow_id')
 
     if 'last_selected_flow_name' not in st.session_state:
@@ -199,16 +199,19 @@ def build_flow_page(flow_type: FlowType):
         else:
             cfg = {}
 
-        node_type = st.selectbox("选择节点类型", support_node_type_name)
+        node_type = NodeType.get_node_type_by_value(node_info.node_type)
+        idx = support_node_type_name.index(node_type.value)
+
+        node_type = st.selectbox("选择节点类型", support_node_type_name, index=idx)
         if node_type == NodeType.DATA_SOURCE_DB.value:
-            ret = data_source_db_config(
+            ret = data_source_db_config(node_id=flow_component.selected_id,
                 src_page="data_process", node_cfg=cfg)
         elif node_type == NodeType.PROCESSOR_PYTHON_CODE.value:
-            ret = python_code_config(src_page="data_process", node_cfg=cfg)
+            ret = python_code_config(node_id=flow_component.selected_id, src_page="data_process", node_cfg=cfg)
         elif node_type == NodeType.PROCESSOR_SQL.value:
-            ret = sql_config(src_page="data_process", node_cfg=cfg)
+            ret = sql_config(node_id=flow_component.selected_id, src_page="data_process", node_cfg=cfg)
         elif node_type == NodeType.SINK_DB.value:
-            ret = sink_db_config(src_page="data_process", node_cfg=cfg)
+            ret = sink_db_config(node_id=flow_component.selected_id, src_page="data_process", node_cfg=cfg)
 
         if ret and not is_save_flow_btn_clicked and not btn_run_all and not btn_run_select:
             # 如果is_save_flow_btn_clicked为True，则不保存节点信息，否则会多出来一条is_draft=1的记录
