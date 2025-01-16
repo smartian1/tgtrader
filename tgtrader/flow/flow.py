@@ -1,7 +1,7 @@
 # encoding: utf-8
 from enum import Enum
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Callable
 from collections import deque
 
 
@@ -59,7 +59,7 @@ class FlowNode:
         else:
             raise ValueError(f"未知的节点类型: {node_type}")
 
-    def execute(self, input_data: dict) -> dict:
+    def execute(self, input_data: dict, process_callback: Callable=None) -> dict:
         """执行节点逻辑
         
         input_data: 
@@ -131,7 +131,7 @@ class Flow:
             to_node = self.node_map[edge['target']]
             from_node.add_next_node(to_node, edge['edge_name'])
 
-    def execute_flow(self, input_data: dict=None) -> Dict[str, dict]:
+    def execute_flow(self, input_data: dict=None, process_callback: Callable=None) -> Dict[str, dict]:
         """
         执行整个流程
         
@@ -171,7 +171,7 @@ class Flow:
             # 对于源节点，我们通常把全局的 input_data 传给它执行
             # 对于非源但 in_degree=0 的节点，也可以传入一个空字典，或者同样传入 input_data
             node_input = input_data
-            result = node.execute(node_input)
+            result = node.execute(node_input, process_callback)
             aggregator[node.node_id] = result
             queue.append(node)
 
@@ -202,7 +202,7 @@ class Flow:
                 if in_degree[child_node.node_id] == 0:
                     # 此时可以执行子节点
                     child_input = aggregator[child_node.node_id]
-                    child_result = child_node.execute(child_input)
+                    child_result = child_node.execute(child_input, process_callback)
                     aggregator[child_node.node_id] = child_result
                     queue.append(child_node)
 
