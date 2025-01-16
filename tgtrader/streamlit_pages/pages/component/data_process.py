@@ -14,6 +14,8 @@ import arrow
 from tgtrader.streamlit_pages.pages.component.widget import display_hint_message
 from tgtrader.streamlit_pages.service.flow_config_service import FlowConfigService
 from streamlit_flow.elements import StreamlitFlowNode, StreamlitFlowEdge
+from flow.flow import Flow
+
 
 class NodeType(enum.Enum):
     DATA_SOURCE_DB = "数据源(DB)"
@@ -183,6 +185,9 @@ def build_flow_page(flow_type: FlowType):
     with col2:
         btn_run_select = ui.button(text="运行到选择的节点", key="styled_btn_run_to_node",
                                    className="bg-orange-500 text-white w-full h-14 py-3")
+    
+    if btn_run_all:
+        run_all(flow_id)
 
     support_node_type_list = get_support_node_type_list(flow_type)
     if flow_component.selected_id and 'edge' not in flow_component.selected_id:
@@ -224,3 +229,6 @@ def build_flow_page(flow_type: FlowType):
                 node_type=NodeType.get_node_type_by_value(node_type),
                 node_cfg=ret
             )
+
+def run_all(flow_id):
+    FlowConfigService.run_flow(flow_id, info_callback=display_hint_message, process_callback=None)

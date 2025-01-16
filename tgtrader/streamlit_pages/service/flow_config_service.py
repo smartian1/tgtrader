@@ -4,6 +4,8 @@ import time
 from tgtrader.streamlit_pages.dao.t_flow import FlowCfg
 from tgtrader.streamlit_pages.dao.t_flow_node import FlowNodeCfg
 import json
+from typing import Callable, List
+from flow.flow import Flow
 
 class FlowConfigService:
     def __init__(self):
@@ -121,7 +123,7 @@ class FlowConfigService:
         return node_info
     
     @classmethod
-    def get_flow_info(cls, flow_id):
+    def get_flow_info(cls, flow_id) -> FlowCfg:
         flow_info = FlowCfg.get_or_none(FlowCfg.flow_id == flow_id)
         if not flow_info:
             return None
@@ -166,3 +168,61 @@ class FlowConfigService:
             (FlowNodeCfg.flow_id == flow_id) &
             (FlowNodeCfg.is_draft == 1)
         ).execute()
+
+
+    @classmethod
+    def run_flow(cls, flow_id, info_callback: Callable, process_callback: Callable=None):
+        flow_info = FlowConfigService.get_flow_info(flow_id)
+
+        if not flow_info:
+            info_callback("未找到flow信息, 请先保存流程", message_type="error")
+            return
+
+        try:
+            flow = Flow(flow_id)
+
+            node_list = cls.__convert_node_list(flow_id, flow_info.node_list)
+            edge_list = cls.__convert_edge_list(flow_info.edge_list)
+            flow.build_flow(node_list, edge_list)
+
+            flow.execute_flow()
+        except Exception as e:
+            info_callback(f"流程构建失败: {e}", message_type="error")
+            return
+
+    @classmethod
+    def __convert_node_list(cls, flow_id, node_list: List[dict]) -> list:
+        ret_list = []
+        for node in node_list:
+            node_id = node['id']
+
+            node_info = FlowNodeCfg.select().where(
+                (FlowNodeCfg.flow_id == flow_id) &
+                (FlowNodeCfg.node_id == node_id)
+            ).order_by(FlowNodeCfg.version.desc()).first()
+
+            if not node_info:
+                raise Exception(f"未找到节点{node_id}的配置信息")
+            
+            node_type = node_info.node_type
+            node_cfg = node_info.node_cfg
+
+            ret_list.append({
+                "id": node_id,
+                "node_type": node_type,
+                "config": node_cfg
+            })
+
+        return ret_list
+
+    @classmethod
+    def __convert_edge_list(cls, edge_list: List[dict]) -> list:
+        ret_list = []
+        for edge in edge_list:
+            ret_list.append({
+                "source": edge['source'],
+                "target": edge['target'],
+                "edge_name": edge['label']
+            })
+        return ret_list
+
