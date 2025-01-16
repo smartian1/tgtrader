@@ -199,8 +199,11 @@ def build_flow_page(flow_type: FlowType):
         else:
             cfg = {}
 
-        node_type = NodeType.get_node_type_by_value(node_info.node_type)
-        idx = support_node_type_name.index(node_type.value)
+        if node_info:
+            node_type = NodeType.get_node_type_by_value(node_info.node_type)
+            idx = support_node_type_name.index(node_type.value)
+        else:
+            idx = 0
 
         node_type = st.selectbox("选择节点类型", support_node_type_name, index=idx)
         if node_type == NodeType.DATA_SOURCE_DB.value:
