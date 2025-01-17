@@ -5,7 +5,7 @@ from tgtrader.streamlit_pages.dao.t_flow import FlowCfg
 from tgtrader.streamlit_pages.dao.t_flow_node import FlowNodeCfg
 import json
 from typing import Callable, List
-from flow.flow import Flow
+from tgtrader.flow.flow import Flow
 
 class FlowConfigService:
     def __init__(self):
@@ -171,7 +171,17 @@ class FlowConfigService:
 
 
     @classmethod
-    def run_flow(cls, flow_id, info_callback: Callable, process_callback: Callable=None):
+    def run_flow(cls, flow_id, info_callback: Callable):
+        """
+        info_callback: 
+            Args: 
+                message: 消息
+                message_type: 消息类型，可选值：info, warning, error
+        
+        process_callback: 
+            Args: 
+                data: 处理后的数据
+        """
         flow_info = FlowConfigService.get_flow_info(flow_id)
 
         if not flow_info:
@@ -185,7 +195,7 @@ class FlowConfigService:
             edge_list = cls.__convert_edge_list(flow_info.edge_list)
             flow.build_flow(node_list, edge_list)
 
-            flow.execute_flow()
+            flow.execute_flow(info_callback)
         except Exception as e:
             info_callback(f"流程构建失败: {e}", message_type="error")
             return

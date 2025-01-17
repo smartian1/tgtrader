@@ -3,6 +3,7 @@ from enum import Enum
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any, Callable
 from collections import deque
+import json
 
 
 class NodeType(Enum):
@@ -46,7 +47,10 @@ class FlowNode:
             FlowNode: 创建的节点实例
         """
         # 在此处做实际的子类导入，以免循环引用
-        from tgtrader.flow.nodes import SourceDBNode, SQLProcessorNode, PythonProcessorNode, SinkDBNode
+        from tgtrader.flow.nodes.source_db import SourceDBNode
+        from tgtrader.flow.nodes.processor_sql import SQLProcessorNode
+        from tgtrader.flow.nodes.processor_python import PythonProcessorNode
+        from tgtrader.flow.nodes.sink_db import SinkDBNode
 
         if NodeType(node_type) == NodeType.SOURCE_DB:
             return SourceDBNode(node_id=node_id, config=config)
@@ -121,7 +125,7 @@ class Flow:
             node = FlowNode.create_node(
                 node_id=node_config['id'],
                 node_type=node_config['node_type'],
-                config=node_config.get('config', {})
+                config=json.loads(node_config.get('config', '{}'))
             )
             self.node_map[node.node_id] = node
 
@@ -131,7 +135,7 @@ class Flow:
             to_node = self.node_map[edge['target']]
             from_node.add_next_node(to_node, edge['edge_name'])
 
-    def execute_flow(self, input_data: dict=None, process_callback: Callable=None) -> Dict[str, dict]:
+    def execute_flow(self, process_callback: Callable=None) -> Dict[str, dict]:
         """
         执行整个流程
         
@@ -170,8 +174,7 @@ class Flow:
         for node in start_nodes:
             # 对于源节点，我们通常把全局的 input_data 传给它执行
             # 对于非源但 in_degree=0 的节点，也可以传入一个空字典，或者同样传入 input_data
-            node_input = input_data
-            result = node.execute(node_input, process_callback)
+            result = node.execute(input_data=None, process_callback=process_callback)
             aggregator[node.node_id] = result
             queue.append(node)
 

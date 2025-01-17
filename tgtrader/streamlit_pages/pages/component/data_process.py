@@ -14,7 +14,6 @@ import arrow
 from tgtrader.streamlit_pages.pages.component.widget import display_hint_message
 from tgtrader.streamlit_pages.service.flow_config_service import FlowConfigService
 from streamlit_flow.elements import StreamlitFlowNode, StreamlitFlowEdge
-from flow.flow import Flow
 
 
 class NodeType(enum.Enum):
