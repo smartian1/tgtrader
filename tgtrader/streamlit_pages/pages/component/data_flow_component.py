@@ -97,6 +97,38 @@ select * from df where code='000001'
     }
 
 
+# 添加字段名映射
+FIELD_NAME_MAPPING = {
+    'field_name': '字段名',
+    'field_type': '类型',
+    'description': '描述', 
+    'is_primary_key': '是否主键',
+    'input_field_mapping': '映射前节点输入字段'
+}
+
+def cn_to_en_field_names(df: pd.DataFrame) -> pd.DataFrame:
+    """将DataFrame的中文字段名转换为英文字段名
+    
+    Args:
+        df: 包含中文字段名的DataFrame
+        
+    Returns:
+        包含英文字段名的DataFrame
+    """
+    reverse_mapping = {v: k for k, v in FIELD_NAME_MAPPING.items()}
+    return df.rename(columns=reverse_mapping)
+
+def en_to_cn_field_names(df: pd.DataFrame) -> pd.DataFrame:
+    """将DataFrame的英文字段名转换为中文字段名
+    
+    Args:
+        df: 包含英文字段名的DataFrame
+        
+    Returns:
+        包含中文字段名的DataFrame
+    """
+    return df.rename(columns=FIELD_NAME_MAPPING)
+
 def get_empty_field_config():
     """获取空字段配置"""
     return pd.DataFrame({
@@ -106,7 +138,6 @@ def get_empty_field_config():
         "是否主键": pd.Series([], dtype='bool'),
         "映射前节点输入字段": pd.Series([], dtype='str')
     })
-
 
 def create_field_config_editor(node_id: str, src_page: str, is_create_table: bool, field_config: pd.DataFrame):
     """创建字段配置编辑器"""
@@ -167,14 +198,25 @@ def validate_table_config(table_name: str, field_config_df: pd.DataFrame) -> tup
 
 
 def sink_db_config(node_id: str, src_page: str, node_cfg: dict):
-    """数据库存储节点配置"""
+    """数据库存储节点配置
+    
+    Args:
+        node_id: 节点ID
+        src_page: 源页面
+        node_cfg: 节点配置
+        
+    Returns:
+        节点配置字典或None（配置无效时）
+    """
     try:
         node_cfg = node_cfg.get('content', {})
         # 初始化配置
         if node_cfg:
             is_create_table = node_cfg.get('is_create_table', False)
             table_name = node_cfg.get('table_name', '')
+            # 将保存的英文字段名转换为中文显示
             field_config = pd.DataFrame(node_cfg['field_config'])
+            field_config = en_to_cn_field_names(field_config)
         else:
             is_create_table = True
             table_name = ''
@@ -219,12 +261,14 @@ def sink_db_config(node_id: str, src_page: str, node_cfg: dict):
                 st.error(error_msg)
                 ret = None
             else:
+                # 保存时转换为英文字段名
+                data_editor_df_en = cn_to_en_field_names(data_editor_df)
                 ret = {
                     'type': 'sink_db',
                     'content': {
                         'is_create_table': is_create_table,
                         'table_name': table_name,
-                        'field_config': data_editor_df.to_dict(orient='records')
+                        'field_config': data_editor_df_en.to_dict(orient='records')
                     }
                 }
         else:
