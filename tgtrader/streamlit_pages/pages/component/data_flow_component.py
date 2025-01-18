@@ -46,20 +46,18 @@ select * from t_kdata where date>='2024-01-01'
 
 def python_code_config(node_id: str, src_page: str, node_cfg: dict):
     placeholder = """
-连接到该节点的前方边的名字，就是传入到该节点的入参名，可以直接对其进行操作
-
-支持的输入：
-1. SQL语句
-2. Python代码
+要定义一个函数，函数名必须为calc，函数参数为前方节点连到该节点的边的名字
 
 输出：
-必须是DataFrame
+任意类型
 
 示例：
-df['ma5'] = df['close'].rolling(5).mean()
-df['ma10'] = df['close'].rolling(10).mean()
-df['ma20'] = df['close'].rolling(20).mean()
-    """
+def calc(df):
+    df['ma5'] = df['close'].rolling(5).mean()
+    df['ma10'] = df['close'].rolling(10).mean()
+    df['ma20'] = df['close'].rolling(20).mean()
+    return df
+"""
 
     python_code = st_ace(language='python', theme='dracula',
                          height=300, auto_update=False,

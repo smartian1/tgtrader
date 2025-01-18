@@ -124,6 +124,10 @@ def create_flow_component(is_new_flow: bool, flow_type: FlowType, flow_id: str =
         if flow_name == '':
             display_hint_message("请输入流程名称", message_type="error")
         else:
+            if not __check_edge_label_exist(flow_component.asdict()['edges']):
+                st.error("请为每条边设置label")
+                return None, None, None
+            
             FlowConfigService.save_flow(
                 username=get_user_name(),
                 flow_id=flow_id,
@@ -136,6 +140,11 @@ def create_flow_component(is_new_flow: bool, flow_type: FlowType, flow_id: str =
 
     return flow_component, click_save_btn, flow_id
 
+def __check_edge_label_exist(edge_list):
+    for edge in edge_list:
+        if edge['label'].strip() == '':
+            return False
+    return True
 
 def build_flow_page(flow_type: FlowType):
     """
@@ -190,7 +199,7 @@ def build_flow_page(flow_type: FlowType):
         run_all(flow_id)
 
     support_node_type_list = get_support_node_type_list(flow_type)
-    if flow_component.selected_id and 'edge' not in flow_component.selected_id:
+    if flow_component and flow_component.selected_id and 'edge' not in flow_component.selected_id:
         support_node_type_name = [
             node_type.value for node_type in support_node_type_list]
 

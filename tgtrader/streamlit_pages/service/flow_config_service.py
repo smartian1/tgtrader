@@ -6,6 +6,7 @@ from tgtrader.streamlit_pages.dao.t_flow_node import FlowNodeCfg
 import json
 from typing import Callable, List
 from tgtrader.flow.flow import Flow
+from loguru import logger
 
 class FlowConfigService:
     def __init__(self):
@@ -170,8 +171,19 @@ class FlowConfigService:
         ).execute()
 
 
+    @staticmethod
+    def __default_run_flow_callback(message, message_type):
+        if message_type == "info":
+            logger.info(message)
+        elif message_type == "warning":
+            logger.warning(message)
+        elif message_type == "error":
+            logger.error(message)
+        else:
+            logger.info(message)
+
     @classmethod
-    def run_flow(cls, flow_id, info_callback: Callable):
+    def run_flow(cls, flow_id, info_callback: Callable=__default_run_flow_callback):
         """
         info_callback: 
             Args: 
@@ -201,6 +213,7 @@ class FlowConfigService:
             flow.execute_flow(info_callback)
         except Exception as e:
             info_callback(f"流程构建失败: {e}", message_type="error")
+            logger.exception(e)
             return
 
     @classmethod
