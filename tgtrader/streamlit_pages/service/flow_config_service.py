@@ -182,6 +182,9 @@ class FlowConfigService:
             Args: 
                 data: 处理后的数据
         """
+        if info_callback:
+            info_callback("开始运行流程", message_type="info")
+
         flow_info = FlowConfigService.get_flow_info(flow_id)
 
         if not flow_info:

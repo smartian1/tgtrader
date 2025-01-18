@@ -14,7 +14,8 @@ import arrow
 from tgtrader.streamlit_pages.pages.component.widget import display_hint_message
 from tgtrader.streamlit_pages.service.flow_config_service import FlowConfigService
 from streamlit_flow.elements import StreamlitFlowNode, StreamlitFlowEdge
-
+from streamlit_ace import st_ace
+from functools import partial
 
 class NodeType(enum.Enum):
     DATA_SOURCE_DB = "数据源(DB)"
@@ -230,4 +231,24 @@ def build_flow_page(flow_type: FlowType):
             )
 
 def run_all(flow_id):
-    FlowConfigService.run_flow(flow_id, info_callback=display_hint_message, process_callback=None)
+    log_placeholder = st.empty()
+    st.session_state['run_log'] = ''
+    FlowConfigService.run_flow(flow_id, info_callback=partial(run_flow_log_callback, log_placeholder=log_placeholder))
+
+def run_flow_log_callback(message: str, message_type: str, log_placeholder) -> None:
+    """
+    记录流程运行日志并更新日志显示区域
+    
+    Args:
+        message (str): 日志消息内容
+        message_type (str): 日志类型（info, warning, error等）
+        log_placeholder: Streamlit日志占位符
+    """
+    timestamp = arrow.now().format('YYYY-MM-DD HH:mm:ss')
+    log_prefix = f"[{timestamp}] [{message_type.upper()}] "
+    
+    old_log = st.session_state['run_log']
+    new_log = old_log + log_prefix + message + '\n'
+    st.session_state['run_log'] = new_log
+
+    log_placeholder.text_area("Running log", value=new_log, height=200, disabled=True)
