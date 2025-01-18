@@ -17,6 +17,7 @@ class NodeType(Enum):
 class FlowNode:
     """流程节点基类"""
     node_id: str
+    node_label: str
     config: dict = field(default_factory=dict)
 
     # 保存后续节点及其对应的边名称
@@ -35,11 +36,12 @@ class FlowNode:
     next_nodes: List[Dict[str, 'FlowNode']] = field(default_factory=list)
 
     @classmethod
-    def create_node(cls, node_id: str, node_type: str, config: dict) -> 'FlowNode':
+    def create_node(cls, node_id: str, node_label: str, node_type: str, config: dict) -> 'FlowNode':
         """根据节点类型创建对应的节点实例
         
         Args:
             node_id: 节点唯一标识
+            node_label: 节点名称
             node_type: 节点类型
             config: 节点配置信息
         
@@ -53,13 +55,13 @@ class FlowNode:
         from tgtrader.flow.nodes.sink_db import SinkDBNode
 
         if NodeType(node_type) == NodeType.SOURCE_DB:
-            return SourceDBNode(node_id=node_id, config=config)
+            return SourceDBNode(node_id=node_id, node_label=node_label, config=config)
         elif NodeType(node_type) == NodeType.PROCESSOR_SQL:
-            return SQLProcessorNode(node_id=node_id, config=config)
+            return SQLProcessorNode(node_id=node_id, node_label=node_label, config=config)
         elif NodeType(node_type) == NodeType.PROCESSOR_PYTHON:
-            return PythonProcessorNode(node_id=node_id, config=config)
+            return PythonProcessorNode(node_id=node_id, node_label=node_label, config=config)
         elif NodeType(node_type) == NodeType.SINK_DB:
-            return SinkDBNode(node_id=node_id, config=config)
+            return SinkDBNode(node_id=node_id, node_label=node_label, config=config)
         else:
             raise ValueError(f"未知的节点类型: {node_type}")
 
@@ -109,6 +111,7 @@ class Flow:
                 {
                     "id": "node_id",
                     "node_type": "数据源(DB)",
+                    "node_label": "节点名称",
                     "config": {
                     }
                 }
@@ -124,6 +127,7 @@ class Flow:
         for node_config in node_list:
             node = FlowNode.create_node(
                 node_id=node_config['id'],
+                node_label=node_config['node_label'],
                 node_type=node_config['node_type'],
                 config=json.loads(node_config.get('config', '{}'))
             )

@@ -14,6 +14,6 @@ class SourceDBNode(FlowNode):
         df = duckdb_query.fetch_df(sql)
 
         if process_callback:
-            process_callback(f"数据源: {data_source}, 查询SQL: {sql}, 查询结果数量: {len(df)}", message_type="info")
+            process_callback(f"【节点: {self.node_label}】, 数据源: {data_source}, 查询SQL: {sql}, 查询结果数量: {len(df)}", message_type="info")
 
         return df

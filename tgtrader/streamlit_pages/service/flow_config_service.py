@@ -221,6 +221,7 @@ class FlowConfigService:
         ret_list = []
         for node in node_list:
             node_id = node['id']
+            node_label = node['data']['content']
 
             node_info = FlowNodeCfg.select().where(
                 (FlowNodeCfg.flow_id == flow_id) &
@@ -235,6 +236,7 @@ class FlowConfigService:
 
             ret_list.append({
                 "id": node_id,
+                "node_label": node_label,
                 "node_type": node_type,
                 "config": node_cfg
             })

@@ -260,4 +260,4 @@ def run_flow_log_callback(message: str, message_type: str, log_placeholder) -> N
     new_log = old_log + log_prefix + message + '\n'
     st.session_state['run_log'] = new_log
 
-    log_placeholder.text_area("Running log", value=new_log, height=200, disabled=True)
+    log_placeholder.text_area("运行日志", value=new_log, height=200, disabled=True)

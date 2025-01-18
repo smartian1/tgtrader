@@ -45,7 +45,7 @@ class PythonProcessorNode(FlowNode):
 
             # 如果提供了回调函数则调用
             if process_callback:
-                process_callback(f"Python代码执行成功, 结果:\n {result}", 'info')
+                process_callback(f"【节点: {self.node_label}】Python代码执行成功, 结果:\n {result}", 'info')
                 
             return result
             
