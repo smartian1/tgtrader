@@ -24,6 +24,9 @@ class PythonProcessorNode(FlowNode):
         Raises:
             ValueError: 如果代码执行失败或缺少必需的输入
         """
+        if process_callback:
+            process_callback(f"【节点: {self.node_label}】开始执行Python代码", message_type="info")
+
         try:
             # 获取Python代码
             code = self.config.get('content')
@@ -50,5 +53,8 @@ class PythonProcessorNode(FlowNode):
             return result
             
         except Exception as e:
+            if process_callback:
+                process_callback(f"【节点: {self.node_label}】执行Python代码失败: {str(e)}", message_type="error")
+
             logging.error(f"执行Python处理器节点时发生错误: {str(e)}")
             raise ValueError(f"Failed to execute Python code: {str(e)}")

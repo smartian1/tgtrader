@@ -13,20 +13,26 @@ class DuckDBQueryDF:
     and queries involving multiple DataFrames.
     """
     
-    def __init__(self, df: Optional[pd.DataFrame] = None) -> None:
+    def __init__(self, dfs: Optional[Dict[str, pd.DataFrame]] = None) -> None:
         """
         Initialize a new DuckDB connection for DataFrame querying.
         
         Args:
-            df: Optional pandas DataFrame to query. Will use DataFrame name as table name,
-                or 'df' if no name is set
+            dfs: Optional dictionary of pandas DataFrames to query. The keys will be used as table names.
         """
         self.con = duckdb.connect(database=':memory:')
-        if df is not None:
-            # 使用DataFrame的名称，如果没有名称则使用'df'
-            table_name = df.name if hasattr(df, 'name') and df.name else 'df'
-            self.table_name = table_name
-            self.con.register(table_name, df)
+        if dfs is not None:
+            self.register_multiple(dfs)
+    
+    def register_multiple(self, dfs: Dict[str, pd.DataFrame]) -> None:
+        """
+        Register multiple DataFrames as tables for querying.
+        
+        Args:
+            dfs: A dictionary where keys are table names and values are pandas DataFrames.
+        """
+        for name, df in dfs.items():
+            self.con.register(name, df)
     
     def query(self, sql: str) -> pd.DataFrame:
         """
