@@ -5,11 +5,11 @@ from typing import List
 from loguru import logger
 from peewee import *
 import json
-from tgtrader.utils.duckdb_peewee import DuckDBDatabase
+
 
 default_path = os.path.join(os.getcwd(), 'data', 'common.sqlite')
 db_path: str = os.getenv('DATA_PATH', default_path)
-main_db: DuckDBDatabase = DuckDBDatabase(db_path)
+main_db: SqliteDatabase = SqliteDatabase(db_path)
 logger.info(f"common main_db: {db_path}")
 
 class UserTableMeta(Model):
