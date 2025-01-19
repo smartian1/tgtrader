@@ -6,6 +6,7 @@ from peewee import Model
 from tgtrader.flow.flow import FlowNode
 import os
 from tgtrader.utils.db_wrapper import DBWrapper, DBType
+from tgtrader.data_provider.dao.models.t_user_table_meta import UserTableMeta
 
 
 class SinkDBNode(FlowNode):
@@ -35,8 +36,9 @@ class SinkDBNode(FlowNode):
                     process_callback("config里未提供is_create_table, table_name, field_config", message_type="error")
                 raise ValueError("config里未提供is_create_table, table_name, field_config")
             
-            default_path = os.path.join(os.getcwd(), 'data', 'user_data.db')
+            default_path = os.path.join(os.getcwd(), 'data', f'{self.user}_data.db')
             db_path: str = os.getenv('DATA_PATH', default_path)
+            db_name = "flow_sinkdb"
 
             db = DBWrapper(db_path=db_path, db_type=DBType.DUCKDB)
 
@@ -49,6 +51,8 @@ class SinkDBNode(FlowNode):
 
                 # 创建表
                 db.create_table(table_name, field_config)
+                # 更新表元数据
+                UserTableMeta.update_table_meta(self.user, db_name, table_name, db_path, field_config)
 
             else:
                 # 检查表是否存在
@@ -56,7 +60,13 @@ class SinkDBNode(FlowNode):
                     if process_callback:
                         process_callback(f"表{table_name}不存在", message_type="error")
                     raise ValueError(f"表{table_name}不存在")
-            
+
+                # 对比field_config和meta_info
+                meta_info = UserTableMeta.get_table_columns_info(self.user, f"flow_sinkdb", table_name)
+                if meta_info != field_config:
+                    UserTableMeta.update_table_meta(self.user, db_name, table_name, db_path, field_config)
+
+
             # data进行处理
             columns_mapping = dict()
             for field in field_config:
@@ -81,5 +91,5 @@ class SinkDBNode(FlowNode):
                 
         except Exception as e:
             if process_callback:
-                process_callback(f"数据库写入失败: {str(e)}")
+                process_callback(f"数据库写入失败: {str(e)}", message_type="error")
             raise

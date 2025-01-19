@@ -7,7 +7,7 @@ from peewee import *
 
 from tgtrader.utils.duckdb_peewee import DuckDBDatabase
 
-default_path = os.path.join(os.getcwd(), 'data', 'common.db')
+default_path = os.path.join(os.getcwd(), 'data', 'common.sqlite')
 db_path: str = os.getenv('DATA_PATH', default_path)
 main_db: DuckDBDatabase = DuckDBDatabase(db_path)
 logger.info(f"common main_db: {db_path}")

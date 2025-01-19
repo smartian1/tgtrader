@@ -242,7 +242,7 @@ def build_flow_page(flow_type: FlowType):
 def run_all(flow_id):
     log_placeholder = st.empty()
     st.session_state['run_log'] = ''
-    FlowConfigService.run_flow(flow_id, info_callback=partial(run_flow_log_callback, log_placeholder=log_placeholder))
+    FlowConfigService.run_flow(user=get_user_name(), flow_id=flow_id, info_callback=partial(run_flow_log_callback, log_placeholder=log_placeholder))
 
 def run_flow_log_callback(message: str, message_type: str, log_placeholder) -> None:
     """

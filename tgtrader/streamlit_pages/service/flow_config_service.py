@@ -183,7 +183,7 @@ class FlowConfigService:
             logger.info(message)
 
     @classmethod
-    def run_flow(cls, flow_id, info_callback: Callable=__default_run_flow_callback):
+    def run_flow(cls, user: str, flow_id, info_callback: Callable=__default_run_flow_callback):
         """
         info_callback: 
             Args: 
@@ -204,7 +204,7 @@ class FlowConfigService:
             return
 
         try:
-            flow = Flow(flow_id)
+            flow = Flow(flow_id, user=user)
 
             node_list = cls.__convert_node_list(flow_id, flow_info.node_list)
             edge_list = cls.__convert_edge_list(flow_info.edge_list)

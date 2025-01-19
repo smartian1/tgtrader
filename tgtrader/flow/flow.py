@@ -19,6 +19,7 @@ class FlowNode:
     node_id: str
     node_label: str
     config: dict = field(default_factory=dict)
+    user: str = 'admin'
 
     # 保存后续节点及其对应的边名称
     """
@@ -36,7 +37,7 @@ class FlowNode:
     next_nodes: List[Dict[str, 'FlowNode']] = field(default_factory=list)
 
     @classmethod
-    def create_node(cls, node_id: str, node_label: str, node_type: str, config: dict) -> 'FlowNode':
+    def create_node(cls, node_id: str, node_label: str, node_type: str, config: dict, user: str = 'admin') -> 'FlowNode':
         """根据节点类型创建对应的节点实例
         
         Args:
@@ -55,13 +56,13 @@ class FlowNode:
         from tgtrader.flow.nodes.sink_db import SinkDBNode
 
         if NodeType(node_type) == NodeType.SOURCE_DB:
-            return SourceDBNode(node_id=node_id, node_label=node_label, config=config)
+            return SourceDBNode(node_id=node_id, node_label=node_label, config=config, user=user)
         elif NodeType(node_type) == NodeType.PROCESSOR_SQL:
-            return SQLProcessorNode(node_id=node_id, node_label=node_label, config=config)
+            return SQLProcessorNode(node_id=node_id, node_label=node_label, config=config, user=user)
         elif NodeType(node_type) == NodeType.PROCESSOR_PYTHON:
-            return PythonProcessorNode(node_id=node_id, node_label=node_label, config=config)
+            return PythonProcessorNode(node_id=node_id, node_label=node_label, config=config, user=user)
         elif NodeType(node_type) == NodeType.SINK_DB:
-            return SinkDBNode(node_id=node_id, node_label=node_label, config=config)
+            return SinkDBNode(node_id=node_id, node_label=node_label, config=config, user=user)
         else:
             raise ValueError(f"未知的节点类型: {node_type}")
 
@@ -101,6 +102,7 @@ class Flow:
     """流程控制类"""
     flow_id: str
     node_map: Dict[str, FlowNode] = field(default_factory=dict)
+    user: str = 'admin'
 
     def build_flow(self, node_list: List[dict], edge_list: List[dict]) -> None:
         """根据节点列表和边列表构建流程
@@ -129,7 +131,8 @@ class Flow:
                 node_id=node_config['id'],
                 node_label=node_config['node_label'],
                 node_type=node_config['node_type'],
-                config=json.loads(node_config.get('config', '{}'))
+                config=json.loads(node_config.get('config', '{}')),
+                user=self.user
             )
             self.node_map[node.node_id] = node
 
