@@ -168,21 +168,8 @@ class DuckDBDatabase(Database):
         return columns
 
     def get_primary_keys(self, table, schema=None):
-        """
-        Approximate retrieval of primary keys since DuckDB doesn't enforce them.
-
-        :param table: The table name.
-        :param schema: The schema name. Defaults to 'main'.
-        :return: A list of column names acting as primary keys.
-        """
-        try:
-            cursor = self.execute_sql(
-                'SELECT column_name FROM information_schema.key_column_usage WHERE table_name = ? AND table_schema = ?',
-                (table, schema or 'main')
-            )
-            return [row[0] for row in cursor]
-        except DatabaseError as e:
-            raise e
+        columns = self.get_columns(table)
+        return [column.name for column in columns if column.primary_key]    
 
     def get_indexes(self, table, schema=None):
         """

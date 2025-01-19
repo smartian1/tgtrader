@@ -121,6 +121,9 @@ class DBWrapper:
         except Exception as e:
             logger.error(f"Failed to add column to table {table_name}: {str(e)}")
             raise e
+        
+    def get_primary_keys(self, table_name: str) -> List[str]:
+        return self.database.get_primary_keys(table_name)
 
     def insert_data(self, table_name: str, df: pd.DataFrame) -> None:
         """
