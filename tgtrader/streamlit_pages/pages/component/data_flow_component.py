@@ -6,7 +6,10 @@ import streamlit as st
 from streamlit_ace import st_ace
 from .data_meta import build_db_meta_info
 from loguru import logger
+from tgtrader.data_provider.dao.models.t_user_table_meta import UserTableMeta
 
+def get_user_name():
+    return st.session_state.user_info['username']
 
 def data_source_db_config(node_id: str, src_page: str, node_cfg: dict):
     col1, col2 = st.columns(2)
@@ -193,6 +196,12 @@ def validate_table_config(table_name: str, field_config_df: pd.DataFrame) -> tup
     # 检查字段名唯一性
     if field_config_df["字段名"].duplicated().any():
         return False, "字段名不能重复"
+    
+    # 检查主键字段是否有映射字段
+    primary_key_rows = field_config_df[field_config_df["是否主键"] == True]
+    for _, row in primary_key_rows.iterrows():
+        if not pd.notna(row.get('映射前节点输入字段', None)):
+            return False, "主键字段必须有映射字段"
 
     return True, ""
 
@@ -208,6 +217,7 @@ def sink_db_config(node_id: str, src_page: str, node_cfg: dict):
     Returns:
         节点配置字典或None（配置无效时）
     """
+
     try:
         node_cfg = node_cfg.get('content', {})
         # 初始化配置
@@ -231,6 +241,8 @@ def sink_db_config(node_id: str, src_page: str, node_cfg: dict):
 
         # 表名输入
         col1, col2 = st.columns([1, 5])
+        user = get_user_name()
+        db_name = 'flow_sinkdb'
         with col1:
             if is_create_table:
                 table_name = st.text_input(
@@ -240,11 +252,33 @@ def sink_db_config(node_id: str, src_page: str, node_cfg: dict):
                     value=table_name
                 )
             else:
+                table_names = [''] + UserTableMeta.get_all_table_names(user=user, db_name=db_name)
                 table_name = st.selectbox(
                     "表名",
-                    options=['factor_table'],
-                    key=f"{src_page}_storage_config_table_name_{node_id}"
+                    options=table_names,
+                    key=f"{src_page}_storage_config_table_name_{node_id}",
+                    index=table_names.index(table_name) if table_name else 0
                 )
+                
+            if table_name:
+                field_config = UserTableMeta.get_table_columns_info(user=user, db_name=db_name, table_name=table_name)
+                old_input_field_mapping = dict()
+                if node_cfg:
+                    old_field_config = node_cfg['field_config'] if 'field_config' in node_cfg else []
+                    old_input_field_mapping = {
+                        info['field_name']: info['input_field_mapping']
+                        for info in old_field_config
+                    }
+
+                for info in field_config:
+                    if info['field_name'] in old_input_field_mapping:
+                        info['input_field_mapping'] = old_input_field_mapping[info['field_name']]
+                    else:
+                        info['input_field_mapping'] = ''
+
+                # 将保存的英文字段名转换为中文显示
+                field_config = pd.DataFrame(field_config)
+                field_config = en_to_cn_field_names(field_config)
 
         # 字段配置
         data_editor_df = create_field_config_editor(
@@ -255,6 +289,7 @@ def sink_db_config(node_id: str, src_page: str, node_cfg: dict):
 
         if btn_save:
             # 验证配置
+            logger.info(f"table_name: {table_name}, data_editor_df: {data_editor_df}")
             is_valid, error_msg = validate_table_config(
                 table_name, data_editor_df)
             if not is_valid:

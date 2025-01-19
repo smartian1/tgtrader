@@ -38,6 +38,9 @@ class DBWrapper:
     def is_table_exists(self, table_name: str) -> bool:
         return self.database.table_exists(table_name)
     
+    def get_columns(self, table_name: str) -> List['ColumnMetadata']:
+        return self.database.get_columns(table_name)
+    
     def create_table(self, table_name: str, field_config: List[Dict], is_add_create_and_update_time: bool = True) -> None:
         """
         Args:

@@ -5,6 +5,7 @@ from typing import List
 from loguru import logger
 from peewee import *
 import json
+import copy
 
 
 default_path = os.path.join(os.getcwd(), 'data', 'common.sqlite')
@@ -42,13 +43,15 @@ class UserTableMeta(Model):
     @classmethod
     def get_all_db_names(cls, user: str):
         cls.init_table()
-        return cls.select(cls.db_name).where(cls.user == user).distinct().execute()
+        data = cls.select(cls.db_name).where(cls.user == user).distinct().execute()
+        return [item.db_name for item in data]
 
     @classmethod
     def get_all_table_names(cls, user: str, db_name: str):
         cls.init_table()
-        return cls.select(cls.table_name).where(cls.user == user, cls.db_name == db_name).distinct().execute()
-    
+        data = cls.select(cls.table_name).where(cls.user == user, cls.db_name == db_name).distinct().execute()
+        return [item.table_name for item in data]
+
     @classmethod
     def get_table_columns_info(cls, user: str, db_name: str, table_name: str):
         cls.init_table()
@@ -70,6 +73,13 @@ class UserTableMeta(Model):
             None
         """
         cls.init_table()
+
+        columns_info = copy.deepcopy(columns_info)
+
+        for info in columns_info:
+            if 'input_field_mapping' in info:
+                del info['input_field_mapping']
+
         # 获取当前最大版本号和最新记录
         latest_record = (cls
             .select()

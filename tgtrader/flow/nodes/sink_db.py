@@ -7,6 +7,7 @@ from tgtrader.flow.flow import FlowNode
 import os
 from tgtrader.utils.db_wrapper import DBWrapper, DBType
 from tgtrader.data_provider.dao.models.t_user_table_meta import UserTableMeta
+from loguru import logger
 
 
 class SinkDBNode(FlowNode):
@@ -40,32 +41,37 @@ class SinkDBNode(FlowNode):
             db_path: str = os.getenv('DATA_PATH', default_path)
             db_name = "flow_sinkdb"
 
-            db = DBWrapper(db_path=db_path, db_type=DBType.DUCKDB)
+            db_wrapper = DBWrapper(db_path=db_path, db_type=DBType.DUCKDB)
 
             if is_create_table:
                 # 检查表是否存在
-                if db.is_table_exists(table_name):
-                    if process_callback:
-                        process_callback(f"表{table_name}已存在", message_type="error")
-                    raise ValueError(f"表{table_name}已存在")
-
-                # 创建表
-                db.create_table(table_name, field_config)
-                # 更新表元数据
-                UserTableMeta.update_table_meta(self.user, db_name, table_name, db_path, field_config)
-
+                if not db_wrapper.is_table_exists(table_name):
+                    db_wrapper.create_table(table_name, field_config)
+                    
             else:
                 # 检查表是否存在
-                if not db.is_table_exists(table_name):
+                if not db_wrapper.is_table_exists(table_name):
                     if process_callback:
                         process_callback(f"表{table_name}不存在", message_type="error")
                     raise ValueError(f"表{table_name}不存在")
 
-                # 对比field_config和meta_info
-                meta_info = UserTableMeta.get_table_columns_info(self.user, f"flow_sinkdb", table_name)
-                if meta_info != field_config:
-                    UserTableMeta.update_table_meta(self.user, db_name, table_name, db_path, field_config)
+            # 对比field_config和meta_info
+            meta_info = UserTableMeta.get_table_columns_info(self.user, f"flow_sinkdb", table_name)
+            if meta_info != field_config:
+                # 是否有新增字段
+                old_columns = db_wrapper.get_columns(table_name)
+                old_columns = [column.name for column in old_columns]
 
+                add_columns = []
+                for new_field in field_config:
+                    if new_field['field_name'] not in old_columns:
+                        add_columns.append(new_field)
+                
+                if add_columns:
+                    logger.warning(f"新增字段: {add_columns}")
+                    db_wrapper.add_column(table_name, add_columns)
+
+                UserTableMeta.update_table_meta(self.user, db_name, table_name, db_path, field_config)
 
             # data进行处理
             columns_mapping = dict()
@@ -86,7 +92,7 @@ class SinkDBNode(FlowNode):
                 if 'update_time' not in df.columns:
                     df['update_time'] = pd.Timestamp.now().timestamp() * 1000
 
-                db.insert_data(table_name, df)
+                db_wrapper.insert_data(table_name, df)
             
                 
         except Exception as e:
