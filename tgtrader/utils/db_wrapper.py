@@ -6,6 +6,7 @@ from enum import Enum
 from tgtrader.utils.duckdb_peewee import DuckDBDatabase
 from typing import List, Dict
 from loguru import logger
+import pandas as pd
 
 
 class DBType(Enum):
@@ -60,6 +61,72 @@ class DBWrapper:
         except Exception as e:
             logger.error(f"Failed to get table fields for {table_name}: {str(e)}")
             return []
+        
+    def add_column(self, table_name: str, field_config: List[Dict]) -> None:
+        """向已存在的表中添加新字段。
+        
+        Args:
+            table_name: 表名
+            field_config: 新增字段配置列表，样例：
+                [
+                    {'field_name': 'new_field', 'field_type': 'string', 'comment': '新字段'},
+                ]
+                
+        Raises:
+            ValueError: 当字段已存在或配置无效时抛出
+            Exception: 添加字段失败时抛出
+        """
+        # 获取已有字段
+        existing_fields = self.get_table_fields(table_name)
+        existing_field_names = [field.name for field in existing_fields]
+        
+        # 字段类型映射
+        field_type_mapping = {
+            'string': 'VARCHAR',
+            'float': 'FLOAT',
+            'int': 'INTEGER',
+            'bool': 'BOOLEAN',
+            'datetime': 'DATETIME'
+        }
+        
+        try:
+            for field in field_config:
+                field_name = field.get('field_name')
+                field_type = field.get('field_type')
+                
+                # 验证字段配置
+                if not field_name or not field_type:
+                    raise ValueError("字段配置错误，必须提供 'field_name' 和 'field_type'")
+                
+                # 检查字段是否已存在
+                if field_name in existing_field_names:
+                    raise ValueError(f"字段 '{field_name}' 已存在")
+                
+                # 获取对应的SQL字段类型
+                sql_field_type = field_type_mapping.get(field_type.lower())
+                if not sql_field_type:
+                    raise ValueError(f"不支持的字段类型：{field_type}")
+                
+                # 构建ALTER TABLE语句
+                is_nullable = field.get('is_nullable', True)
+                null_constraint = "" if is_nullable else "NOT NULL"
+                
+                alter_sql = f"ALTER TABLE {table_name} ADD COLUMN {field_name} {sql_field_type} {null_constraint}"
+                logger.info(f"alter_sql: {alter_sql}")
+
+                # 执行SQL
+                self.database.execute_sql(alter_sql)
+                logger.info(f"Successfully added column {field_name} to table {table_name}")
+                
+        except Exception as e:
+            logger.error(f"Failed to add column to table {table_name}: {str(e)}")
+            raise e
+
+    def insert_data(self, table_name: str, df: pd.DataFrame) -> None:
+        """
+        将DataFrame数据插入到指定表中。
+        """
+        pass
 
     def _create_dynamic_model(self, table_name: str, field_config: List[Dict]) -> type:
         """动态创建Peewee模型类.
