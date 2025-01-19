@@ -7,6 +7,8 @@ from tgtrader.utils.duckdb_peewee import DuckDBDatabase
 from typing import List, Dict
 from loguru import logger
 import pandas as pd
+import uuid
+from tqdm import tqdm
 
 
 class DBType(Enum):
@@ -125,11 +127,111 @@ class DBWrapper:
     def get_primary_keys(self, table_name: str) -> List[str]:
         return self.database.get_primary_keys(table_name)
 
-    def insert_data(self, table_name: str, df: pd.DataFrame) -> None:
+    def insert_data(self, table_name: str, df: pd.DataFrame, batch_size: int = 1000) -> None:
+        """将DataFrame数据插入到指定表中，如果记录已存在则更新非主键字段。
+
+        Args:
+            table_name (str): 要插入数据的表名
+            df (pd.DataFrame): 包含要插入数据的DataFrame
+
+        Raises:
+            ValueError: 当DataFrame中缺少必需的主键列时抛出
+            Exception: 插入数据失败时抛出
+
+        Notes:
+            - DataFrame必须包含表的所有主键字段
+            - 使用ON CONFLICT方式处理重复数据
+            - 支持单一主键和组合主键
         """
-        将DataFrame数据插入到指定表中。
-        """
-        pass
+        try:
+            # 获取表的主键字段列表
+            primary_keys = self.get_primary_keys(table_name)
+            if not primary_keys:
+                raise ValueError(f"表 {table_name} 未定义主键")
+
+            # 验证DataFrame是否包含所有主键字段
+            missing_keys = [pk for pk in primary_keys if pk not in df.columns]
+            if missing_keys:
+                raise ValueError(f"DataFrame缺少必需的主键列: {missing_keys}")
+
+            # 获取所有表字段
+            table_fields = self.get_table_fields(table_name)
+            field_names = [field.name for field in table_fields]
+
+            # 过滤出DataFrame中存在的列
+            valid_columns = [col for col in df.columns if col in field_names]
+            df = df[valid_columns]
+
+            # 构建UPDATE部分的字段（排除主键字段）
+            update_fields = [col for col in valid_columns if col not in primary_keys]
+            
+            if self.db_type == DBType.DUCKDB:
+                # DuckDB的UPSERT语法
+                update_clause = ", ".join([f"{field} = excluded.{field}" for field in update_fields])
+                
+                # 将DataFrame转换为记录列表
+                records = df.to_dict('records')
+                
+                with self.database.atomic():
+                    for i in tqdm(range(0, len(records), batch_size), desc=f"插入数据到 {table_name}"):
+                        batch_df = pd.DataFrame(records[i:i + batch_size])
+                        
+                        # 创建一个唯一的临时表名
+                        temp_table = f"temp_{table_name}_{uuid.uuid4().hex}"
+                        
+                        try:
+                            # 直接从connection创建临时表
+                            conn = self.database.connection()
+                            conn.register(temp_table, batch_df)
+                            
+                            # 执行UPSERT操作
+                            insert_sql = f"""
+                                INSERT INTO {table_name} ({', '.join(valid_columns)})
+                                SELECT {', '.join(valid_columns)} FROM {temp_table}
+                                ON CONFLICT ({', '.join(primary_keys)})
+                                DO UPDATE SET {update_clause}
+                            """
+                            self.database.execute_sql(insert_sql)
+                        finally:
+                            # 清理临时表
+                            self.database.execute_sql(f"DROP VIEW IF EXISTS {temp_table}")
+
+            elif self.db_type == DBType.SQLITE:
+                # SQLite的UPSERT语法
+                update_clause = ", ".join([f"{field} = excluded.{field}" for field in update_fields])
+                
+                # 将DataFrame转换为字典列表
+                records = df.to_dict('records')
+                
+                # 构建INSERT语句
+                placeholders = ", ".join(["?" for _ in valid_columns])
+                sql = f"""
+                    INSERT INTO {table_name} ({', '.join(valid_columns)})
+                    VALUES ({placeholders})
+                    ON CONFLICT ({', '.join(primary_keys)})
+                    DO UPDATE SET {update_clause}
+                """
+                
+                # 批量执行UPSERT操作
+                with self.database.atomic():
+                    for i in tqdm(range(0, len(records), batch_size), desc=f"插入数据到 {table_name}"):
+                        batch_records = records[i:i + batch_size]
+                        
+                        # 批量插入，而不是逐条插入
+                        batch_values = [
+                            tuple(record[col] for col in valid_columns) 
+                            for record in batch_records
+                        ]
+                        
+                        # 使用executemany提高性能
+                        cursor = self.database.connection().cursor()
+                        cursor.executemany(sql, batch_values)
+
+            logger.info(f"Successfully inserted/updated {len(df)} records into table {table_name}")
+            
+        except Exception as e:
+            logger.error(f"Failed to insert data into table {table_name}: {str(e)}")
+            raise e
 
     def _create_dynamic_model(self, table_name: str, field_config: List[Dict]) -> type:
         """动态创建Peewee模型类.
