@@ -38,13 +38,13 @@ class DBWrapper:
     def is_table_exists(self, table_name: str) -> bool:
         return self.database.table_exists(table_name)
     
-    def create_table(self, table_name: str, field_config: List[Dict]) -> None:
+    def create_table(self, table_name: str, field_config: List[Dict], is_add_create_and_update_time: bool = True) -> None:
         """
         Args:
             table_name: 表名
             field_config: 字段配置列表
         """
-        model = self._create_dynamic_model(table_name, field_config)
+        model = self._create_dynamic_model(table_name, field_config, is_add_create_and_update_time)
         model.create_table()
 
     def get_table_fields(self, table_name: str) -> list:
@@ -142,6 +142,7 @@ class DBWrapper:
             - DataFrame必须包含表的所有主键字段
             - 使用ON CONFLICT方式处理重复数据
             - 支持单一主键和组合主键
+            - 更新时排除create_time字段
         """
         try:
             # 获取表的主键字段列表
@@ -162,8 +163,8 @@ class DBWrapper:
             valid_columns = [col for col in df.columns if col in field_names]
             df = df[valid_columns]
 
-            # 构建UPDATE部分的字段（排除主键字段）
-            update_fields = [col for col in valid_columns if col not in primary_keys]
+            # 构建UPDATE部分的字段（排除主键字段和create_time字段）
+            update_fields = [col for col in valid_columns if col not in primary_keys and col != 'create_time']
             
             if self.db_type == DBType.DUCKDB:
                 # DuckDB的UPSERT语法
@@ -233,7 +234,7 @@ class DBWrapper:
             logger.error(f"Failed to insert data into table {table_name}: {str(e)}")
             raise e
 
-    def _create_dynamic_model(self, table_name: str, field_config: List[Dict]) -> type:
+    def _create_dynamic_model(self, table_name: str, field_config: List[Dict], is_add_create_and_update_time: bool = True) -> type:
         """动态创建Peewee模型类.
         
         Args:
@@ -283,6 +284,14 @@ class DBWrapper:
                         primary_keys.append(field_name)
                 else:
                     raise ValueError(f"不支持的字段类型：{field_type}")
+            
+            if is_add_create_and_update_time:
+                # 如果没有create_time和update_time字段，则添加
+                if 'create_time' not in fields:
+                    fields['create_time'] = BigIntegerField(null=True, default=int(pd.Timestamp.now().timestamp() * 1000))
+                
+                if 'update_time' not in fields:
+                    fields['update_time'] = BigIntegerField(null=True, default=int(pd.Timestamp.now().timestamp() * 1000))
 
             # 动态创建Meta类，设置复合主键
             Meta = type('Meta', (), {
