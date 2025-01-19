@@ -132,22 +132,40 @@ class DuckDBDatabase(Database):
         except DatabaseError as e:
             raise e
 
-    def get_columns(self, table, schema=None):
+    def get_columns(self, table_name):
         """
-        Fetch column information from DuckDB system catalog.
+        获取指定表的列信息。
 
-        :param table: The table name.
-        :param schema: The schema name. Defaults to 'main'.
-        :return: A list of tuples containing column names and data types.
+        Args:
+            table_name (str): 要查询的表名
+
+        Returns:
+            List[ColumnMetadata]: 表的列元数据信息
         """
-        try:
-            cursor = self.execute_sql(
-                'SELECT column_name, data_type FROM information_schema.columns WHERE table_name = ? AND table_schema = ?',
-                (table, schema or 'main')
+        from collections import namedtuple
+        
+        ColumnMetadata = namedtuple('ColumnMetadata', [
+            'name', 'data_type', 'null', 'primary_key', 'table', 'default'
+        ])
+        
+        cursor = self.execute_sql(
+            'PRAGMA table_info(%s)' % table_name)
+        # 需要先调用fetchall()来获取结果
+        rows = cursor.fetchall()
+        
+        columns = []
+        for row in rows:
+            column = ColumnMetadata(
+                name=row[1],  # 列名
+                data_type=row[2],  # 数据类型 
+                null=row[3] == 0,  # null属性 (0表示NOT NULL, 1表示可为NULL)
+                primary_key=row[5] == 1,  # 是否为主键
+                table=table_name,  # 表名
+                default=None  # DuckDB PRAGMA table_info 不直接返回默认值
             )
-            return [(row[0], row[1]) for row in cursor]
-        except DatabaseError as e:
-            raise e
+            columns.append(column)
+        
+        return columns
 
     def get_primary_keys(self, table, schema=None):
         """

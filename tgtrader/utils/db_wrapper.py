@@ -44,6 +44,23 @@ class DBWrapper:
         model = self._create_dynamic_model(table_name, field_config)
         model.create_table()
 
+    def get_table_fields(self, table_name: str) -> list:
+        """
+        获取表的字段信息。
+
+        Args:
+            table_name: 表名
+
+        Returns:
+            list: 包含字段信息的列表
+        """
+        try:
+            table_info = self.database.get_columns(table_name)
+            return table_info
+        except Exception as e:
+            logger.error(f"Failed to get table fields for {table_name}: {str(e)}")
+            return []
+
     def _create_dynamic_model(self, table_name: str, field_config: List[Dict]) -> type:
         """动态创建Peewee模型类.
         
