@@ -8,6 +8,7 @@ import os
 from tgtrader.utils.db_wrapper import DBWrapper, DBType
 from tgtrader.data_provider.dao.models.t_user_table_meta import UserTableMeta
 from loguru import logger
+from tgtrader.utils.db_path_utils import get_user_data_db_path
 
 
 class SinkDBNode(FlowNode):
@@ -37,8 +38,7 @@ class SinkDBNode(FlowNode):
                     process_callback("config里未提供is_create_table, table_name, field_config", message_type="error")
                 raise ValueError("config里未提供is_create_table, table_name, field_config")
             
-            default_path = os.path.join(os.getcwd(), 'data', f'{self.user}_data.db')
-            db_path: str = os.getenv('DATA_PATH', default_path)
+            db_path = get_user_data_db_path(self.user)
             db_name = "flow_sinkdb"
 
             db_wrapper = DBWrapper(db_path=db_path, db_type=DBType.DUCKDB)

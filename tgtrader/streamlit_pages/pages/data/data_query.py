@@ -8,6 +8,7 @@ import re
 from tgtrader.data_provider.dao.models.t_sql_history_model import SqlHistoryModel
 from tgtrader.utils.duckdb_query import DuckDBQuery
 from tgtrader.streamlit_pages.pages.component.data_meta import build_db_meta_info
+from tgtrader.utils.db_path_utils import get_user_data_database
 
 def add_limit_if_missing(sql: str, limit: int = 100) -> str:
     """
@@ -52,7 +53,7 @@ def run() -> None:
     # 数据源选择
     data_source = st.selectbox(
         '数据源',
-        options=['AKshare'],  # 可以后续添加更多数据源
+        options=['AKshare', '用户自定义数据'],  # 可以后续添加更多数据源
         index=0
     )
 
@@ -71,7 +72,12 @@ def run() -> None:
 
     if btn_query:
         sql_statements = split_sql_statements(sql)
-        db_query = DuckDBQuery(data_source)
+
+        if data_source == '用户自定义数据':
+            db = get_user_data_database(st.session_state.user_info['username'])
+            db_query = DuckDBQuery(db)
+        else:
+            db_query = DuckDBQuery(data_source)
         
         # 逐个执行SQL语句并显示结果
         for i, stmt in enumerate(sql_statements, 1):
@@ -105,8 +111,8 @@ def run() -> None:
     if history_records:
         # 将历史记录转换为DataFrame，列： 查询时间，sql
         history_df = pd.DataFrame(
-            [(arrow.get(record.create_time, tzinfo='+08:00').format('YYYY-MM-DD HH:mm:ss'), record.sql_content) for record in history_records],
-            columns=['查询时间', 'SQL语句']
+            [(arrow.get(record.create_time, tzinfo='+08:00').format('YYYY-MM-DD HH:mm:ss'), record.sql_content, record.data_source) for record in history_records],
+            columns=['查询时间', 'SQL语句', '数据源']
         )
         
         # 显示历史记录表格
