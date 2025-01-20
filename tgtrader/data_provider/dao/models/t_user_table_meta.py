@@ -56,7 +56,10 @@ class UserTableMeta(Model):
     def get_table_columns_info(cls, user: str, db_name: str, table_name: str):
         cls.init_table()
         table_info = cls.select().where(cls.user == user, cls.db_name == db_name, cls.table_name == table_name).order_by(cls.version.desc()).first()
-        return json.loads(table_info.columns_info)
+        if table_info:
+            return json.loads(table_info.columns_info)
+        else:
+            return []
 
     @classmethod
     def update_table_meta(cls, user: str, db_name: str, table_name: str, db_path: str, columns_info: List[dict]) -> None:

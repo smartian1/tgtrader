@@ -90,6 +90,15 @@ class FlowConfigService:
             existing_flow.username = username
             existing_flow.save()
         else:
+            # 检查是否存在相同flow_name的记录
+            existing_flow_name = FlowCfg.select().where(
+                (FlowCfg.username == username) & 
+                (FlowCfg.flow_name == flow_name)
+            ).first()
+
+            if existing_flow_name:
+                raise Exception(f"流程名称已存在，请修改流程名称")
+
             # 创建新的流程记录
             FlowCfg.create(
                 username=username,

@@ -9,6 +9,7 @@ from loguru import logger
 import pandas as pd
 import uuid
 from tqdm import tqdm
+from typing import Callable
 
 
 class DBType(Enum):
@@ -130,7 +131,7 @@ class DBWrapper:
     def get_primary_keys(self, table_name: str) -> List[str]:
         return self.database.get_primary_keys(table_name)
 
-    def insert_data(self, table_name: str, df: pd.DataFrame, batch_size: int = 1000) -> None:
+    def insert_data(self, table_name: str, df: pd.DataFrame, batch_size: int = 10000, progress_percent_callback: Callable = None) -> None:
         """将DataFrame数据插入到指定表中，如果记录已存在则更新非主键字段。
 
         Args:
@@ -177,7 +178,8 @@ class DBWrapper:
                 records = df.to_dict('records')
                 
                 with self.database.atomic():
-                    for i in tqdm(range(0, len(records), batch_size), desc=f"插入数据到 {table_name}"):
+                    total_records = len(records)
+                    for i in tqdm(range(0, total_records, batch_size), desc=f"插入数据到 {table_name}"):
                         batch_df = pd.DataFrame(records[i:i + batch_size])
                         
                         # 创建一个唯一的临时表名
@@ -196,6 +198,11 @@ class DBWrapper:
                                 DO UPDATE SET {update_clause}
                             """
                             self.database.execute_sql(insert_sql)
+                            
+                            # 调用百分比回调
+                            if progress_percent_callback:
+                                progress_percent = min(100, int((i + batch_size) / total_records * 100))
+                                progress_percent_callback(progress_percent)
                         finally:
                             # 清理临时表
                             self.database.execute_sql(f"DROP VIEW IF EXISTS {temp_table}")
@@ -218,7 +225,8 @@ class DBWrapper:
                 
                 # 批量执行UPSERT操作
                 with self.database.atomic():
-                    for i in tqdm(range(0, len(records), batch_size), desc=f"插入数据到 {table_name}"):
+                    total_records = len(records)
+                    for i in tqdm(range(0, total_records), desc=f"插入数据到 {table_name}"):
                         batch_records = records[i:i + batch_size]
                         
                         # 批量插入，而不是逐条插入
@@ -230,6 +238,11 @@ class DBWrapper:
                         # 使用executemany提高性能
                         cursor = self.database.connection().cursor()
                         cursor.executemany(sql, batch_values)
+                        
+                        # 调用百分比回调
+                        if progress_percent_callback:
+                            progress_percent = min(100, int((i + batch_size) / total_records * 100))
+                            progress_percent_callback(progress_percent)
 
             logger.info(f"Successfully inserted/updated {len(df)} records into table {table_name}")
             

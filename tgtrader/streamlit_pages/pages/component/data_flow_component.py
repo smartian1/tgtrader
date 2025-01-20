@@ -253,28 +253,38 @@ def sink_db_config(node_id: str, src_page: str, node_cfg: dict):
                 )
             else:
                 table_names = [''] + UserTableMeta.get_all_table_names(user=user, db_name=db_name)
+                
+                idx = table_names.index(table_name) if table_name in table_names else 0
                 table_name = st.selectbox(
                     "表名",
                     options=table_names,
                     key=f"{src_page}_storage_config_table_name_{node_id}",
-                    index=table_names.index(table_name) if table_name else 0
+                    index=idx
                 )
                 
             if table_name:
                 field_config = UserTableMeta.get_table_columns_info(user=user, db_name=db_name, table_name=table_name)
-                old_input_field_mapping = dict()
-                if node_cfg:
-                    old_field_config = node_cfg['field_config'] if 'field_config' in node_cfg else []
-                    old_input_field_mapping = {
-                        info['field_name']: info['input_field_mapping']
-                        for info in old_field_config
-                    }
-
-                for info in field_config:
-                    if info['field_name'] in old_input_field_mapping:
-                        info['input_field_mapping'] = old_input_field_mapping[info['field_name']]
+                
+                # UserTableMeta里如果还没有，说明没有其他flow使用这个表
+                if not field_config:
+                    if not node_cfg:
+                        field_config = get_empty_field_config()
                     else:
-                        info['input_field_mapping'] = ''
+                        field_config = node_cfg['field_config']
+                else:
+                    old_input_field_mapping = dict()
+                    if node_cfg:
+                        old_field_config = node_cfg['field_config'] if 'field_config' in node_cfg else []
+                        old_input_field_mapping = {
+                            info['field_name']: info['input_field_mapping']
+                            for info in old_field_config
+                        }
+
+                    for info in field_config:
+                        if info['field_name'] in old_input_field_mapping:
+                            info['input_field_mapping'] = old_input_field_mapping[info['field_name']]
+                        else:
+                            info['input_field_mapping'] = ''
 
                 # 将保存的英文字段名转换为中文显示
                 field_config = pd.DataFrame(field_config)
@@ -306,12 +316,13 @@ def sink_db_config(node_id: str, src_page: str, node_cfg: dict):
                         'field_config': data_editor_df_en.to_dict(orient='records')
                     }
                 }
+                st.success(f"保存成功，表名：{table_name}")
         else:
             ret = None
 
         # 构建元数据信息
         build_db_meta_info(src_page=f"{src_page}_storage_config_{node_id}")
-
+        logger.debug(f"ret: {ret}")
         return ret
     except Exception as e:
         logger.exception(e)

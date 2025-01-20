@@ -31,7 +31,6 @@ def __get_db_model_info_by_table_name(data_source: str, table_name: str) -> Tupl
         user = st.session_state.user_info['username']
         db_name = 'flow_sinkdb'
         columns_info = UserTableMeta.get_table_columns_info(user=user, db_name=db_name, table_name=table_name)
-        logger.debug(f"----------columns_info: {columns_info}")
         ret = [
             FieldInfo(name=info['field_name'], field_type=info['field_type'], comment=info['description'])
             for info in columns_info

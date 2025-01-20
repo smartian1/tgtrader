@@ -126,7 +126,7 @@ def create_flow_component(is_new_flow: bool, flow_type: FlowType, flow_id: str =
         else:
             if not __check_edge_label_exist(flow_component.asdict()['edges']):
                 st.error("请为每条边设置label")
-                return None, None, None
+                return flow_component, click_save_btn, flow_id
             
             FlowConfigService.save_flow(
                 username=get_user_name(),
