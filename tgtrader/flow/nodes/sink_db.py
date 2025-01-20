@@ -130,7 +130,7 @@ class SinkDBNode(FlowNode):
                 total_records += len(df)
 
             if process_callback:
-                process_callback(f"【节点: {self.node_label}】数据写入完成, 写入数据量: {total_records}", message_type="success")
+                process_callback(f"【节点: {self.node_label}】数据写入完成", message_type="success")
                 
         except Exception as e:
             if process_callback:
