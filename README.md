@@ -13,8 +13,8 @@
 
 
 ## 源码地址
-- github: https://github.com/smartian1/tgtrader
-- gitee: https://gitee.com/smartian123/tgtrader   
+>github: https://github.com/smartian1/tgtrader
+gitee: https://gitee.com/smartian123/tgtrader   
 
 
 ## 安装
@@ -26,12 +26,17 @@ pip install tgtrader
 pip install tgtrader -i https://mirrors.aliyun.com/pypi/simple/
 ```
 
+![alt text](https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/preview.png)
+
 ## 更新日志
-v1.0.1
+**v1.1.0**
+- 支持画布拖拽构建数据加工流程
+
+**v1.0.1**
 - 增加数据初始化、数据查询页面
 - 增加知识库页面，显示jupyter notebook
   
-v1.0.0
+**v1.0.0**
 
 可视化策略回测
 - 支持在**本地运行可视化页面**, 仅需两行代码
@@ -90,6 +95,9 @@ tgtrader底层使用duckdb存储数据，使用duckdb sql即可进行查询
 4. 在量化交易中，需要频繁的对行情数据做**时间序列和截面的计算**，duckdb对此有比较好的支持。使用窗口函数，可以非常方便的进行各种时间和截面的计算
 ![alt text](https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/data_query.png)
 
+#### 1.3 数据加工
+可以在画布上拖拽来构建可视化的数据加工流程：
+![alt text](https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/flow_intro_13.png)
 
 ### 二、策略模块
 #### 2.1 已支持的内置策略
