@@ -88,7 +88,7 @@ def run() -> None:
                 st.markdown(f"**SQL语句 {i}:**")
                 st.code(processed_stmt, language="sql")
                 df = db_query.fetch_df(processed_stmt)
-                st.dataframe(df)
+                st.dataframe(df, use_container_width=True)
                 
                 # 如果SQL被修改，显示提示信息
                 if processed_stmt != stmt:
