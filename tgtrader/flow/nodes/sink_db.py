@@ -108,6 +108,11 @@ class SinkDBNode(FlowNode):
                     process_callback(f"【节点: {self.node_label}】处理数据集 {idx}/{total_dfs}", message_type="info")
 
                 reserved_columns = columns_mapping.keys()
+
+                # df的列，与reserved_columns求交集
+                df_columns = df.columns
+                reserved_columns = [col for col in reserved_columns if col in df_columns]
+
                 df = df[reserved_columns]
                 df.rename(columns=columns_mapping, inplace=True)
 
