@@ -53,7 +53,18 @@ class UserTableMeta(Model):
         return [item.table_name for item in data]
 
     @classmethod
-    def get_table_columns_info(cls, user: str, db_name: str, table_name: str):
+    def get_table_columns_info(cls, user: str, db_name: str, table_name: str) -> List[dict]:
+        """
+        样例：
+        [
+            {
+                "field_name": "code",
+                "field_type": "string",
+                "description": "code",
+                "is_primary_key": true
+            }
+        ]
+        """
         cls.init_table()
         table_info = cls.select().where(cls.user == user, cls.db_name == db_name, cls.table_name == table_name).order_by(cls.version.desc()).first()
         if table_info:

@@ -7,6 +7,8 @@ from streamlit_ace import st_ace
 from .data_meta import build_db_meta_info
 from loguru import logger
 from tgtrader.data_provider.dao.models.t_user_table_meta import UserTableMeta
+from tgtrader.utils.db_wrapper import DBWrapper, DBType
+from tgtrader.utils.db_path_utils import get_user_data_db_path
 
 def get_user_name():
     return st.session_state.user_info['username']
@@ -219,18 +221,22 @@ def sink_db_config(node_id: str, src_page: str, node_cfg: dict):
     """
 
     try:
+        db_path = get_user_data_db_path(get_user_name())
+        db_name = "flow_sinkdb"
+        db_wrapper = DBWrapper(db_path=db_path, db_type=DBType.DUCKDB)
+
         node_cfg = node_cfg.get('content', {})
         # 初始化配置
         if node_cfg:
             is_create_table = node_cfg.get('is_create_table', False)
             table_name = node_cfg.get('table_name', '')
-            # 将保存的英文字段名转换为中文显示
-            field_config = pd.DataFrame(node_cfg['field_config'])
-            field_config = en_to_cn_field_names(field_config)
+
+            # 检查表是否已经存在
+            if db_wrapper.is_table_exists(table_name):
+                is_create_table = False
         else:
             is_create_table = True
             table_name = ''
-            field_config = None
 
         # 表创建选项
         is_create_table = st.checkbox(
@@ -263,28 +269,62 @@ def sink_db_config(node_id: str, src_page: str, node_cfg: dict):
                 )
                 
             if table_name:
-                field_config = UserTableMeta.get_table_columns_info(user=user, db_name=db_name, table_name=table_name)
-                
-                # UserTableMeta里如果还没有，说明没有其他flow使用这个表
-                if not field_config:
-                    if not node_cfg:
-                        field_config = get_empty_field_config()
-                    else:
-                        field_config = node_cfg['field_config']
-                else:
-                    old_input_field_mapping = dict()
-                    if node_cfg:
-                        old_field_config = node_cfg['field_config'] if 'field_config' in node_cfg else []
-                        old_input_field_mapping = {
-                            info['field_name']: info['input_field_mapping']
-                            for info in old_field_config
-                        }
+                # 实际的列信息
+                real_table_columns = []
+                if db_wrapper.is_table_exists(table_name):
+                    real_table_columns = db_wrapper.get_columns(table_name)
 
-                    for info in field_config:
-                        if info['field_name'] in old_input_field_mapping:
-                            info['input_field_mapping'] = old_input_field_mapping[info['field_name']]
+                real_table_columns_dict = {
+                    column.name: {
+                        'field_name': column.name,
+                        'field_type': column.data_type,
+                        'is_primary_key': column.primary_key,
+                        'description': '',
+                        'input_field_mapping': ''
+                    }
+                    for column in real_table_columns if column.name not in ['create_time', 'update_time']
+                }
+
+                # 读取保存的元信息
+                columns_meta_info = UserTableMeta.get_table_columns_info(user=user, db_name=db_name, table_name=table_name)
+                columns_meta_info_dict = {
+                    column['field_name']: {
+                        'field_name': column['field_name'],
+                        'field_type': column['field_type'],
+                        'is_primary_key': column['is_primary_key'],
+                        'description': column['description'],
+                        'input_field_mapping': ''
+                    }
+                    for column in columns_meta_info
+                }
+
+                # 传入的配置信息
+                field_config = node_cfg.get('field_config', [])
+                field_config_dict = {
+                    info['field_name']: info
+                    for info in field_config
+                }
+
+                if not real_table_columns and not columns_meta_info:
+                    # 情况1：real_table_columns和columns_meta_info都不存在, 使用传入的配置
+                    pass
+                elif real_table_columns and not columns_meta_info:
+                    # 情况2：real_table_columns存在，columns_meta_info不存在，补充新增字段
+                    new_columns = set(real_table_columns_dict.keys()) - set(field_config_dict.keys())
+                    for column in new_columns:
+                        field_config.append(real_table_columns_dict[column])
+                elif not real_table_columns and columns_meta_info:
+                    # 情况3：real_table_columns不存在，columns_meta_info存在, 使用传入的配置
+                    pass
+                elif real_table_columns and columns_meta_info:
+                    # 情况4：real_table_columns和columns_meta_info都存在，合并三部分信息
+                    new_columns = set(real_table_columns_dict.keys()) - set(field_config_dict.keys())
+                    # 新增的字段，使用meta_info里的信息进行补充
+                    for column in new_columns:
+                        if column in columns_meta_info_dict:
+                            field_config.append(columns_meta_info_dict[column])
                         else:
-                            info['input_field_mapping'] = ''
+                            field_config.append(real_table_columns_dict[column])
 
                 # 将保存的英文字段名转换为中文显示
                 field_config = pd.DataFrame(field_config)
@@ -300,29 +340,34 @@ def sink_db_config(node_id: str, src_page: str, node_cfg: dict):
         if btn_save:
             # 验证配置
             logger.info(f"table_name: {table_name}, data_editor_df: {data_editor_df}")
-            is_valid, error_msg = validate_table_config(
-                table_name, data_editor_df)
-            if not is_valid:
-                st.error(error_msg)
-                ret = None
+
+            if is_create_table and table_name:
+                if db_wrapper.is_table_exists(table_name):
+                    st.error(f"表名已存在，请更换表名")
+                    ret = None
             else:
-                # 保存时转换为英文字段名
-                data_editor_df_en = cn_to_en_field_names(data_editor_df)
-                ret = {
-                    'type': 'sink_db',
-                    'content': {
-                        'is_create_table': is_create_table,
-                        'table_name': table_name,
-                        'field_config': data_editor_df_en.to_dict(orient='records')
+                # 验证配置  
+                is_valid, error_msg = validate_table_config(
+                    table_name, data_editor_df)
+                if not is_valid:
+                    st.error(error_msg)
+                else:
+                    # 保存时转换为英文字段名
+                    data_editor_df_en = cn_to_en_field_names(data_editor_df)
+                    ret = {
+                        'type': 'sink_db',
+                        'content': {
+                            'is_create_table': is_create_table,
+                            'table_name': table_name,
+                            'field_config': data_editor_df_en.to_dict(orient='records')
+                        }
                     }
-                }
-                st.success(f"保存成功，表名：{table_name}")
+                    st.success(f"保存成功，表名：{table_name}")
         else:
             ret = None
 
         # 构建元数据信息
         build_db_meta_info(src_page=f"{src_page}_storage_config_{node_id}")
-        logger.debug(f"ret: {ret}")
         return ret
     except Exception as e:
         logger.exception(e)
