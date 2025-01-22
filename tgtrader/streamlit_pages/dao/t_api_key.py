@@ -6,11 +6,14 @@ from typing import List
 import time
 from tgtrader.streamlit_pages.dao.t_user import User
 from tgtrader.streamlit_pages.utils.common import encrypt, decrypt
+from peewee import *
 
 
 class TApiKey(BaseModel):
     # 主键自增id
     id = AutoField()
+    # api key名称
+    api_key_name = TextField()
     # 用户名
     username = TextField()
     # 模型名称
@@ -28,6 +31,7 @@ class TApiKey(BaseModel):
         table_name = 't_api_key'
         indexes = (
             (('username', 'model_name', 'api_key'), True),
+            (('username', 'api_key_name'), True),
         )
 
     @classmethod
@@ -40,7 +44,7 @@ class TApiKey(BaseModel):
     def get_api_keys(cls, username: str, hide_middle: bool = True) -> List['TApiKey']:
         with db:
             # 获取用户的API Keys并解密
-            api_keys = list(cls.select().where(cls.username == username))
+            api_keys = list(cls.select().where(cls.username == username).order_by(cls.create_time.desc()))
             for api_key in api_keys:
                 # 解密API Key
                 decrypted_key = cls.decrypt(username, api_key.api_key)
@@ -57,12 +61,15 @@ class TApiKey(BaseModel):
             return api_keys
 
     @classmethod
-    def save_api_key(cls, username: str, model_name: str, api_key: str):
-        api_key = cls.encrypt(username, api_key)
-        ts = int(time.time() * 1000)
-        with db:
-            cls.create(username=username, model_name=model_name, api_key=api_key,
-                       create_time=ts, update_time=ts)
+    def save_api_key(cls, username: str, model_name: str, api_key: str, api_key_name: str):
+        try:
+            api_key = cls.encrypt(username, api_key)
+            ts = int(time.time() * 1000)
+            with db:
+                cls.create(username=username, model_name=model_name, api_key=api_key, api_key_name=api_key_name,
+                        create_time=ts, update_time=ts)
+        except IntegrityError:
+            raise Exception(f"API Key已存在")
 
     @classmethod
     def delete_api_key(cls, _id: int):
