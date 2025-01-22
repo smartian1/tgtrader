@@ -33,9 +33,11 @@ def manage_api_keys():
         
         if st.button("保存"):
             if model_name and api_key and api_key_name:
-                # 保存到数据库
-                TApiKey.save_api_key(username=username, model_name=model_name, api_key=api_key, api_key_name=api_key_name)
-                st.success(f"{model_name} 的API Key已保存")
+                try:
+                    TApiKey.save_api_key(username=username, model_name=model_name, api_key=api_key, api_key_name=api_key_name)
+                    st.success(f"{model_name} 的API Key已保存")
+                except Exception as e:
+                    st.error(str(e))
             else:
                 st.error("请填写模型名称、API Key和API Key名称")
     
@@ -94,15 +96,17 @@ def manage_rss_sources():
         
         if st.button("保存RSS源"):
             if rss_name and rss_url:
-                # 保存到数据库
-                TRssSource.save_rss_source(
-                    username=username,
-                    rss_name=rss_name,
-                    rss_url=rss_url,
-                    rss_type=rss_type
-                )
-                st.success(f"RSS源 {rss_name} 已保存")
-                st.rerun()
+                try:
+                    TRssSource.save_rss_source(
+                        username=username,
+                        rss_name=rss_name,
+                        rss_url=rss_url,
+                        rss_type=rss_type
+                    )
+                    st.success(f"RSS源 {rss_name} 已保存")
+                    st.rerun()
+                except Exception as e:
+                    st.error(str(e))
             else:
                 st.error("请填写RSS源名称和URL")
     
