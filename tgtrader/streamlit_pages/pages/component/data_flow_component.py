@@ -237,6 +237,7 @@ def sink_db_config(node_id: str, src_page: str, node_cfg: dict):
         else:
             is_create_table = True
             table_name = ''
+            node_cfg = {}
 
         # 表创建选项
         is_create_table = st.checkbox(
@@ -304,7 +305,7 @@ def sink_db_config(node_id: str, src_page: str, node_cfg: dict):
                     info['field_name']: info
                     for info in field_config
                 }
-
+                
                 if not real_table_columns and not columns_meta_info:
                     # 情况1：real_table_columns和columns_meta_info都不存在, 使用传入的配置
                     pass
@@ -329,6 +330,8 @@ def sink_db_config(node_id: str, src_page: str, node_cfg: dict):
                 # 将保存的英文字段名转换为中文显示
                 field_config = pd.DataFrame(field_config)
                 field_config = en_to_cn_field_names(field_config)
+            else:
+                field_config = pd.DataFrame()
 
         # 字段配置
         data_editor_df = create_field_config_editor(
@@ -338,31 +341,17 @@ def sink_db_config(node_id: str, src_page: str, node_cfg: dict):
         btn_save = st.button("保存配置", key=f"{src_page}_storage_config_save")
 
         if btn_save:
-            # 验证配置
-            logger.info(f"table_name: {table_name}, data_editor_df: {data_editor_df}")
+            # logger.debug(f"is_create_table: {is_create_table}, table_name: {table_name}, data_editor_df: {data_editor_df}")
 
             if is_create_table and table_name:
                 if db_wrapper.is_table_exists(table_name):
                     st.error(f"表名已存在，请更换表名")
                     ret = None
-            else:
-                # 验证配置  
-                is_valid, error_msg = validate_table_config(
-                    table_name, data_editor_df)
-                if not is_valid:
-                    st.error(error_msg)
                 else:
-                    # 保存时转换为英文字段名
-                    data_editor_df_en = cn_to_en_field_names(data_editor_df)
-                    ret = {
-                        'type': 'sink_db',
-                        'content': {
-                            'is_create_table': is_create_table,
-                            'table_name': table_name,
-                            'field_config': data_editor_df_en.to_dict(orient='records')
-                        }
-                    }
-                    st.success(f"保存成功，表名：{table_name}")
+                    ret = save_table_config(table_name, data_editor_df, is_create_table)
+            else:
+                ret = save_table_config(table_name, data_editor_df, is_create_table)
+
         else:
             ret = None
 
@@ -373,3 +362,24 @@ def sink_db_config(node_id: str, src_page: str, node_cfg: dict):
         logger.exception(e)
         st.error(f"配置保存失败: {str(e)}")
         return None
+
+def save_table_config(table_name: str, data_editor_df: pd.DataFrame, is_create_table: bool):
+    # 验证配置
+    is_valid, error_msg = validate_table_config(
+        table_name, data_editor_df)
+    if not is_valid:
+        st.error(error_msg)
+    else:
+        # 保存时转换为英文字段名
+        data_editor_df_en = cn_to_en_field_names(data_editor_df)
+        ret = {
+            'type': 'sink_db',
+            'content': {
+                'is_create_table': is_create_table,
+                'table_name': table_name,
+                'field_config': data_editor_df_en.to_dict(orient='records')
+            }
+        }
+        st.success(f"保存成功，表名：{table_name}")
+    
+        return ret

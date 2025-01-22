@@ -187,13 +187,15 @@ def build_flow_page(flow_type: FlowType):
         flow_component, is_save_flow_btn_clicked, flow_id = create_flow_component(
             is_new_flow=False, flow_type=flow_type, flow_id=select_flow_id)
 
-    col1, col2 = st.columns(2)
-    with col1:
-        btn_run_all = ui.button(text="运行所有节点", key="styled_btn_run_all",
-                                className="bg-orange-500 text-white w-full h-14 py-3")
-    with col2:
-        btn_run_select = ui.button(text="运行到选择的节点", key="styled_btn_run_to_node",
-                                   className="bg-orange-500 text-white w-full h-14 py-3")
+    # col1, col2 = st.columns(2)
+    # with col1:
+    #     btn_run_all = ui.button(text="运行所有节点", key="styled_btn_run_all",
+    #                             className="bg-orange-500 text-white w-full h-14 py-3")
+    # with col2:
+    #     btn_run_select = ui.button(text="运行到选择的节点", key="styled_btn_run_to_node",
+    #                                className="bg-orange-500 text-white w-full h-14 py-3")
+    btn_run_all = ui.button(text="运行所有节点", key="styled_btn_run_all",
+                            className="bg-orange-500 text-white w-full h-14 py-3")
     
     if btn_run_all:
         run_all(flow_id)
@@ -230,7 +232,7 @@ def build_flow_page(flow_type: FlowType):
         elif node_type == NodeType.SINK_DB.value:
             ret = sink_db_config(node_id=flow_component.selected_id, src_page="data_process", node_cfg=cfg)
 
-        if ret and not is_save_flow_btn_clicked and not btn_run_all and not btn_run_select:
+        if ret and not is_save_flow_btn_clicked and not btn_run_all:
             # 如果is_save_flow_btn_clicked为True，则不保存节点信息，否则会多出来一条is_draft=1的记录
             FlowConfigService.save_node(
                 flow_id=flow_id,
