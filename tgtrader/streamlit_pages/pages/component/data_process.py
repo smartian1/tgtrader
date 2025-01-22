@@ -14,8 +14,9 @@ import arrow
 from tgtrader.streamlit_pages.pages.component.widget import display_hint_message
 from tgtrader.streamlit_pages.service.flow_config_service import FlowConfigService
 from streamlit_flow.elements import StreamlitFlowNode, StreamlitFlowEdge
-from streamlit_ace import st_ace
 from functools import partial
+from tgtrader.streamlit_pages.pages.component.data_flow_component import data_source_rss_config
+
 
 class NodeType(enum.Enum):
     DATA_SOURCE_DB = "数据源(DB)"
@@ -235,6 +236,10 @@ def build_flow_page(flow_type: FlowType):
             ret = sql_config(node_id=flow_component.selected_id, src_page="data_process", node_cfg=cfg)
         elif node_type == NodeType.SINK_DB.value:
             ret = sink_db_config(node_id=flow_component.selected_id, src_page="data_process", node_cfg=cfg)
+        elif node_type == NodeType.DATA_SOURCE_RSS.value:
+            ret = data_source_rss_config(node_id=flow_component.selected_id, src_page="data_process", node_cfg=cfg)
+        else:
+            raise NotImplementedError(f"不支持的节点类型: {node_type}")
 
         if ret and not is_save_flow_btn_clicked and not btn_run_all:
             # 如果is_save_flow_btn_clicked为True，则不保存节点信息，否则会多出来一条is_draft=1的记录

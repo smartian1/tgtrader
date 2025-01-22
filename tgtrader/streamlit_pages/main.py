@@ -42,12 +42,12 @@ def run():
             data_query_run, title='数据查询', icon=':material/query_stats:', url_path='data_query')
         strategy_pages['数据'] = [data_init_page, data_query_page]
 
-        ai_flow_page = st.Page(ai_flow_run, title='AI Flow',
+        ai_flow_page = st.Page(ai_flow_run, title='AI数据流',
                                icon=':material/psychology:', url_path='ai_flow')
         strategy_pages['AI'] = [ai_flow_page]
 
         factor_process_page = st.Page(
-            factor_process_run, title='因子处理', icon=':material/scatter_plot:', url_path='factor_process')
+            factor_process_run, title='因子数据流', icon=':material/scatter_plot:', url_path='factor_process')
         strategy_pages['因子'] = [factor_process_page]
 
         target_weights_page = st.Page(target_weight_strats_run, title='目标权重策略', icon=':material/target:', url_path='strategies_target_weights')

@@ -9,9 +9,9 @@ from loguru import logger
 from tgtrader.data_provider.dao.models.t_user_table_meta import UserTableMeta
 from tgtrader.utils.db_wrapper import DBWrapper, DBType
 from tgtrader.utils.db_path_utils import get_user_data_db_path
+from tgtrader.streamlit_pages.utils.common import get_user_name
+from tgtrader.streamlit_pages.dao.t_rss_source import TRssSource
 
-def get_user_name():
-    return st.session_state.user_info['username']
 
 def data_source_db_config(node_id: str, src_page: str, node_cfg: dict):
     col1, col2 = st.columns(2)
@@ -111,7 +111,7 @@ FIELD_NAME_MAPPING = {
     'input_field_mapping': '映射前节点输入字段'
 }
 
-def cn_to_en_field_names(df: pd.DataFrame) -> pd.DataFrame:
+def _cn_to_en_field_names(df: pd.DataFrame) -> pd.DataFrame:
     """将DataFrame的中文字段名转换为英文字段名
     
     Args:
@@ -123,7 +123,7 @@ def cn_to_en_field_names(df: pd.DataFrame) -> pd.DataFrame:
     reverse_mapping = {v: k for k, v in FIELD_NAME_MAPPING.items()}
     return df.rename(columns=reverse_mapping)
 
-def en_to_cn_field_names(df: pd.DataFrame) -> pd.DataFrame:
+def _en_to_cn_field_names(df: pd.DataFrame) -> pd.DataFrame:
     """将DataFrame的英文字段名转换为中文字段名
     
     Args:
@@ -134,7 +134,7 @@ def en_to_cn_field_names(df: pd.DataFrame) -> pd.DataFrame:
     """
     return df.rename(columns=FIELD_NAME_MAPPING)
 
-def get_empty_field_config():
+def _get_empty_field_config():
     """获取空字段配置"""
     return pd.DataFrame({
         "字段名": pd.Series([], dtype='str'),
@@ -144,10 +144,10 @@ def get_empty_field_config():
         "映射前节点输入字段": pd.Series([], dtype='str')
     })
 
-def create_field_config_editor(node_id: str, src_page: str, is_create_table: bool, field_config: pd.DataFrame):
+def _create_field_config_editor(node_id: str, src_page: str, is_create_table: bool, field_config: pd.DataFrame):
     """创建字段配置编辑器"""
     if field_config is None or field_config.empty:
-        field_config = get_empty_field_config()
+        field_config = _get_empty_field_config()
 
     if is_create_table:
         field_config_df = field_config
@@ -177,7 +177,7 @@ def create_field_config_editor(node_id: str, src_page: str, is_create_table: boo
     )
 
 
-def validate_table_config(table_name: str, field_config_df: pd.DataFrame) -> tuple[bool, str]:
+def _validate_table_config(table_name: str, field_config_df: pd.DataFrame) -> tuple[bool, str]:
     """验证表配置的合法性"""
     if not table_name:
         return False, "表名不能为空"
@@ -329,12 +329,12 @@ def sink_db_config(node_id: str, src_page: str, node_cfg: dict):
 
                 # 将保存的英文字段名转换为中文显示
                 field_config = pd.DataFrame(field_config)
-                field_config = en_to_cn_field_names(field_config)
+                field_config = _en_to_cn_field_names(field_config)
             else:
                 field_config = pd.DataFrame()
 
         # 字段配置
-        data_editor_df = create_field_config_editor(
+        data_editor_df = _create_field_config_editor(
             node_id, src_page, is_create_table, field_config)
 
         # 保存按钮
@@ -348,9 +348,9 @@ def sink_db_config(node_id: str, src_page: str, node_cfg: dict):
                     st.error(f"表名已存在，请更换表名")
                     ret = None
                 else:
-                    ret = save_table_config(table_name, data_editor_df, is_create_table)
+                    ret = _save_table_config(table_name, data_editor_df, is_create_table)
             else:
-                ret = save_table_config(table_name, data_editor_df, is_create_table)
+                ret = _save_table_config(table_name, data_editor_df, is_create_table)
 
         else:
             ret = None
@@ -363,15 +363,15 @@ def sink_db_config(node_id: str, src_page: str, node_cfg: dict):
         st.error(f"配置保存失败: {str(e)}")
         return None
 
-def save_table_config(table_name: str, data_editor_df: pd.DataFrame, is_create_table: bool):
+def _save_table_config(table_name: str, data_editor_df: pd.DataFrame, is_create_table: bool):
     # 验证配置
-    is_valid, error_msg = validate_table_config(
+    is_valid, error_msg = _validate_table_config(
         table_name, data_editor_df)
     if not is_valid:
         st.error(error_msg)
     else:
         # 保存时转换为英文字段名
-        data_editor_df_en = cn_to_en_field_names(data_editor_df)
+        data_editor_df_en = _cn_to_en_field_names(data_editor_df)
         ret = {
             'type': 'sink_db',
             'content': {
@@ -383,3 +383,106 @@ def save_table_config(table_name: str, data_editor_df: pd.DataFrame, is_create_t
         st.success(f"保存成功，表名：{table_name}")
     
         return ret
+    
+def data_source_rss_config(node_id: str, src_page: str, node_cfg: dict):
+    """RSS数据源配置
+    
+    Args:
+        node_id: 节点ID
+        src_page: 源页面
+        node_cfg: 节点配置
+        
+    Returns:
+        节点配置字典
+    """
+    # 获取用户名和已配置的RSS源
+    username = get_user_name()
+    rss_sources = TRssSource.get_rss_sources(username)
+    
+    # 从已有配置中获取选中的RSS源ID列表
+    selected_rss_ids = []
+    if node_cfg and 'content' in node_cfg:
+        selected_rss_ids = node_cfg['content'].get('selected_rss_ids', [])
+    
+    # 如果没有选中的源，默认显示一行
+    if not selected_rss_ids:
+        selected_rss_ids = [None]
+
+    # 创建选择框
+    st.write("配置RSS新闻源:")
+    
+    # 将RSS源转换为选择项列表
+    # 检查RSS源名称是否唯一
+    rss_names = [source.rss_name for source in rss_sources]
+    if len(rss_names) != len(set(rss_names)):
+        raise ValueError("检测到重复的RSS源名称，请在RSS源管理中修改")
+    
+    rss_options = [""] + rss_names
+    source_id_map = {source.rss_name: source.id for source in rss_sources}
+    
+    new_selected_ids = []
+    
+    # 显示每一行的选择
+    for i, selected_id in enumerate(selected_rss_ids):
+        col1, col2 = st.columns(2)
+        with col1:
+            # 获取默认选中值
+            default_index = 0
+            if selected_id:
+                for source in rss_sources:
+                    if source.id == selected_id:
+                        default_index = rss_options.index(source.rss_name)
+                        break
+            
+            selected = st.selectbox(
+                "新闻源",
+                options=rss_options,
+                key=f"{src_page}_rss_source_{node_id}_{i}",
+                index=default_index,
+                label_visibility="collapsed"
+            )
+            if selected and selected in source_id_map:
+                new_selected_ids.append(source_id_map[selected])
+        
+        with col2:
+            if len(selected_rss_ids) > 1 and st.button("删除", key=f"{src_page}_remove_rss_{node_id}_{i}"):
+                # 删除当前行
+                selected_rss_ids.pop(i)
+                return {
+                    'type': 'data_source_rss',
+                    'content': {
+                        'selected_rss_ids': selected_rss_ids
+                    }
+                }
+
+    col1, col2 = st.columns([1, 9])
+    with col1:
+        # 添加按钮
+        if st.button("添加新闻源", key=f"{src_page}_add_rss_{node_id}"):
+            # 保存当前已选择的RSS源ID
+            if new_selected_ids:
+                selected_rss_ids = new_selected_ids
+            selected_rss_ids.append(None)
+            return {
+                'type': 'data_source_rss',
+                'content': {
+                    'selected_rss_ids': selected_rss_ids
+                }
+            }
+
+    with col2:
+        # 保存按钮
+        if st.button("保存配置", key=f"{src_page}_rss_config_save_{node_id}"):
+            if not new_selected_ids:
+                st.error("请至少选择一个RSS源")
+                return None
+            
+            config = {
+                'type': 'data_source_rss',
+                'content': {
+                    'selected_rss_ids': new_selected_ids
+                }
+            }
+            st.success("保存成功")
+            return config
+    
