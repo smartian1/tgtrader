@@ -19,8 +19,10 @@ from functools import partial
 
 class NodeType(enum.Enum):
     DATA_SOURCE_DB = "数据源(DB)"
+    DATA_SOURCE_RSS = "数据源(RSS)"
     PROCESSOR_PYTHON_CODE = "处理节点(python代码)"
     PROCESSOR_SQL = "处理节点(sql)"
+    PROCESSOR_LLM = "处理节点(LLM)"
     SINK_DB = "存储(DB)"
 
     def get_node_type_by_value(value: str) -> 'NodeType':
@@ -32,11 +34,13 @@ class NodeType(enum.Enum):
 
 class FlowType(enum.Enum):
     FACTOR_PROCESS = "facotr_process"
-
+    AI_FLOW = "ai_flow"
 
 def get_support_node_type_list(flow_type: FlowType):
     if flow_type == FlowType.FACTOR_PROCESS:
         return [NodeType.DATA_SOURCE_DB, NodeType.PROCESSOR_PYTHON_CODE, NodeType.PROCESSOR_SQL, NodeType.SINK_DB]
+    elif flow_type == FlowType.AI_FLOW:
+        return [NodeType.DATA_SOURCE_RSS, NodeType.PROCESSOR_PYTHON_CODE, NodeType.PROCESSOR_LLM, NodeType.SINK_DB]
     else:
         return []
 

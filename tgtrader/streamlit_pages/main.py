@@ -11,6 +11,7 @@ from tgtrader.streamlit_pages.pages.data.data_init import run as data_init_run
 from tgtrader.streamlit_pages.pages.data.data_query import run as data_query_run
 from tgtrader.streamlit_pages.pages.knowledge_base.knowledge_base import run as knowledge_base_run
 from tgtrader.streamlit_pages.pages.factors.factor_process import run as factor_process_run
+from tgtrader.streamlit_pages.pages.ai.ai_flow import run as ai_flow_run
 
 
 def logout():
@@ -40,6 +41,10 @@ def run():
         data_query_page = st.Page(
             data_query_run, title='数据查询', icon=':material/query_stats:', url_path='data_query')
         strategy_pages['数据'] = [data_init_page, data_query_page]
+
+        ai_flow_page = st.Page(ai_flow_run, title='AI Flow',
+                               icon=':material/psychology:', url_path='ai_flow')
+        strategy_pages['AI'] = [ai_flow_page]
 
         factor_process_page = st.Page(
             factor_process_run, title='因子处理', icon=':material/scatter_plot:', url_path='factor_process')
