@@ -45,3 +45,5 @@ class FlowNodeCfg(BaseModel):
         with db:
             if not FlowNodeCfg.table_exists():
                 db.create_tables([FlowNodeCfg])
+
+FlowNodeCfg.init_table()

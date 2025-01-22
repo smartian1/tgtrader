@@ -21,7 +21,7 @@ def init_db():
         user_strategy_service = UserStrategyService()
         
         # Initialize tables
-        user_strategy_service.init_table()  # Initialize strategy table first
+        # user_strategy_service.init_table()  # Initialize strategy table first
         account_service.init_table()        # Then initialize user table
         
         # Check if admin account exists

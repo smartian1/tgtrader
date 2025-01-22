@@ -45,3 +45,4 @@ class FlowCfg(BaseModel):
             if not FlowCfg.table_exists():
                 db.create_tables([FlowCfg])
 
+FlowCfg.init_table()

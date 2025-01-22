@@ -88,8 +88,3 @@ class UserStrategyService:
         except Exception as e:
             logger.exception(e) 
             raise Exception(f"删除策略失败: {str(e)}")
-
-    @classmethod
-    def init_table(cls):
-        """初始化数据表"""
-        UserStrategy.init_table()

@@ -42,13 +42,11 @@ class UserTableMeta(Model):
 
     @classmethod
     def get_all_db_names(cls, user: str):
-        cls.init_table()
         data = cls.select(cls.db_name).where(cls.user == user).distinct().execute()
         return [item.db_name for item in data]
 
     @classmethod
     def get_all_table_names(cls, user: str, db_name: str):
-        cls.init_table()
         data = cls.select(cls.table_name).where(cls.user == user, cls.db_name == db_name).distinct().execute()
         return [item.table_name for item in data]
 
@@ -65,7 +63,6 @@ class UserTableMeta(Model):
             }
         ]
         """
-        cls.init_table()
         table_info = cls.select().where(cls.user == user, cls.db_name == db_name, cls.table_name == table_name).order_by(cls.version.desc()).first()
         if table_info:
             return json.loads(table_info.columns_info)
@@ -86,7 +83,6 @@ class UserTableMeta(Model):
         Returns:
             None
         """
-        cls.init_table()
 
         columns_info = copy.deepcopy(columns_info)
 
@@ -120,3 +116,5 @@ class UserTableMeta(Model):
             update_time=current_time
         )
         logger.info(f"Created new version {current_max_version + 1} for table {table_name}")
+
+UserTableMeta.init_table()

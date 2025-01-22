@@ -2,13 +2,17 @@
 from loguru import logger
 from peewee import *
 from datetime import datetime
-import bcrypt
+import random
+import time
 from tgtrader.streamlit_pages.dao.common import BaseModel, db
+from tgtrader.streamlit_pages.utils.common import hash, verify
+from cryptography.fernet import Fernet
 
 class User(BaseModel):
     id = AutoField()
     username = CharField(unique=True)
     password = CharField()
+    key = CharField()
     # User role field, defaults to 'normal'. Can be 'normal' or 'admin'
     role = CharField(default='normal')
     create_time = BigIntegerField(default=lambda: int(datetime.now().timestamp()))
@@ -23,12 +27,15 @@ class User(BaseModel):
 
     @staticmethod
     def hash_password(password: str) -> str:
-        """Hash a password using bcrypt"""
-        return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+        return hash(password)
 
     def verify_password(self, password: str) -> bool:
-        """Verify a password against the stored hash"""
-        return bcrypt.checkpw(password.encode(), self.password.encode())
+        """验证密码"""
+        try:
+            return verify(password, self.password)
+        except Exception as e:
+            logger.error(f"verify password error: {str(e)}")
+            return False
 
     @classmethod
     def init_table(cls):
@@ -52,10 +59,20 @@ class User(BaseModel):
             if cls.get_user_by_username(username):
                 raise Exception(f"user {username} already exists")
             
-            # Hash the password and create user
+            # Hash the password
             hashed_password = cls.hash_password(password)
+            
+            # 生成符合 Fernet 要求的密钥
+            # 使用 Fernet.generate_key() 生成一个有效的密钥
+            key = Fernet.generate_key().decode()
+
+            ts = int(time.time() * 1000)
+            
             return cls.create(
                 username=username,
                 password=hashed_password,
-                role=role
+                key=key,
+                role=role,
+                create_time=ts,
+                update_time=ts
             )

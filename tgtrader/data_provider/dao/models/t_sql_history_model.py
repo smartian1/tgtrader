@@ -43,14 +43,12 @@ class SqlHistoryModel(Model):
 
     @classmethod
     def save_sql_history(cls, user: str, sql: str, data_source: str) -> None:
-        cls.init_table()
-
         ts = int(time.time() * 1000 )
         with main_db:
             cls.create(user=user, sql_content=sql, data_source=data_source, create_time=ts, update_time=ts)
 
     @classmethod
     def get_sql_history(cls, user: str) -> List['SqlHistoryModel']:
-        cls.init_table()
         return cls.select().where(cls.user == user).order_by(cls.create_time.desc())
 
+SqlHistoryModel.init_table()

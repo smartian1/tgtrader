@@ -28,9 +28,7 @@ class UserStrategy(BaseModel):
     def init_table(cls):
         # 初始化表
         with db:
-            if UserStrategy.table_exists():
-                UserStrategy.delete().execute()  # 如果表存在，删除所有记录
-            else:
+            if not UserStrategy.table_exists():
                 db.create_tables([UserStrategy])  # 如果表不存在，创建表
 
     @classmethod
@@ -69,3 +67,6 @@ class UserStrategy(BaseModel):
         """删除策略"""
         with db:
             return cls.delete().where(cls.id == strategy_id, cls.user_id == user_id).execute()
+
+
+UserStrategy.init_table()

@@ -13,11 +13,6 @@ class FlowConfigService:
         pass
     
     @classmethod
-    def init_tables(cls):
-        FlowCfg.init_table()
-        FlowNodeCfg.init_table()
-
-    @classmethod
     def save_node(cls, flow_id, node_id, node_type, node_cfg):
         """
         根据flow_id和node_id，查询是否有is_draft=1的记录，如果有，则更新，否则插入

@@ -162,7 +162,7 @@ def build_flow_page(flow_type: FlowType):
 
     """
 
-    FlowConfigService.init_tables()
+    # FlowConfigService.init_tables()
 
     old_select_flow_name, new_select_flow_name = create_select_flow_component(flow_type)
 
