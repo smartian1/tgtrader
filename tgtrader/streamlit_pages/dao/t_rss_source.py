@@ -28,7 +28,6 @@ class TRssSource(BaseModel):
     update_time = BigIntegerField(
         default=lambda: int(datetime.now().timestamp()))
 
-    VALID_RSS_TYPES = ["新闻", "博客", "社交媒体", "其他"]
     MAX_NAME_LENGTH = 50
     MIN_NAME_LENGTH = 2
 
@@ -73,8 +72,6 @@ class TRssSource(BaseModel):
         """验证RSS类型"""
         if not rss_type:
             raise ValueError("RSS类型不能为空")
-        if rss_type not in cls.VALID_RSS_TYPES:
-            raise ValueError(f"无效的RSS类型，必须是以下之一: {', '.join(cls.VALID_RSS_TYPES)}")
 
     @classmethod
     def validate_all(cls, rss_name: str, rss_url: str, rss_type: str) -> None:
