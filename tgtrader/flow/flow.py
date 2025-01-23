@@ -8,6 +8,7 @@ import json
 
 class NodeType(Enum):
     SOURCE_DB = "数据源(DB)"
+    SOURCE_RSS = "数据源(RSS)"
     PROCESSOR_SQL = "处理节点(sql)"
     PROCESSOR_PYTHON = "处理节点(python代码)"
     SINK_DB = "存储(DB)"
@@ -54,9 +55,12 @@ class FlowNode:
         from tgtrader.flow.nodes.processor_sql import SQLProcessorNode
         from tgtrader.flow.nodes.processor_python import PythonProcessorNode
         from tgtrader.flow.nodes.sink_db import SinkDBNode
-
+        from tgtrader.flow.nodes.source_rss import SourceRSSNode
+        
         if NodeType(node_type) == NodeType.SOURCE_DB:
             return SourceDBNode(node_id=node_id, node_label=node_label, config=config, user=user)
+        elif NodeType(node_type) == NodeType.SOURCE_RSS:
+            return SourceRSSNode(node_id=node_id, node_label=node_label, config=config, user=user)
         elif NodeType(node_type) == NodeType.PROCESSOR_SQL:
             return SQLProcessorNode(node_id=node_id, node_label=node_label, config=config, user=user)
         elif NodeType(node_type) == NodeType.PROCESSOR_PYTHON:

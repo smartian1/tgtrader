@@ -439,7 +439,7 @@ def data_source_rss_config(node_id: str, src_page: str, node_cfg: dict) -> dict 
         use_container_width=True
     )
 
-    logger.debug(f"edited_data: {edited_data}")
+    # logger.debug(f"edited_data: {edited_data}")
     
     # 保存按钮
     if st.button("保存配置", key=f"{src_page}_rss_config_save_{node_id}"):
@@ -460,10 +460,20 @@ def data_source_rss_config(node_id: str, src_page: str, node_cfg: dict) -> dict 
             st.error("请至少选择一个RSS源")
             return None
         
+        # 收集选中的RSS源的详细信息
+        rss_info = []
+        for source in rss_sources:
+            if source.id in new_selected_ids:
+                rss_info.append({
+                    "id": source.id,
+                    "url": source.rss_url
+                })
+        
         config = {
             'type': 'data_source_rss',
             'content': {
-                'selected_rss_ids': new_selected_ids
+                'selected_rss_ids': new_selected_ids,
+                'rss_info': rss_info
             }
         }
         st.success("保存成功")
