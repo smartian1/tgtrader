@@ -181,6 +181,19 @@ def _create_field_config_editor(node_id: str, src_page: str, is_create_table: bo
 
 def _validate_table_config(table_name: str, field_config_df: pd.DataFrame) -> tuple[bool, str]:
     """验证表配置的合法性"""
+    # DuckDB保留关键字列表
+    DUCKDB_RESERVED_KEYWORDS = {
+        'add', 'all', 'alter', 'and', 'any', 'as', 'asc', 'between', 'by', 'case', 
+        'cast', 'check', 'column', 'commit', 'copy', 'create', 'cross', 'current', 
+        'default', 'delete', 'desc', 'distinct', 'drop', 'else', 'end', 'escape', 
+        'except', 'exists', 'extract', 'false', 'filter', 'following', 'foreign', 
+        'from', 'full', 'group', 'having', 'if', 'in', 'inner', 'insert', 'intersect', 
+        'into', 'is', 'join', 'left', 'like', 'limit', 'natural', 'not', 'null', 
+        'offset', 'on', 'or', 'order', 'outer', 'over', 'primary', 'references', 
+        'right', 'rollback', 'select', 'set', 'table', 'then', 'true', 'union', 
+        'unique', 'update', 'using', 'values', 'when', 'where', 'window', 'with'
+    }
+
     if not table_name:
         return False, "表名不能为空"
 
@@ -200,6 +213,11 @@ def _validate_table_config(table_name: str, field_config_df: pd.DataFrame) -> tu
     # 检查字段名唯一性
     if field_config_df["字段名"].duplicated().any():
         return False, "字段名不能重复"
+    
+    # 检查字段名是否为DuckDB保留关键字
+    invalid_fields = [field for field in field_config_df["字段名"] if field.lower() in DUCKDB_RESERVED_KEYWORDS]
+    if invalid_fields:
+        return False, f"以下字段名是数据库保留关键字，不能使用: {', '.join(invalid_fields)}"
     
     # 检查主键字段是否有映射字段
     primary_key_rows = field_config_df[field_config_df["是否主键"] == True]

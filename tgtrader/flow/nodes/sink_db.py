@@ -11,7 +11,40 @@ from loguru import logger
 from tgtrader.utils.db_path_utils import get_user_data_db_path
 
 
+# DuckDB 保留关键字列表
+DUCKDB_RESERVED_KEYWORDS = {
+    'add', 'all', 'alter', 'and', 'any', 'as', 'asc', 'between', 'by', 'case', 
+    'cast', 'check', 'column', 'commit', 'copy', 'create', 'cross', 'current', 
+    'default', 'delete', 'desc', 'distinct', 'drop', 'else', 'end', 'escape', 
+    'except', 'exists', 'extract', 'false', 'filter', 'following', 'foreign', 
+    'from', 'full', 'group', 'having', 'if', 'in', 'inner', 'insert', 'intersect', 
+    'into', 'is', 'join', 'left', 'like', 'limit', 'natural', 'not', 'null', 
+    'offset', 'on', 'or', 'order', 'outer', 'over', 'primary', 'references', 
+    'right', 'rollback', 'select', 'set', 'table', 'then', 'true', 'union', 
+    'unique', 'update', 'using', 'values', 'when', 'where', 'window', 'with'
+}
+
+
 class SinkDBNode(FlowNode):
+    @staticmethod
+    def _validate_field_names(field_config: List[Dict[str, Any]]) -> None:
+        """验证字段名是否使用了DuckDB保留关键字.
+        
+        Args:
+            field_config: 字段配置列表
+            
+        Raises:
+            ValueError: 当字段名使用了保留关键字时抛出
+        """
+        invalid_fields = []
+        for field in field_config:
+            field_name = field.get('field_name', '').lower()
+            if field_name in DUCKDB_RESERVED_KEYWORDS:
+                invalid_fields.append(field_name)
+        
+        if invalid_fields:
+            raise ValueError(f"以下字段名是DuckDB保留关键字，不能使用: {', '.join(invalid_fields)}")
+
     def execute(self, input_data: dict, process_callback: Callable = None) -> None:
         """执行数据库写入操作.
         
@@ -45,6 +78,14 @@ class SinkDBNode(FlowNode):
                 if process_callback:
                     process_callback(f"【节点: {self.node_label}】config里未提供is_create_table, table_name, field_config", message_type="error")
                 raise ValueError("config里未提供is_create_table, table_name, field_config")
+            
+            # 验证字段名
+            try:
+                self._validate_field_names(field_config)
+            except ValueError as e:
+                if process_callback:
+                    process_callback(f"【节点: {self.node_label}】字段名验证失败: {str(e)}", message_type="error")
+                raise
             
             db_path = get_user_data_db_path(self.user)
             db_name = "flow_sinkdb"

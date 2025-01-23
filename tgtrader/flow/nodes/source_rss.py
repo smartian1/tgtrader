@@ -27,9 +27,9 @@ class RSSSource:
         for entry in feed.entries:
             item = {
                 'title': entry.get('title', ''),
-                'description': entry.get('description', ''),
+                'desc': entry.get('description', ''),
                 'guid': entry.get('guid', entry.get('id', '')),  # 有些RSS用id代替guid
-                'pubDate': pd.to_datetime(entry.get('published', '')).timestamp()  # 转换为时间戳
+                'pub_time': pd.to_datetime(entry.get('published', '')).timestamp()  # 转换为时间戳
             }
             data.append(item)
         
