@@ -11,6 +11,8 @@ from tgtrader.utils.db_wrapper import DBWrapper, DBType
 from tgtrader.utils.db_path_utils import get_user_data_db_path
 from tgtrader.streamlit_pages.utils.common import get_user_name
 from tgtrader.streamlit_pages.dao.t_rss_source import TRssSource
+import arrow
+from typing import Dict
 
 
 def data_source_db_config(node_id: str, src_page: str, node_cfg: dict):
@@ -384,105 +386,88 @@ def _save_table_config(table_name: str, data_editor_df: pd.DataFrame, is_create_
     
         return ret
     
-def data_source_rss_config(node_id: str, src_page: str, node_cfg: dict):
-    """RSS数据源配置
+def data_source_rss_config(node_id: str, src_page: str, node_cfg: dict) -> dict | None:
+    """RSS数据源配置组件，使用data_editor实现RSS源的添加和删除.
     
     Args:
-        node_id: 节点ID
-        src_page: 源页面
-        node_cfg: 节点配置
+        node_id (str): 节点ID
+        src_page (str): 源页面
+        node_cfg (dict): 节点配置
         
     Returns:
-        节点配置字典
+        dict | None: 返回节点配置字典，保存失败时返回None
     """
     # 获取用户名和已配置的RSS源
     username = get_user_name()
     rss_sources = TRssSource.get_rss_sources(username)
     
-    # 从已有配置中获取选中的RSS源ID列表
-    selected_rss_ids = []
-    if node_cfg and 'content' in node_cfg:
-        selected_rss_ids = node_cfg['content'].get('selected_rss_ids', [])
-    
-    # 如果没有选中的源，默认显示一行
-    if not selected_rss_ids:
-        selected_rss_ids = [None]
-
-    # 创建选择框
-    st.write("配置RSS新闻源:")
-    
-    # 将RSS源转换为选择项列表
     # 检查RSS源名称是否唯一
     rss_names = [source.rss_name for source in rss_sources]
     if len(rss_names) != len(set(rss_names)):
-        raise ValueError("检测到重复的RSS源名称，请在RSS源管理中修改")
+        st.error("检测到重复的RSS源名称，请在RSS源管理中修改")
+        return None
     
+    # 准备RSS源选项和映射
     rss_options = [""] + rss_names
     source_id_map = {source.rss_name: source.id for source in rss_sources}
     
-    new_selected_ids = []
+    # 从已有配置中获取选中的RSS源
+    selected_data = []
+    if node_cfg and 'content' in node_cfg:
+        selected_ids = node_cfg['content'].get('selected_rss_ids', [])
+        selected_sources = [source for source in rss_sources if source.id in selected_ids]
+        selected_data = [{"rss_source": source.rss_name} for source in selected_sources]
     
-    # 显示每一行的选择
-    for i, selected_id in enumerate(selected_rss_ids):
-        col1, col2 = st.columns(2)
-        with col1:
-            # 获取默认选中值
-            default_index = 0
-            if selected_id:
-                for source in rss_sources:
-                    if source.id == selected_id:
-                        default_index = rss_options.index(source.rss_name)
-                        break
-            
-            selected = st.selectbox(
-                "新闻源",
+    # 如果没有选中的源，添加一个空行
+    if not selected_data:
+        selected_data = [{"rss_source": ""}]
+    
+    # 创建data editor
+    st.write("配置RSS新闻源:")
+    edited_data = st.data_editor(
+        selected_data,
+        column_config={
+            "rss_source": st.column_config.SelectboxColumn(
+                "RSS源",
                 options=rss_options,
-                key=f"{src_page}_rss_source_{node_id}_{i}",
-                index=default_index,
-                label_visibility="collapsed"
+                required=True,
+                width="large"
             )
-            if selected and selected in source_id_map:
-                new_selected_ids.append(source_id_map[selected])
-        
-        with col2:
-            if len(selected_rss_ids) > 1 and st.button("删除", key=f"{src_page}_remove_rss_{node_id}_{i}"):
-                # 删除当前行
-                selected_rss_ids.pop(i)
-                return {
-                    'type': 'data_source_rss',
-                    'content': {
-                        'selected_rss_ids': selected_rss_ids
-                    }
-                }
+        },
+        num_rows="dynamic",
+        key=f"{src_page}_rss_editor_{node_id}",
+        use_container_width=True
+    )
 
-    col1, col2 = st.columns([1, 9])
-    with col1:
-        # 添加按钮
-        if st.button("添加新闻源", key=f"{src_page}_add_rss_{node_id}"):
-            # 保存当前已选择的RSS源ID
-            if new_selected_ids:
-                selected_rss_ids = new_selected_ids
-            selected_rss_ids.append(None)
-            return {
-                'type': 'data_source_rss',
-                'content': {
-                    'selected_rss_ids': selected_rss_ids
-                }
-            }
-
-    with col2:
-        # 保存按钮
-        if st.button("保存配置", key=f"{src_page}_rss_config_save_{node_id}"):
-            if not new_selected_ids:
-                st.error("请至少选择一个RSS源")
-                return None
+    logger.debug(f"edited_data: {edited_data}")
+    
+    # 保存按钮
+    if st.button("保存配置", key=f"{src_page}_rss_config_save_{node_id}"):
+        # 检查是否有重复选择
+        selected_sources = [row.get("rss_source") for row in edited_data if row.get("rss_source")]
+        if len(selected_sources) != len(set(selected_sources)):
+            st.error("RSS源不能重复选择")
+            return None
             
-            config = {
-                'type': 'data_source_rss',
-                'content': {
-                    'selected_rss_ids': new_selected_ids
-                }
+        # 收集选中的RSS源ID
+        new_selected_ids = []
+        for row in edited_data:
+            rss_name = row.get("rss_source")
+            if rss_name and rss_name in source_id_map:
+                new_selected_ids.append(source_id_map[rss_name])
+        
+        if not new_selected_ids:
+            st.error("请至少选择一个RSS源")
+            return None
+        
+        config = {
+            'type': 'data_source_rss',
+            'content': {
+                'selected_rss_ids': new_selected_ids
             }
-            st.success("保存成功")
-            return config
+        }
+        st.success("保存成功")
+        return config
+    
+    return None
     

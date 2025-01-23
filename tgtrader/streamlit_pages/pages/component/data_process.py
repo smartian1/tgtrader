@@ -249,6 +249,7 @@ def build_flow_page(flow_type: FlowType):
                 node_type=NodeType.get_node_type_by_value(node_type),
                 node_cfg=ret
             )
+            logger.info(f"保存节点信息: flow_id={flow_id}, node_id={flow_component.selected_id}, node_type={node_type}, node_cfg={ret}")
 
 def run_all(flow_id):
     log_placeholder = st.empty()
