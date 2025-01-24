@@ -1,8 +1,8 @@
 # encoding: utf-8
 
 import time
-from tgtrader.streamlit_pages.dao.t_flow import FlowCfg
-from tgtrader.streamlit_pages.dao.t_flow_node import FlowNodeCfg
+from tgtrader.dao.t_flow import FlowCfg
+from tgtrader.dao.t_flow_node import FlowNodeCfg
 import json
 from typing import Callable, List
 from tgtrader.flow.flow import Flow

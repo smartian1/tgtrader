@@ -4,7 +4,7 @@ import time
 from typing import List
 from loguru import logger
 from peewee import *
-from tgtrader.streamlit_pages.dao.common import BaseModel, db
+from tgtrader.dao.common import BaseModel, db
 
 
 class SqlHistoryModel(BaseModel):

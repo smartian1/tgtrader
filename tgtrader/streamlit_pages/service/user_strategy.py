@@ -1,7 +1,7 @@
 # encoding: utf-8
 from loguru import logger
 from tgtrader.strategy_config import StrategyConfig
-from tgtrader.streamlit_pages.dao.t_user_strategy import UserStrategy
+from tgtrader.dao.t_user_strategy import UserStrategy
 import json
 
 class UserStrategyService:

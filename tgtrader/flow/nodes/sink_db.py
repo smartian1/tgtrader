@@ -8,7 +8,7 @@ import os
 from tgtrader.utils.db_wrapper import DBWrapper, DBType
 from loguru import logger
 from tgtrader.utils.db_path_utils import get_user_data_db_path
-from tgtrader.streamlit_pages.dao.t_user_table_meta import UserTableMeta
+from tgtrader.dao.t_user_table_meta import UserTableMeta
 
 
 # DuckDB 保留关键字列表

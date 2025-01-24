@@ -1,6 +1,6 @@
 # encoding: utf-8
 from datetime import datetime
-from tgtrader.streamlit_pages.dao.common import BaseModel, db
+from tgtrader.dao.common import BaseModel, db
 from peewee import AutoField, IntegerField, BigIntegerField, TextField, CompositeKey
 
 

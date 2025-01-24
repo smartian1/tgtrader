@@ -4,8 +4,8 @@ import streamlit as st
 from st_keyup import st_keyup
 from st_aggrid import AgGrid, GridOptionsBuilder
 import pandas as pd
-from tgtrader.streamlit_pages.dao.t_api_key import TApiKey
-from tgtrader.streamlit_pages.dao.t_rss_source import TRssSource
+from tgtrader.dao.t_api_key import TApiKey
+from tgtrader.dao.t_rss_source import TRssSource
 from tgtrader.streamlit_pages.utils.common import get_user_name
 from loguru import logger
 import arrow

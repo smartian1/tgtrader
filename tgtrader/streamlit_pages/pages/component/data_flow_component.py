@@ -6,15 +6,15 @@ import streamlit as st
 from streamlit_ace import st_ace
 from .data_meta import build_db_meta_info
 from loguru import logger
-from tgtrader.streamlit_pages.dao.t_user_table_meta import UserTableMeta
+from tgtrader.dao.t_user_table_meta import UserTableMeta
 from tgtrader.utils.db_wrapper import DBWrapper, DBType
 from tgtrader.utils.db_path_utils import get_user_data_db_path
 from tgtrader.streamlit_pages.utils.common import get_user_name
-from tgtrader.streamlit_pages.dao.t_rss_source import TRssSource
+from tgtrader.dao.t_rss_source import TRssSource
 import arrow
 from typing import Dict
-from tgtrader.streamlit_pages.dao.t_api_key import TApiKey
-from tgtrader.streamlit_pages.dao.t_llm_template import TLLMTemplate
+from tgtrader.dao.t_api_key import TApiKey
+from tgtrader.dao.t_llm_template import TLLMTemplate
 
 
 def data_source_db_config(node_id: str, src_page: str, node_cfg: dict):
@@ -524,24 +524,32 @@ def processor_llm_config(node_id: str, src_page: str, node_cfg: dict) -> dict | 
     if not api_keys:
         st.error("请先在设置页面配置API Key")
         return None
+    
+    model_name_id_key = {key.api_key_name: key.id for key in api_keys}
+    model_id_name_key = {key.id: key.api_key_name for key in api_keys}
         
     # 准备模型选项
     model_options = list(set(key.api_key_name for key in api_keys))
     
     # 从已有配置中获取选中的模型和模板
-    selected_model = None
+    selected_model_id = None
     selected_template = None
     prompt_template = ""
     if node_cfg and 'content' in node_cfg:
-        selected_model = node_cfg['content'].get('model_name', '')
+        selected_model_id = node_cfg['content'].get('model_id', '')
         selected_template = node_cfg['content'].get('template_name', '')
         prompt_template = node_cfg['content'].get('prompt_template', '')
     
     # 模型选择下拉框
+    if selected_model_id:
+        selected_model = model_id_name_key[selected_model_id]
+    else:
+        selected_model = None
+    
     selected_model = st.selectbox(
         "选择模型",
         options=model_options,
-        index=model_options.index(selected_model) if selected_model in model_options else 0,
+        index=model_options.index(selected_model) if selected_model and selected_model in model_options else 0,
         key=f"{src_page}_llm_model_{node_id}"
     )
     
@@ -580,7 +588,7 @@ def processor_llm_config(node_id: str, src_page: str, node_cfg: dict) -> dict | 
         config = {
                 'type': 'processor_llm',
                 'content': {
-                    'model_name': selected_model,
+                    'model_id': model_name_id_key[selected_model],
                     'template_name': selected_template,
                     'prompt_template': value,
                 }

@@ -1,6 +1,6 @@
 # encoding: utf-8
 import streamlit as st
-from tgtrader.streamlit_pages.dao.t_user import User
+from tgtrader.dao.t_user import User
 from loguru import logger
 
 class AccountService:

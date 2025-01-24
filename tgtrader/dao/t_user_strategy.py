@@ -2,7 +2,7 @@
 from loguru import logger
 from peewee import *
 from datetime import datetime
-from tgtrader.streamlit_pages.dao.common import BaseModel, db
+from tgtrader.dao.common import BaseModel, db
 
 class UserStrategy(BaseModel):
     # 主键自增id

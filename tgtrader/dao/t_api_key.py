@@ -1,10 +1,10 @@
 # encoding: utf-8
 from datetime import datetime
-from tgtrader.streamlit_pages.dao.common import BaseModel, db
+from tgtrader.dao.common import BaseModel, db
 from peewee import AutoField, IntegerField, BigIntegerField, TextField, CompositeKey
 from typing import List
 import time
-from tgtrader.streamlit_pages.dao.t_user import User
+from tgtrader.dao.t_user import User
 from tgtrader.streamlit_pages.utils.common import encrypt, decrypt
 from peewee import *
 

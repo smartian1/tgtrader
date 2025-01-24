@@ -4,7 +4,7 @@ from peewee import *
 from datetime import datetime
 import random
 import time
-from tgtrader.streamlit_pages.dao.common import BaseModel, db
+from tgtrader.dao.common import BaseModel, db
 from tgtrader.streamlit_pages.utils.common import hash, verify
 from cryptography.fernet import Fernet
 

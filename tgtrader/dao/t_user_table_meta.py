@@ -6,7 +6,7 @@ from loguru import logger
 from peewee import *
 import json
 import copy
-from tgtrader.streamlit_pages.dao.common import BaseModel, db
+from tgtrader.dao.common import BaseModel, db
 
 class UserTableMeta(BaseModel):
     """
