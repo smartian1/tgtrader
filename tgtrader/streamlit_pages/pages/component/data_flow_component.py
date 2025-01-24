@@ -512,7 +512,7 @@ def processor_llm_config(node_id: str, src_page: str, node_cfg: dict) -> dict | 
     Returns:
         节点配置字典或None（配置无效时）
     """
-    logger.debug(f"node_cfg: {node_cfg}")
+    # logger.debug(f"node_cfg: {node_cfg}")
     # 获取用户名
     username = get_user_name()
     if not username:
@@ -562,39 +562,29 @@ def processor_llm_config(node_id: str, src_page: str, node_cfg: dict) -> dict | 
     # 如果选择了模板，更新prompt_template
     if selected_template:
         prompt_template = template_dict[selected_template]
+    else:
+        prompt_template = ''
 
-    logger.debug(f"selected_model: {selected_model}, selected_template: {selected_template}")
+    value = st.text_area(
+        "提示词模板",
+        key=f"{src_page}_llm_prompt_{node_id}",
+        value=prompt_template,
+        height=300
+    )
+
     
-    # 提示词模板配置
-    placeholder = """输入：前方节点连到该节点的边的名字作为输入参数
-
-示例：
-def calc(news_content):
-    '''
-    system: 你是一个专业的金融分析师，擅长分析新闻对股市的影响。
-
-    user: 请分析以下新闻对股市的影响：
-    {news_content}
-
-    assistant: 我将分析这条新闻并输出分析结果。
-    '''
-    """
+    btn_save = st.button("保存配置", key=f"{src_page}_llm_config_save_{node_id}")
     
-    # value = st.text_area(
-    #     "提示词模板",
-    #     placeholder=placeholder,
-    #     key=f"{src_page}_llm_prompt_{node_id}",
-    #     value=prompt_template
-    # )
-    
-    config = {
-            'type': 'processor_llm',
-            'content': {
-                'model_name': selected_model,
-                'template_name': selected_template,
-                'prompt_template': '',
-                # 'api_key_id': selected_api_key.id
+    if btn_save:
+        config = {
+                'type': 'processor_llm',
+                'content': {
+                    'model_name': selected_model,
+                    'template_name': selected_template,
+                    'prompt_template': value,
+                }
             }
-        }
+        
+        return config
     
-    return config
+    return None
