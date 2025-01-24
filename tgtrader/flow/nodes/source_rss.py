@@ -6,6 +6,7 @@ from tgtrader.common import DataSource
 from tgtrader.utils.duckdb_query import DuckDBQuery
 from dataclasses import dataclass
 import feedparser
+import arrow
 import pandas as pd
 
 @dataclass
@@ -29,7 +30,7 @@ class RSSSource:
                 'title': entry.get('title', ''),
                 'desc': entry.get('description', ''),
                 'guid': entry.get('guid', entry.get('id', '')),  # 有些RSS用id代替guid
-                'pub_time': pd.to_datetime(entry.get('published', '')).timestamp()  # 转换为时间戳
+                'pub_time': pd.to_datetime(entry.published, utc=True).astimezone(arrow.now('Asia/Shanghai').tzinfo).strftime('%Y-%m-%d %H:%M:%S') # 转换为北京时间并格式化
             }
             data.append(item)
         

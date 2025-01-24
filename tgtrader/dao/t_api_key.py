@@ -90,5 +90,13 @@ class TApiKey(BaseModel):
             raise Exception(f"user {username} not found")
         return decrypt(encrypted_key, user.key)
 
+    @classmethod
+    def get_model_config(cls, model_id: int) -> 'TApiKey':
+        with db:
+            model_config = cls.select().where(cls.id == model_id).first()
+            if model_config:
+                username = model_config.username
+                model_config.api_key = cls.decrypt(username, model_config.api_key)
+            return model_config
 
 TApiKey.init_table()

@@ -109,7 +109,7 @@ class SinkDBNode(FlowNode):
                 if not db_wrapper.is_table_exists(table_name):
                     if process_callback:
                         process_callback(f"【节点: {self.node_label}】表{table_name}不存在", message_type="error")
-                    raise ValueError(f"表{table_name}不存在")
+                    raise Exception(f"表{table_name}不存在")
 
             # 对比field_config和meta_info
             if process_callback:

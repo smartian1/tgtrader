@@ -23,6 +23,14 @@ class ProcessorLLM(FlowNode):
         Raises:
             Exception: 如果LLM执行失败
         """
+        def callback(message: str, message_type: str):
+            if process_callback:
+                message = f"【节点: {self.node_label}】{message}"
+                process_callback(message, message_type)
+            else:
+                logger.info(message)
+
+
         if process_callback:
             process_callback(f"【节点: {self.node_label}】开始执行LLM处理", message_type="info")
 
@@ -34,9 +42,9 @@ class ProcessorLLM(FlowNode):
             if not input_data:
                 raise ValueError("未提供输入数据")
             
-            llm_utils = LLMUtils(config.get("model_name"), config.get("api_key"), config.get("prompt_template"))
+            llm_utils = LLMUtils(config.get("model_id"), config.get("api_key"), config.get("prompt_template"))
 
-            df = llm_utils.run(input_data, process_callback)
+            df = llm_utils.run(input_data, callback)
 
             return df
 
