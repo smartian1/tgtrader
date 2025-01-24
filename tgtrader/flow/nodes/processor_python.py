@@ -2,9 +2,11 @@
 
 import logging
 from typing import Callable, Dict, Any, Optional
-from tgtrader.flow.flow import FlowNode
+from tgtrader.flow.flow import FlowNode, register_node
 from loguru import logger
 
+
+@register_node("处理节点(python代码)")
 class PythonProcessorNode(FlowNode):
     """Python处理器节点，用于执行自定义Python函数处理输入数据。
     

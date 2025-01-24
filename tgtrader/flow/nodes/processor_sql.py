@@ -1,9 +1,10 @@
 # encoding: utf-8
 
-from tgtrader.flow.flow import FlowNode
+from tgtrader.flow.flow import FlowNode, register_node
 from typing import Callable
 from tgtrader.utils.duckdb_query_df import DuckDBQueryDF
 
+@register_node("处理节点(sql)")
 class SQLProcessorNode(FlowNode):
     def execute(self, input_data: dict, process_callback: Callable=None):
         """执行SQL处理节点的处理逻辑。

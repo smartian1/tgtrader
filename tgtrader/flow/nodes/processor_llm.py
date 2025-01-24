@@ -1,12 +1,14 @@
 # encoding: utf-8
 
-from tgtrader.flow.flow import FlowNode
+from tgtrader.flow.flow import register_node
+from tgtrader.flow.base import FlowNode
 from typing import Callable
 from tgtrader.utils.duckdb_query_df import DuckDBQueryDF
 import json
 from tgtrader.utils.llm_utils import LLMUtils
 
 
+@register_node("处理节点(llm)")
 class ProcessorLLM(FlowNode):
     def execute(self, input_data: dict, process_callback: Callable=None):
         """执行LLM处理节点的处理逻辑。
@@ -29,8 +31,6 @@ class ProcessorLLM(FlowNode):
             if not config:
                 raise ValueError("未提供LLM配置")
             
-            config = json.loads(config)
-
             if not input_data:
                 raise ValueError("未提供输入数据")
             

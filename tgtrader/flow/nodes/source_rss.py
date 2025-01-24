@@ -1,6 +1,6 @@
 # encoding: utf-8
 
-from tgtrader.flow.flow import FlowNode
+from tgtrader.flow.flow import FlowNode, register_node
 from typing import Callable
 from tgtrader.common import DataSource
 from tgtrader.utils.duckdb_query import DuckDBQuery
@@ -37,6 +37,7 @@ class RSSSource:
         df = pd.DataFrame(data)
         return df
 
+@register_node("数据源(RSS)")
 class SourceRSSNode(FlowNode):
     def execute(self, input_data: dict, process_callback: Callable=None):
         """

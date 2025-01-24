@@ -3,7 +3,7 @@
 from typing import Callable, Dict, Any, List
 import pandas as pd
 from peewee import Model
-from tgtrader.flow.flow import FlowNode
+from tgtrader.flow.flow import FlowNode, register_node
 import os
 from tgtrader.utils.db_wrapper import DBWrapper, DBType
 from loguru import logger
@@ -25,6 +25,7 @@ DUCKDB_RESERVED_KEYWORDS = {
 }
 
 
+@register_node("存储(DB)")
 class SinkDBNode(FlowNode):
     @staticmethod
     def _validate_field_names(field_config: List[Dict[str, Any]]) -> None:

@@ -1,104 +1,73 @@
 # encoding: utf-8
 from enum import Enum
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Callable
+from typing import Dict, List, Optional, Any, Callable, Type
 from collections import deque
 import json
+import importlib
+import pkgutil
+import os
+from tgtrader.flow.base import FlowNode
 
 
-class NodeType(Enum):
-    SOURCE_DB = "数据源(DB)"
-    SOURCE_RSS = "数据源(RSS)"
-    PROCESSOR_SQL = "处理节点(sql)"
-    PROCESSOR_PYTHON = "处理节点(python代码)"
-    SINK_DB = "存储(DB)"
+# 节点类型注册表
+_node_registry: Dict[str, Type[FlowNode]] = {}
 
 
-@dataclass
-class FlowNode:
-    """流程节点基类"""
-    node_id: str
-    node_label: str
-    config: dict = field(default_factory=dict)
-    user: str = 'admin'
-
-    # 保存后续节点及其对应的边名称
+def register_node(node_type: str):
+    """节点类型注册装饰器
+    
+    Args:
+        node_type: 节点类型名称
+        
+    Returns:
+        装饰器函数
     """
-    [
-        {
-            "edge_name": "df1",
-            "node": FlowNodeObject1
-        },
-        {
-            "edge_name": "df2",
-            "node": FlowNodeObject2
-        },
-    ]
+    def decorator(cls):
+        _node_registry[node_type.lower()] = cls
+        return cls
+    return decorator
+
+
+def create_node(node_id: str, node_label: str, node_type: str, config: dict, user: str = 'admin') -> FlowNode:
+    """根据节点类型创建对应的节点实例
+    
+    Args:
+        node_id: 节点唯一标识
+        node_label: 节点名称
+        node_type: 节点类型
+        config: 节点配置信息
+        user: 用户标识
+    
+    Returns:
+        FlowNode: 创建的节点实例
+        
+    Raises:
+        ValueError: 当指定的节点类型未注册时抛出
     """
-    next_nodes: List[Dict[str, 'FlowNode']] = field(default_factory=list)
+    node_type = node_type.lower()
+    if node_type not in _node_registry:
+        raise ValueError(f"未知的节点类型: {node_type}")
+        
+    node_class = _node_registry[node_type]
+    return node_class(node_id=node_id, node_label=node_label, config=config, user=user)
 
-    @classmethod
-    def create_node(cls, node_id: str, node_label: str, node_type: str, config: dict, user: str = 'admin') -> 'FlowNode':
-        """根据节点类型创建对应的节点实例
-        
-        Args:
-            node_id: 节点唯一标识
-            node_label: 节点名称
-            node_type: 节点类型
-            config: 节点配置信息
-        
-        Returns:
-            FlowNode: 创建的节点实例
-        """
-        # 在此处做实际的子类导入，以免循环引用
-        from tgtrader.flow.nodes.source_db import SourceDBNode
-        from tgtrader.flow.nodes.processor_sql import SQLProcessorNode
-        from tgtrader.flow.nodes.processor_python import PythonProcessorNode
-        from tgtrader.flow.nodes.sink_db import SinkDBNode
-        from tgtrader.flow.nodes.source_rss import SourceRSSNode
-        
-        if NodeType(node_type) == NodeType.SOURCE_DB:
-            return SourceDBNode(node_id=node_id, node_label=node_label, config=config, user=user)
-        elif NodeType(node_type) == NodeType.SOURCE_RSS:
-            return SourceRSSNode(node_id=node_id, node_label=node_label, config=config, user=user)
-        elif NodeType(node_type) == NodeType.PROCESSOR_SQL:
-            return SQLProcessorNode(node_id=node_id, node_label=node_label, config=config, user=user)
-        elif NodeType(node_type) == NodeType.PROCESSOR_PYTHON:
-            return PythonProcessorNode(node_id=node_id, node_label=node_label, config=config, user=user)
-        elif NodeType(node_type) == NodeType.SINK_DB:
-            return SinkDBNode(node_id=node_id, node_label=node_label, config=config, user=user)
-        else:
-            raise ValueError(f"未知的节点类型: {node_type}")
 
-    def execute(self, input_data: dict, process_callback: Callable=None) -> dict:
-        """执行节点逻辑
-        
-        input_data: 
-            来自所有父节点的输出数据，结构类似：
-            {
-                "某条边edge_name1": parent_node_output_dict,
-                "某条边edge_name2": parent_node_output_dict,
-                ...
-            }
-        
-        Returns:
-            dict: 本节点的输出结果字典，供后续节点使用
-        """
-        # 这里是基类默认实现，子类应重写实际逻辑
-        # 示例：简单地把所有父节点输出合并，并标记本节点id
-        raise NotImplementedError("subclass should implement this method")
-
-    def add_next_node(self, node: 'FlowNode', edge_name: str) -> None:
-        """添加后续节点
-        
-        Args:
-            node: 要添加的后续节点
-            edge_name: 边名称
-        """
-        self.next_nodes.append({
-            "edge_name": edge_name,
-            "node": node
-        })
+def _initialize_node_registry():
+    """初始化节点注册表，自动导入所有节点模块
+    
+    通过遍历nodes目录下的所有.py文件，自动导入所有节点模块，
+    使得@register_node装饰器能够正确注册所有节点类型。
+    """
+    # 获取当前文件所在目录
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    nodes_dir = os.path.join(current_dir, 'nodes')
+    
+    # 遍历nodes目录下的所有模块
+    for module_info in pkgutil.iter_modules([nodes_dir]):
+        if not module_info.name.startswith('__'):
+            # 导入模块，这会触发@register_node装饰器的执行
+            importlib.import_module(f'tgtrader.flow.nodes.{module_info.name}')
 
 
 @dataclass
@@ -131,7 +100,7 @@ class Flow:
         """
         # 1. 创建所有节点
         for node_config in node_list:
-            node = FlowNode.create_node(
+            node = create_node(
                 node_id=node_config['id'],
                 node_label=node_config['node_label'],
                 node_type=node_config['node_type'],
@@ -147,11 +116,10 @@ class Flow:
             from_node.add_next_node(to_node, edge['edge_name'])
 
     def execute_flow(self, process_callback: Callable=None) -> Dict[str, dict]:
-        """
-        执行整个流程
+        """执行整个流程
         
         Args:
-            input_data: 初始输入数据，一般只会被源节点（is_source_node() == True）的执行用到。
+            process_callback: 可选的处理过程回调函数
         
         Returns:
             Dict[str, dict]: 返回每个节点的执行结果，key 为 node_id，value 为该节点的输出数据
@@ -224,3 +192,7 @@ class Flow:
         # 5. 返回所有节点的执行结果
         # -------------------------
         return aggregator
+
+
+# 在模块导入时初始化节点注册表
+_initialize_node_registry()
