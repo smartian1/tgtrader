@@ -46,6 +46,7 @@ dependencies = [
     "streamlit-shadcn-ui==0.1.18",
     "cryptography==44.0.0",
     "feedparser==6.0.11",
+    "openai==1.60.0",
 ]
 
 [project.urls]
