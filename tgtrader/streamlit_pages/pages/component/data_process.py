@@ -26,12 +26,29 @@ class NodeType(enum.Enum):
     PROCESSOR_LLM = "处理节点(LLM)"
     SINK_DB = "存储(DB)"
 
+    @classmethod
+    def is_data_source_node(cls, node_type_value: str) -> bool:
+        """判断节点类型是否为数据源节点
+        
+        Args:
+            node_type_value: 节点类型值
+            
+        Returns:
+            bool: 是否为数据源节点
+        """
+        try:
+            node_type = cls.get_node_type_by_value(node_type_value)
+            return node_type in [cls.DATA_SOURCE_DB, cls.DATA_SOURCE_RSS]
+        except ValueError:
+            return False
+
+    @staticmethod
     def get_node_type_by_value(value: str) -> 'NodeType':
         for node_type in NodeType:
             if node_type.value == value:
                 return node_type
         raise ValueError(f"未找到匹配的节点类型: {value}")
-
+    
 
 class FlowType(enum.Enum):
     FACTOR_PROCESS = "facotr_process"
@@ -41,7 +58,7 @@ def get_support_node_type_list(flow_type: FlowType):
     if flow_type == FlowType.FACTOR_PROCESS:
         return [NodeType.DATA_SOURCE_DB, NodeType.PROCESSOR_PYTHON_CODE, NodeType.PROCESSOR_SQL, NodeType.SINK_DB]
     elif flow_type == FlowType.AI_FLOW:
-        return [NodeType.DATA_SOURCE_RSS, NodeType.PROCESSOR_PYTHON_CODE, NodeType.PROCESSOR_LLM, NodeType.SINK_DB]
+        return [NodeType.DATA_SOURCE_RSS, NodeType.DATA_SOURCE_DB, NodeType.PROCESSOR_PYTHON_CODE, NodeType.PROCESSOR_LLM, NodeType.SINK_DB]
     else:
         return []
 
@@ -129,7 +146,7 @@ def create_flow_component(is_new_flow: bool, flow_type: FlowType, flow_id: str =
         if flow_name == '':
             display_hint_message("请输入流程名称", message_type="error")
         else:
-            if not __check_edge_label_exist(flow_component.asdict()['edges']):
+            if not __check_edge_label_exist(flow_component.asdict()['edges'], flow_id):
                 st.error("请为每条边设置label")
                 return flow_component, click_save_btn, flow_id
             
@@ -145,10 +162,37 @@ def create_flow_component(is_new_flow: bool, flow_type: FlowType, flow_id: str =
 
     return flow_component, click_save_btn, flow_id
 
-def __check_edge_label_exist(edge_list):
+def __check_edge_label_exist(edge_list, flow_id: str):
+    """检查边的label是否存在，对于数据源节点的输入边，不需要检查label
+    
+    Args:
+        edge_list: 边列表
+        flow_id: 流程ID，用于查询节点类型
+    
+    Returns:
+        bool: 是否所有需要label的边都有label
+    """
+    # 构建节点类型映射
+    node_type_map = {}
+    
     for edge in edge_list:
+        target_node_id = edge['target']
+        
+        # 获取目标节点类型（如果还未缓存）
+        if target_node_id not in node_type_map:
+            node_info = FlowConfigService.get_node_info(flow_id, target_node_id)
+            if node_info:
+                node_type_map[target_node_id] = node_info.node_type
+        
+        target_node_type = node_type_map.get(target_node_id)
+        
+        # 如果目标节点是数据源节点，则不需要检查label
+        if NodeType.is_data_source_node(target_node_type):
+            continue
+            
         if edge['label'].strip() == '':
             return False
+            
     return True
 
 def build_flow_page(flow_type: FlowType):
