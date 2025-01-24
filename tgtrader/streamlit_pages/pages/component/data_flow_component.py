@@ -18,7 +18,7 @@ from typing import Dict
 def data_source_db_config(node_id: str, src_page: str, node_cfg: dict):
     col1, col2 = st.columns(2)
     with col1:
-        options = ["Akshare"]
+        options = ["Akshare", "用户自定义数据"]
         default_value = node_cfg.get(
             'data_source', 'Akshare') if node_cfg else 'Akshare'
         default_index = options.index(default_value)
