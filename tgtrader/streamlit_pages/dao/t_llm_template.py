@@ -4,12 +4,10 @@ import time
 from typing import List
 from loguru import logger
 from peewee import *
-from tgtrader.utils.db_path_utils import get_common_data_database
+from tgtrader.streamlit_pages.dao.common import BaseModel, db
 
 
-main_db = get_common_data_database()
-
-class TLLMTemplate(Model):
+class TLLMTemplate(BaseModel):
     name = TextField(verbose_name='模版名称', primary_key=True)
     content = TextField(verbose_name='模板内容')
     create_time = BigIntegerField(verbose_name='创建时间', default=int(time.time() * 1000))
@@ -17,7 +15,6 @@ class TLLMTemplate(Model):
 
     class Meta:
         table_name = 't_llm_template' 
-        database = main_db
 
     @classmethod
     def init_table(cls):
@@ -31,9 +28,10 @@ class TLLMTemplate(Model):
             {
                 'name': '财经新闻结构化分析',
                 'content': """请根据以下财经新闻内容进行结构化分析：
-标题：财联社1月24日电，离岸人民币兑美元日内涨超400个基点，一度涨破7.24，最高触及7.2396，现报7.2430。
-发布时间：2025-01-23 12:25:05
-内容：财联社1月24日电，离岸人民币兑美元日内涨超400个基点，一度涨破7.24，最高触及7.2396，现报7.2430。
+标题：{{title}}
+发布时间：{{pub_time}}
+内容：{{description}}
+
 
 请按JSON格式返回：
 {{
@@ -99,10 +97,6 @@ class TLLMTemplate(Model):
 - 行业数量限制：2-3个核心相关行业
 - 指数数量限制：1-3个核心相关指数
     """
-            },
-            {
-                "name": "test",
-                "content": "test"
             }
         ]
         for item in data:

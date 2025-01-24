@@ -6,7 +6,7 @@ import streamlit as st
 from streamlit_ace import st_ace
 from .data_meta import build_db_meta_info
 from loguru import logger
-from tgtrader.data_provider.dao.models.t_user_table_meta import UserTableMeta
+from tgtrader.streamlit_pages.dao.t_user_table_meta import UserTableMeta
 from tgtrader.utils.db_wrapper import DBWrapper, DBType
 from tgtrader.utils.db_path_utils import get_user_data_db_path
 from tgtrader.streamlit_pages.utils.common import get_user_name
@@ -14,7 +14,7 @@ from tgtrader.streamlit_pages.dao.t_rss_source import TRssSource
 import arrow
 from typing import Dict
 from tgtrader.streamlit_pages.dao.t_api_key import TApiKey
-from tgtrader.data_provider.dao.models.t_llm_template import TLLMTemplate
+from tgtrader.streamlit_pages.dao.t_llm_template import TLLMTemplate
 
 
 def data_source_db_config(node_id: str, src_page: str, node_cfg: dict):
@@ -558,10 +558,11 @@ def processor_llm_config(node_id: str, src_page: str, node_cfg: dict) -> dict | 
         index=template_options.index(selected_template) if selected_template in template_options else 0,
         key=f"{src_page}_llm_template_{node_id}"    
     )
-    
+
     # 如果选择了模板，更新prompt_template
     if selected_template:
-        prompt_template = template_dict[selected_template]
+        if not prompt_template: 
+            prompt_template = template_dict[selected_template]
     else:
         prompt_template = ''
 

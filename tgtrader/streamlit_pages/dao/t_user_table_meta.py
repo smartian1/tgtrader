@@ -6,12 +6,9 @@ from loguru import logger
 from peewee import *
 import json
 import copy
-from tgtrader.utils.db_path_utils import get_common_data_db_path, get_common_data_database
+from tgtrader.streamlit_pages.dao.common import BaseModel, db
 
-
-main_db = get_common_data_database()
-
-class UserTableMeta(Model):
+class UserTableMeta(BaseModel):
     """
     用户数据元信息.
     """
@@ -27,16 +24,15 @@ class UserTableMeta(Model):
 
     class Meta:
         table_name = 't_user_table_meta' 
-        database = main_db
         primary_key = CompositeKey('user', 'db_name', 'table_name', 'version')
     
     @classmethod
     def init_table(cls):
         # 初始化表
-        with main_db:
+        with db:
             table_exists = cls.table_exists()
             if not table_exists:
-                main_db.create_tables([cls])  # 如果表不存在，创建表
+                db.create_tables([cls])  # 如果表不存在，创建表
 
     @classmethod
     def get_all_db_names(cls, user: str):

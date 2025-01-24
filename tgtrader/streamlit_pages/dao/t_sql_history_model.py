@@ -4,12 +4,10 @@ import time
 from typing import List
 from loguru import logger
 from peewee import *
-from tgtrader.utils.db_path_utils import get_common_data_database
+from tgtrader.streamlit_pages.dao.common import BaseModel, db
 
 
-main_db = get_common_data_database()
-
-class SqlHistoryModel(Model):
+class SqlHistoryModel(BaseModel):
     """
     SQL历史记录表模型.
     
@@ -29,21 +27,20 @@ class SqlHistoryModel(Model):
 
     class Meta:
         table_name = 't_sql_history' 
-        database = main_db
         primary_key = CompositeKey('user', 'sql_content')
     
     @classmethod
     def init_table(cls):
         # 初始化表
-        with main_db:
+        with db:
             table_exists = cls.table_exists()
             if not table_exists:
-                main_db.create_tables([cls])  # 如果表不存在，创建表
+                db.create_tables([cls])  # 如果表不存在，创建表
 
     @classmethod
     def save_sql_history(cls, user: str, sql: str, data_source: str) -> None:
         ts = int(time.time() * 1000 )
-        with main_db:
+        with db:
             cls.create(user=user, sql_content=sql, data_source=data_source, create_time=ts, update_time=ts)
 
     @classmethod

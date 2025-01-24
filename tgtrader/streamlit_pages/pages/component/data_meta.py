@@ -5,7 +5,7 @@ from typing import Tuple, List
 from tgtrader.utils.model_inspector import FieldInfo
 import streamlit as st
 import pandas as pd
-from tgtrader.data_provider.dao.models.t_user_table_meta import UserTableMeta
+from tgtrader.streamlit_pages.dao.t_user_table_meta import UserTableMeta
 from loguru import logger
 
 

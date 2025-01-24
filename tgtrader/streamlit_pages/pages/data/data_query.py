@@ -5,7 +5,7 @@ import pandas as pd
 import streamlit as st
 import re
 
-from tgtrader.data_provider.dao.models.t_sql_history_model import SqlHistoryModel
+from tgtrader.streamlit_pages.dao.t_sql_history_model import SqlHistoryModel
 from tgtrader.utils.duckdb_query import DuckDBQuery
 from tgtrader.streamlit_pages.pages.component.data_meta import build_db_meta_info
 from tgtrader.utils.db_path_utils import get_user_data_database
