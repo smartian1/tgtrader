@@ -15,7 +15,7 @@ from tgtrader.streamlit_pages.pages.component.widget import display_hint_message
 from tgtrader.streamlit_pages.service.flow_config_service import FlowConfigService
 from streamlit_flow.elements import StreamlitFlowNode, StreamlitFlowEdge
 from functools import partial
-from tgtrader.streamlit_pages.pages.component.data_flow_component import data_source_rss_config
+from tgtrader.streamlit_pages.pages.component.data_flow_component import data_source_rss_config, processor_llm_config
 
 
 class NodeType(enum.Enum):
@@ -282,6 +282,8 @@ def build_flow_page(flow_type: FlowType):
             ret = sink_db_config(node_id=flow_component.selected_id, src_page="data_process", node_cfg=cfg)
         elif node_type == NodeType.DATA_SOURCE_RSS.value:
             ret = data_source_rss_config(node_id=flow_component.selected_id, src_page="data_process", node_cfg=cfg)
+        elif node_type == NodeType.PROCESSOR_LLM.value:
+            ret = processor_llm_config(node_id=flow_component.selected_id, src_page="data_process", node_cfg=cfg)
         else:
             raise NotImplementedError(f"不支持的节点类型: {node_type}")
 

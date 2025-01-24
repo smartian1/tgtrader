@@ -13,6 +13,8 @@ from tgtrader.streamlit_pages.utils.common import get_user_name
 from tgtrader.streamlit_pages.dao.t_rss_source import TRssSource
 import arrow
 from typing import Dict
+from tgtrader.streamlit_pages.dao.t_api_key import TApiKey
+from tgtrader.data_provider.dao.models.t_llm_template import TLLMTemplate
 
 
 def data_source_db_config(node_id: str, src_page: str, node_cfg: dict):
@@ -499,3 +501,100 @@ def data_source_rss_config(node_id: str, src_page: str, node_cfg: dict) -> dict 
     
     return None
     
+def processor_llm_config(node_id: str, src_page: str, node_cfg: dict) -> dict | None:
+    """LLM处理节点配置组件
+    
+    Args:
+        node_id: 节点ID
+        src_page: 源页面
+        node_cfg: 节点配置
+        
+    Returns:
+        节点配置字典或None（配置无效时）
+    """
+    logger.debug(f"node_cfg: {node_cfg}")
+    # 获取用户名
+    username = get_user_name()
+    if not username:
+        st.error("请先登录")
+        return None
+        
+    # 获取用户配置的API Keys
+    api_keys = TApiKey.get_api_keys(username=username, hide_middle=True)
+    if not api_keys:
+        st.error("请先在设置页面配置API Key")
+        return None
+        
+    # 准备模型选项
+    model_options = list(set(key.api_key_name for key in api_keys))
+    
+    # 从已有配置中获取选中的模型和模板
+    selected_model = None
+    selected_template = None
+    prompt_template = ""
+    if node_cfg and 'content' in node_cfg:
+        selected_model = node_cfg['content'].get('model_name', '')
+        selected_template = node_cfg['content'].get('template_name', '')
+        prompt_template = node_cfg['content'].get('prompt_template', '')
+    
+    # 模型选择下拉框
+    selected_model = st.selectbox(
+        "选择模型",
+        options=model_options,
+        index=model_options.index(selected_model) if selected_model in model_options else 0,
+        key=f"{src_page}_llm_model_{node_id}"
+    )
+    
+    # 获取所有模板
+    templates = TLLMTemplate.get_all_templates()
+    template_options = [template.name for template in templates]
+    # 存一个dict
+    template_dict = {template.name: template.content for template in templates}
+    
+    # 模板选择下拉框
+    selected_template = st.selectbox(
+        "选择模板",
+        options=template_options,
+        index=template_options.index(selected_template) if selected_template in template_options else 0,
+        key=f"{src_page}_llm_template_{node_id}"    
+    )
+    
+    # 如果选择了模板，更新prompt_template
+    if selected_template:
+        prompt_template = template_dict[selected_template]
+
+    logger.debug(f"selected_model: {selected_model}, selected_template: {selected_template}")
+    
+    # 提示词模板配置
+    placeholder = """输入：前方节点连到该节点的边的名字作为输入参数
+
+示例：
+def calc(news_content):
+    '''
+    system: 你是一个专业的金融分析师，擅长分析新闻对股市的影响。
+
+    user: 请分析以下新闻对股市的影响：
+    {news_content}
+
+    assistant: 我将分析这条新闻并输出分析结果。
+    '''
+    """
+    
+    # value = st.text_area(
+    #     "提示词模板",
+    #     placeholder=placeholder,
+    #     key=f"{src_page}_llm_prompt_{node_id}",
+    #     value=prompt_template
+    # )
+    
+    config = {
+            'type': 'processor_llm',
+            'content': {
+                'model_name': selected_model,
+                'template_name': selected_template,
+                'prompt_template': '',
+                # 'api_key_id': selected_api_key.id
+            }
+        }
+    
+    return config

@@ -6,12 +6,10 @@ from loguru import logger
 from peewee import *
 import json
 import copy
+from tgtrader.utils.db_path_utils import get_common_data_db_path, get_common_data_database
 
 
-default_path = os.path.join(os.getcwd(), 'data', 'common.sqlite')
-db_path: str = os.getenv('DATA_PATH', default_path)
-main_db: SqliteDatabase = SqliteDatabase(db_path)
-logger.info(f"common main_db: {db_path}")
+main_db = get_common_data_database()
 
 class UserTableMeta(Model):
     """

@@ -1,4 +1,5 @@
 # encoding: utf-8
+import time
 from datetime import datetime
 from tgtrader.streamlit_pages.dao.common import BaseModel, db
 from peewee import AutoField, IntegerField, BigIntegerField, TextField, CompositeKey
@@ -23,10 +24,10 @@ class TRssSource(BaseModel):
     rss_type = TextField()
     # 创建时间
     create_time = BigIntegerField(
-        default=lambda: int(datetime.now().timestamp()))
+        default=lambda: int(time.time() * 1000))
     # 更新时间
     update_time = BigIntegerField(
-        default=lambda: int(datetime.now().timestamp()))
+        default=lambda: int(time.time() * 1000))
 
     MAX_NAME_LENGTH = 50
     MIN_NAME_LENGTH = 2
@@ -127,7 +128,7 @@ class TRssSource(BaseModel):
                     rss_name=rss_name,
                     rss_url=rss_url,
                     rss_type=rss_type,
-                    update_time=int(datetime.now().timestamp())
+                    update_time=int(time.time() * 1000)
                 ).where(cls.id == _id).execute()
         except ValueError as e:
             raise Exception(str(e))
