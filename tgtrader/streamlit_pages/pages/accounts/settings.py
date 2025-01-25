@@ -212,7 +212,8 @@ def manage_llm_templates():
                                 TLLMTemplate.save_template(
                                     username=username,
                                     name=edited_name,
-                                    content=edited_content
+                                    content=edited_content,
+                                    is_check_exist=False
                                 )
                                 st.success("模板更新成功")
                                 st.session_state.editing_template = False
