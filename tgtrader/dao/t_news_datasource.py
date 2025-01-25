@@ -24,11 +24,6 @@ class TNewsDataSource(BaseModel):
             (('username', 'table_name'), True),
         )
 
-    def save(self, *args, **kwargs):
-        # 更新时间戳
-        self.update_time = int(datetime.now().timestamp())
-        return super(TNewsDataSource, self).save(*args, **kwargs)
-
     @classmethod
     def init_table(cls):
         with db:

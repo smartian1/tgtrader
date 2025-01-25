@@ -7,7 +7,7 @@ import streamlit as st
 import pandas as pd
 from tgtrader.dao.t_user_table_meta import UserTableMeta
 from loguru import logger
-
+from tgtrader.streamlit_pages.utils.common import get_user_name
 
 def __get_data_service(data_source: str):
     if DataSource(data_source.lower()) == DataSource.Akshare:
@@ -18,7 +18,7 @@ def __get_data_service(data_source: str):
 
 def __get_table_names(data_source):
     if data_source == '用户自定义数据':
-        user = st.session_state.user_info['username']
+        user = get_user_name()
         db_name = 'flow_sinkdb'
         return UserTableMeta.get_all_table_names(user=user, db_name=db_name)
 
@@ -28,7 +28,7 @@ def __get_table_names(data_source):
 
 def __get_db_model_info_by_table_name(data_source: str, table_name: str) -> Tuple[str, List[FieldInfo]]:
     if data_source == '用户自定义数据':
-        user = st.session_state.user_info['username']
+        user = get_user_name()
         db_name = 'flow_sinkdb'
         columns_info = UserTableMeta.get_table_columns_info(user=user, db_name=db_name, table_name=table_name)
         ret = [

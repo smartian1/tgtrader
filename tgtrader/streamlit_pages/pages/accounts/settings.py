@@ -10,12 +10,16 @@ from tgtrader.streamlit_pages.utils.common import get_user_name
 from loguru import logger
 import arrow
 from tgtrader.dao.t_llm_template import TLLMTemplate
+from tgtrader.dao.t_user_table_meta import UserTableMeta
+from tgtrader.dao.t_news_datasource import TNewsDataSource
+from datetime import datetime
 
 
 def run():
     manage_api_keys()
     manage_llm_templates()
     manage_rss_sources()
+    news_datasource_config()
 
 def manage_api_keys():
     """管理大模型API Key"""
@@ -365,3 +369,90 @@ def manage_rss_sources():
         st.info("当前没有保存任何RSS源")
 
 
+def news_datasource_config():
+    """
+    新闻数据源表配置功能
+    
+    验证表结构是否包含必需的字段:
+    - title: 新闻标题
+    - description: 新闻描述 
+    - related_industries: 相关行业
+    - pub_time: 发布时间
+    - markets: 相关市场
+    - sentiment: 情感分析
+    - country: 国家
+    - tags: 标签
+    - related_indexes: 相关指数
+    - related_company: 相关公司
+    """
+    st.header("新闻数据源表配置")
+    
+    # 获取当前用户
+    username = get_user_name()
+    if not username:
+        st.error("请先登录")
+        return
+        
+    # 获取当前配置
+    current_config = TNewsDataSource.select().where(TNewsDataSource.username == username).first()
+    current_table = current_config.table_name if current_config else None
+    
+    # 定义必需的字段
+    required_fields = [
+        'title', 'description', 'related_industries', 'pub_time', 
+        'markets', 'sentiment', 'country', 'tags', 
+        'related_indexes', 'related_company'
+    ]
+    
+    # 添加新的数据源表配置
+    with st.expander("新闻数据源表配置"):
+        # 下拉框， 获取所有用户自定义表
+        table_names = UserTableMeta.get_all_table_names(user=username, db_name='flow_sinkdb')
+        # 添加空选项
+        table_options = [""] + table_names if table_names else [""]
+        # 设置默认值为当前配置的表名或空字符串
+        default_index = table_options.index(current_table) if current_table in table_options else 0
+        
+        table_name = st.selectbox("选择表", table_options, index=default_index)
+        
+        if table_name:  # 只有当选择了表时才显示表信息和保存按钮
+            # 获取表的列信息
+            columns_info = UserTableMeta.get_table_columns_info(user=username, db_name='flow_sinkdb', table_name=table_name)
+            if columns_info:
+                # 检查必需字段
+                existing_columns = [col['field_name'] for col in columns_info]
+                missing_fields = [field for field in required_fields if field not in existing_columns]
+                
+                # 使用pandas DataFrame以表格形式展示列信息
+                df = pd.DataFrame(columns_info)
+                df['is_primary_key'] = df['is_primary_key'].fillna('')
+                st.table(df)
+                
+                if missing_fields:
+                    st.error(f"缺少必需字段: {', '.join(missing_fields)}")
+                    st.info("请确保表包含所有必需字段后再进行配置")
+                else:
+                    # 添加保存按钮
+                    if st.button("保存配置"):
+                        try:
+                            # 检查是否已存在配置
+                            if current_config:
+                                # 更新现有配置
+                                TNewsDataSource.update(
+                                    table_name=table_name,
+                                    update_time=int(datetime.now().timestamp())
+                                ).where(TNewsDataSource.username == username).execute()
+                                st.success("新闻数据源表配置已更新")
+                            else:
+                                # 创建新配置
+                                TNewsDataSource.create(
+                                    username=username,
+                                    table_name=table_name
+                                )
+                                st.success("新闻数据源表配置已保存")
+                        except Exception as e:
+                            st.error(f"保存配置失败: {str(e)}")
+            else:
+                st.info("该表没有列信息")
+        elif table_names:  # 如果有表但是选择了空选项
+            st.info("请选择一个表")
