@@ -8,6 +8,7 @@ from tgtrader.dao.common import BaseModel, db
 
 
 class TLLMTemplate(BaseModel):
+    id = AutoField()
     username = TextField(verbose_name='用户名')
     name = TextField(verbose_name='模版名称')
     content = TextField(verbose_name='模板内容')
@@ -16,7 +17,9 @@ class TLLMTemplate(BaseModel):
 
     class Meta:
         table_name = 't_llm_template' 
-        primary_key = CompositeKey('username', 'name')
+        indexes = (
+            (('username', 'name'), True),
+        )
 
     @classmethod
     def init_table(cls):
@@ -24,14 +27,17 @@ class TLLMTemplate(BaseModel):
         cls.create_table(fail_silently=True)
 
     @classmethod
-    def save_template(cls, username: str, name: str, content: str):
+    def save_template(cls, username: str, name: str, content: str, is_check_exist: bool = True):
         template = cls.get_or_none(username=username, name=name)
         if not template:
             TLLMTemplate.create(username=username, name=name, content=content)
         else:
-            template.content = content
-            template.update_time = int(time.time() * 1000)
-            template.save()
+            if is_check_exist:
+                raise Exception(f"模板已存在，请修改模板名称或内容")
+            else:
+                template.content = content
+                template.update_time = int(time.time() * 1000)
+                template.save()
 
     @classmethod
     def get_all_template(cls):

@@ -139,6 +139,7 @@ def manage_llm_templates():
         # 使用AgGrid显示数据
         df = pd.DataFrame([
             {
+                "id": template.id,
                 "模板名称": template.name,
                 "模板内容": template.content,
                 "创建时间": arrow.get(template.create_time/1000, tzinfo='+08:00').format('YYYY-MM-DD HH:mm:ss'),
@@ -147,12 +148,12 @@ def manage_llm_templates():
             for template in user_templates
         ])
         
-        gb = GridOptionsBuilder.from_dataframe(df[["模板名称", "模板内容", "创建时间", "更新时间"]])
+        gb = GridOptionsBuilder.from_dataframe(df[["id", "模板名称", "模板内容", "创建时间", "更新时间"]])
         gb.configure_selection('single')
         grid_options = gb.build()
         
         grid_response = AgGrid(
-            df[["模板名称", "模板内容", "创建时间", "更新时间"]],
+            df[["id", "模板名称", "模板内容", "创建时间", "更新时间"]],
             gridOptions=grid_options,
             height=200,
             width="100%",
@@ -164,6 +165,7 @@ def manage_llm_templates():
         if selected is not None and len(selected) > 0:
             selected_row = selected.iloc[0]
             
+            _id = selected_row["id"]
             name = selected_row["模板名称"]
             
             # 创建两列布局
@@ -174,8 +176,7 @@ def manage_llm_templates():
                 if st.button("删除选中的模板"):
                     try:
                         TLLMTemplate.delete().where(
-                            (TLLMTemplate.username == username) & 
-                            (TLLMTemplate.name == name)
+                            TLLMTemplate.id == _id
                         ).execute()
                         st.success("模板已删除")
                         st.rerun()
@@ -186,7 +187,7 @@ def manage_llm_templates():
             with col2:
                 if st.button("编辑选中的模板"):
                     st.session_state.editing_template = True
-                    st.session_state.editing_template_username = username
+                    st.session_state.editing_template_id = _id
                     st.session_state.editing_template_name = selected_row["模板名称"]
                     st.session_state.editing_template_content = selected_row["模板内容"]
             
@@ -209,7 +210,7 @@ def manage_llm_templates():
                             try:
                                 # 保存新模板
                                 TLLMTemplate.save_template(
-                                    username=st.session_state.editing_template_username,
+                                    username=username,
                                     name=edited_name,
                                     content=edited_content
                                 )
