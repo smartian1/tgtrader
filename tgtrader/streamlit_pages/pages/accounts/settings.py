@@ -150,6 +150,12 @@ def manage_llm_templates():
         
         gb = GridOptionsBuilder.from_dataframe(df[["id", "模板名称", "模板内容", "创建时间", "更新时间"]])
         gb.configure_selection('single')
+        # 设置列宽和文本截断
+        gb.configure_column("id", width=80)
+        gb.configure_column("模板名称", width=120)
+        gb.configure_column("模板内容", width=200, maxWidth=500, tooltipField="模板内容")
+        gb.configure_column("创建时间", width=160)
+        gb.configure_column("更新时间", width=160)
         grid_options = gb.build()
         
         grid_response = AgGrid(
