@@ -6,7 +6,7 @@ import json
 from tgtrader.strategies.bt.strategy_bt import BtStrategy
 from tgtrader.strategy import StrategyRegistry
 from tgtrader.streamlit_pages.pages.component.backtest_results import display_backtest_results
-from tgtrader.streamlit_pages.service.user_strategy import UserStrategyService
+from tgtrader.service.user_strategy import UserStrategyService
 from tgtrader.strategy_config import StrategyConfig, StrategyConfigRegistry
 from loguru import logger
 from datetime import datetime, timezone, timedelta

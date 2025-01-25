@@ -1,5 +1,5 @@
 import streamlit as st
-from tgtrader.streamlit_pages.service.account_service import AccountService
+from tgtrader.service.account_service import AccountService
 
 def login_page():
     """Display the login page"""

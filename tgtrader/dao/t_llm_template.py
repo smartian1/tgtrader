@@ -8,26 +8,34 @@ from tgtrader.dao.common import BaseModel, db
 
 
 class TLLMTemplate(BaseModel):
-    name = TextField(verbose_name='模版名称', primary_key=True)
+    username = TextField(verbose_name='用户名')
+    name = TextField(verbose_name='模版名称')
     content = TextField(verbose_name='模板内容')
     create_time = BigIntegerField(verbose_name='创建时间', default=int(time.time() * 1000))
     update_time = BigIntegerField(verbose_name='更新时间', default=int(time.time() * 1000))
 
     class Meta:
         table_name = 't_llm_template' 
+        primary_key = CompositeKey('username', 'name')
 
     @classmethod
     def init_table(cls):
         # 初始化表
         cls.create_table(fail_silently=True)
-        cls.init_data()
-    
+
     @classmethod
-    def init_data(cls):
-        data = [
-            {
-                'name': '财经新闻结构化分析',
-                'content': """请根据以下财经新闻内容进行结构化分析：
+    def save_template(cls, username: str, name: str, content: str):
+        template = cls.get_or_none(username=username, name=name)
+        if not template:
+            TLLMTemplate.create(username=username, name=name, content=content)
+        else:
+            template.content = content
+            template.update_time = int(time.time() * 1000)
+            template.save()
+
+    @classmethod
+    def get_all_template(cls):
+        news_parser = """请根据以下财经新闻内容进行结构化分析：
 标题：{{title}}
 发布时间：{{pub_time}}
 内容：{{description}}
@@ -56,6 +64,16 @@ class TLLMTemplate(BaseModel):
     },
     {
       "index": "指数2",
+      "sentiment": 数值(-1~1)
+    }
+  ],
+  "related_company": [
+    {
+      "company": "公司1",
+      "sentiment": 数值(-1~1)
+    },
+    {
+      "company": "公司2",
       "sentiment": 数值(-1~1)
     }
   ]
@@ -91,25 +109,23 @@ class TLLMTemplate(BaseModel):
 - 必须明确标注具体指数名称（如"上证指数"、"纳斯达克指数"）
 - 优先选择与事件直接相关的市场指数
 - 指数数量限制：1-3个核心相关指数
-7. 输出控制：
+7. 相关公司规则：
+- 从新闻内容中提取公司名称或股票代码，作为个股的标识
+- 如果新闻涉及某个上市公司并提供了具体的财务数据、股价波动等信息，应根据这些细节生成对应的分析。
+- 如果新闻中未提及关联具体公司，related_company返回空列表
+8. 输出控制：
 - 必须严格返回标准JSON格式
 - 禁用注释/附加说明
 - 行业数量限制：2-3个核心相关行业
 - 指数数量限制：1-3个核心相关指数
     """
-            }
-        ]
-        for item in data:
-            # 检查记录是否已存在，避免重复插入
-            existing = cls.select().where(
-                cls.name == item.get('name')
-            ).first()
-            
-            if not existing:
-                cls.create(**item)
+        
+        return {
+            "新闻解析": news_parser,
+        }
 
     @classmethod
-    def get_all_templates(cls) -> List['TLLMTemplate']:
-        return cls.select()
+    def get_user_templates(cls, username: str) -> List['TLLMTemplate']:
+        return cls.select().where(cls.username == username)
 
 TLLMTemplate.init_table()

@@ -5,8 +5,8 @@ import sys
 from getpass import getpass
 
 from loguru import logger
-from tgtrader.streamlit_pages.service.account_service import AccountService
-from tgtrader.streamlit_pages.service.user_strategy import UserStrategyService
+from tgtrader.service.account_service import AccountService
+from tgtrader.service.user_strategy import UserStrategyService
 
 def init_db():
     # Ensure data directory exists

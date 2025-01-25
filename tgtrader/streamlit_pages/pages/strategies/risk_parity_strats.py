@@ -13,7 +13,7 @@ from tgtrader.streamlit_pages.pages.component.stock_dropdown_list import StockDr
 from tgtrader.streamlit_pages.pages.component.weight_editor import weight_editor
 from tgtrader.streamlit_pages.pages.component.backtest_params import build_backtest_params
 from tgtrader.streamlit_pages.pages.component.backtest_results import display_backtest_results
-from tgtrader.streamlit_pages.service.user_strategy import UserStrategyService
+from tgtrader.service.user_strategy import UserStrategyService
 from loguru import logger
 import inspect
 

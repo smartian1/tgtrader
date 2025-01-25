@@ -1,15 +1,9 @@
 # encoding: utf-8
 from peewee import Model, SqliteDatabase
+from tgtrader.utils.db_path_utils import get_common_data_database
 
 # 设置数据库路径
-db_path = './data/streamlit_data.db'
-db = SqliteDatabase(db_path, pragmas={
-    'journal_mode': 'wal',
-    'cache_size': -1024 * 64,
-    'foreign_keys': 1,
-    'ignore_check_constraints': 0,
-    'synchronous': 0
-})
+db = get_common_data_database()
 
 class BaseModel(Model):
     class Meta:

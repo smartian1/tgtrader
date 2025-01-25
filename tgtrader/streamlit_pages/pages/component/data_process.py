@@ -12,7 +12,7 @@ import json
 from loguru import logger
 import arrow
 from tgtrader.streamlit_pages.pages.component.widget import display_hint_message
-from tgtrader.streamlit_pages.service.flow_config_service import FlowConfigService
+from tgtrader.service.flow_config_service import FlowConfigService
 from streamlit_flow.elements import StreamlitFlowNode, StreamlitFlowEdge
 from functools import partial
 from tgtrader.streamlit_pages.pages.component.data_flow_component import data_source_rss_config, processor_llm_config

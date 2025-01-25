@@ -9,10 +9,12 @@ from tgtrader.dao.t_rss_source import TRssSource
 from tgtrader.streamlit_pages.utils.common import get_user_name
 from loguru import logger
 import arrow
+from tgtrader.dao.t_llm_template import TLLMTemplate
 
 
 def run():
     manage_api_keys()
+    manage_llm_templates()
     manage_rss_sources()
 
 def manage_api_keys():
@@ -77,6 +79,153 @@ def manage_api_keys():
                 st.rerun()
     else:
         st.info("当前没有保存任何API Key")
+
+def manage_llm_templates():
+    """
+    管理大模型Prompt模板
+    
+    使用TLLMTemplate进行模板的增删改查操作
+    """
+    st.header("大模型Prompt模板管理")
+    
+    # 获取当前用户
+    username = get_user_name()
+    if not username:
+        st.error("请先登录")
+        return
+
+    # 获取内置模板和用户自定义模板
+    all_template = TLLMTemplate.get_all_template()
+    
+    # 显示内置模板
+    st.subheader("内置Prompt模板样例(请参考)")
+    if all_template:
+        df_builtin = pd.DataFrame([
+            {
+                "模板名称": name, 
+                "模板类型": template,
+            } for name, template in all_template.items()
+        ])
+        
+        st.dataframe(df_builtin, use_container_width=True, hide_index=True)
+    
+    # 添加新的自定义模板
+    with st.expander("添加新的Prompt模板"):
+        template_name = st.text_input("模板名称", key="new_template_name")
+        template_content = st.text_area("模板内容", key="new_template_content", height=200)
+        
+        if st.button("保存Prompt模板"):
+            if template_name and template_content:
+                try:
+                    # 保存模板 
+                    TLLMTemplate.save_template(
+                        username=username,
+                        name=template_name,
+                        content=template_content
+                    )
+                    st.success(f"Prompt模板 {template_name} 已保存")
+                except Exception as e:
+                    st.error(f"保存模板失败: {str(e)}")
+            else:
+                st.error("请填写模板名称和内容")
+
+    # 显示现有RSS源
+    st.subheader("已保存的大模型模板")
+    
+    # 从数据库获取用户模板
+    user_templates = TLLMTemplate.get_user_templates(username=username)
+    
+    if user_templates:
+        # 使用AgGrid显示数据
+        df = pd.DataFrame([
+            {
+                "模板名称": template.name,
+                "模板内容": template.content,
+                "创建时间": arrow.get(template.create_time/1000, tzinfo='+08:00').format('YYYY-MM-DD HH:mm:ss'),
+                "更新时间": arrow.get(template.update_time/1000, tzinfo='+08:00').format('YYYY-MM-DD HH:mm:ss')
+            }
+            for template in user_templates
+        ])
+        
+        gb = GridOptionsBuilder.from_dataframe(df[["模板名称", "模板内容", "创建时间", "更新时间"]])
+        gb.configure_selection('single')
+        grid_options = gb.build()
+        
+        grid_response = AgGrid(
+            df[["模板名称", "模板内容", "创建时间", "更新时间"]],
+            gridOptions=grid_options,
+            height=200,
+            width="100%",
+            theme="streamlit",
+        )
+        
+        # 处理选中的模板
+        selected = grid_response['selected_rows']
+        if selected is not None and len(selected) > 0:
+            selected_row = selected.iloc[0]
+            
+            name = selected_row["模板名称"]
+            
+            # 创建两列布局
+            col1, col2 = st.columns(2)
+            
+            # 删除按钮放在左列
+            with col1:
+                if st.button("删除选中的模板"):
+                    try:
+                        TLLMTemplate.delete().where(
+                            (TLLMTemplate.username == username) & 
+                            (TLLMTemplate.name == name)
+                        ).execute()
+                        st.success("模板已删除")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"删除模板失败: {str(e)}")
+            
+            # 编辑按钮放在右列
+            with col2:
+                if st.button("编辑选中的模板"):
+                    st.session_state.editing_template = True
+                    st.session_state.editing_template_username = username
+                    st.session_state.editing_template_name = selected_row["模板名称"]
+                    st.session_state.editing_template_content = selected_row["模板内容"]
+            
+            # 如果处于编辑状态，显示编辑表单
+            if st.session_state.get('editing_template', False):
+                with st.form("edit_template_form"):
+                    st.subheader("编辑模板")
+                    edited_name = st.text_input("模板名称", value=st.session_state.editing_template_name, disabled=True)
+                    edited_content = st.text_area("模板内容", value=st.session_state.editing_template_content, height=200)
+                    
+                    # 提交和取消按钮
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        submit = st.form_submit_button("保存修改")
+                    with col2:
+                        cancel = st.form_submit_button("取消")
+                    
+                    if submit:
+                        if edited_name and edited_content:
+                            try:
+                                # 保存新模板
+                                TLLMTemplate.save_template(
+                                    username=st.session_state.editing_template_username,
+                                    name=edited_name,
+                                    content=edited_content
+                                )
+                                st.success("模板更新成功")
+                                st.session_state.editing_template = False
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"更新模板失败: {str(e)}")
+                        else:
+                            st.error("请填写模板名称和内容")
+                    
+                    if cancel:
+                        st.session_state.editing_template = False
+                        st.rerun()
+    else:
+        st.info("当前没有保存任何自定义模板")
 
 def manage_rss_sources():
     """管理RSS源"""

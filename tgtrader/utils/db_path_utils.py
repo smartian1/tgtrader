@@ -19,5 +19,12 @@ def get_common_data_db_path() -> str:
 
 def get_common_data_database() -> DuckDBDatabase:
     db_path = get_common_data_db_path()
-    return SqliteDatabase(db_path)
+    db = SqliteDatabase(db_path, pragmas={
+        'journal_mode': 'wal',
+        'cache_size': -1024 * 64,
+        'foreign_keys': 1,
+        'ignore_check_constraints': 0,
+        'synchronous': 0
+    })
+    return db
 
