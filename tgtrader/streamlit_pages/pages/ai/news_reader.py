@@ -6,32 +6,66 @@ from typing import Dict, List, Any
 import plotly.graph_objects as go
 from datetime import datetime
 import random
+from tgtrader.streamlit_pages.utils.common import get_user_name
+from tgtrader.dao.t_news_datasource import TNewsDataSource
+from tgtrader.utils.db_wrapper import DBWrapper, DBType, DynamicTableWrapper
+from tgtrader.dao.t_user_table_meta import UserTableMeta
+from tgtrader.utils.defs import USER_TABLE_DB_NAME
+from loguru import logger
+import json
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, DataReturnMode
 
-def get_tag_color(tag: str) -> str:
+
+def get_dynamic_table_wrapper():
+    table_name = TNewsDataSource.select().where(TNewsDataSource.username == get_user_name()).first().table_name
+    if not table_name:
+        st.error("请先配置新闻数据源表")
+        return
+    user_table_meta = UserTableMeta.get_table_meta(get_user_name(), USER_TABLE_DB_NAME, table_name)
+    if not user_table_meta:
+        st.error("请先配置新闻数据源表")
+        return
+    db_path = user_table_meta.db_path
+    field_config = user_table_meta.columns_info
+
+    dynamic_table_wrapper = DynamicTableWrapper(table_name=table_name, db_path=db_path, db_type=DBType.DUCKDB, field_config=field_config)
+    return dynamic_table_wrapper
+
+def get_news_list(limit_cnt=50):
     """
-    根据标签内容返回固定的颜色
-    
+    获取新闻列表，过滤掉国家为空或null的新闻
+
     Args:
-        tag: 标签文本
-    
+        limit_cnt (int, optional): 获取新闻的数量限制. Defaults to 50.
+        create_time (int, optional): 创建时间过滤条件. Defaults to -1.
+
     Returns:
-        str: 颜色代码
+        list: 过滤后的新闻列表
     """
-    # 为常见标签定义固定颜色
-    color_map = {
-        'AI': '#007bff',  # 蓝色
-        '股价上涨': '#28a745',  # 绿色
-        '股价下跌': '#dc3545',  # 红色
-        '中概股普涨': '#28a745',  # 绿色
-        '指数上升': '#28a745',  # 绿色
-        '指数下跌': '#dc3545',  # 红色
-        '科技': '#17a2b8',  # 青色
-        '金融': '#6f42c1',  # 紫色
-        '能源': '#fd7e14',  # 橙色
-        '医疗': '#20c997',  # 青绿色
-    }
+    table_wrapper = get_dynamic_table_wrapper()
+    model = table_wrapper.get_model()
+    query = model.select() \
+        .where((model.country != "") & model.country.is_null(False)) \
+        .limit(limit_cnt) \
+        .order_by(model.create_time.desc())
+
+    news_list = list(query.dicts())
+
+    json_columns = ['tags', 'markets', 'related_industries', 'related_indexes', 'related_company']
     
-    return color_map.get(tag, '#6c757d')  # 默认返回灰色
+    for news in news_list:
+        for column in json_columns:
+            if news[column]:
+                try:
+                    news[column] = json.loads(news[column])
+                except json.JSONDecodeError:
+                    pass
+        
+        news['sentiment'] = int(float(news['sentiment']) * 100)
+
+    return news_list
+
+
 
 def render_tags(tags: List[str]) -> None:
     """
@@ -59,26 +93,38 @@ def render_tags(tags: List[str]) -> None:
         </style>
     """, unsafe_allow_html=True)
     
+    # 淡雅的颜色调色板
+    pastel_colors = [
+        '#90EE90',  # 浅绿色
+        '#87CEFA',  # 浅天蓝色
+        '#FFA07A',  # 浅鲑鱼色
+        '#20B2AA',  # 浅海洋绿
+        '#00CED1',  # 深绿松石色
+        '#1E90FF',  # 道奇蓝
+        '#FF7F50',  # 珊瑚色
+        '#3CB371'   # 中海洋绿
+    ]
     # 生成标签HTML
     tags_html = '<div class="tag-container">'
     for tag in tags:
-        color = get_tag_color(tag)
-        tags_html += f'<span class="tag" style="background-color: {color}">{tag}</span>'
+        # 从pastel_colors随机挑选颜色
+        color = random.choice(pastel_colors)
+        tags_html += f'<span class="tag" style="background-color: {color}; color: #333;">{tag}</span>'
     tags_html += '</div>'
     
     st.markdown(tags_html, unsafe_allow_html=True)
 
-def render_sentiment_gauge(sentiment: float, title: str) -> None:
+def render_sentiment_gauge(sentiment: int, title: str) -> None:
     """
-    渲染情感分析仪表盘
+    渲染情绪分析仪表盘
     
     Args:
-        sentiment: 情感值 (0-1)
+        sentiment: 情绪值 (0-1)
         title: 仪表盘标题
     """
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
-        value=sentiment * 100,
+        value=sentiment,
         title={'text': title},
         gauge={
             'axis': {'range': [0, 100]},
@@ -108,7 +154,7 @@ def render_impact_analysis(data: Dict[str, Any]) -> None:
         for industry in data['related_industries']:
             st.metric(
                 label=industry['industry'],
-                value=f"{industry['sentiment']:.2%}"
+                value=f"{industry['sentiment']}"
             )
     
     with col2:
@@ -116,7 +162,7 @@ def render_impact_analysis(data: Dict[str, Any]) -> None:
         for index in data['related_indexes']:
             st.metric(
                 label=index['index'],
-                value=f"{index['sentiment']:.2%}"
+                value=f"{index['sentiment']}"
             )
     
     with col3:
@@ -124,15 +170,50 @@ def render_impact_analysis(data: Dict[str, Any]) -> None:
         for company in data['related_company']:
             st.metric(
                 label=company['company'],
-                value=f"{company['sentiment']:.2%}"
+                value=f"{company['sentiment']}"
             )
+
+def render_html_content(html_content: str) -> None:
+    """
+    渲染包含图片的HTML内容，支持多图片显示
+    
+    Args:
+        html_content: 包含HTML标签的文本内容
+    """
+    current_pos = 0
+    while True:
+        # 查找下一个图片标签
+        img_start = html_content.find('<img', current_pos)
+        if img_start == -1:
+            # 没有更多图片，显示剩余文本
+            remaining_text = html_content[current_pos:].replace('<br />', '\n')
+            if remaining_text.strip():
+                st.markdown(remaining_text)
+            break
+        
+        # 显示图片前的文本
+        text_before_img = html_content[current_pos:img_start].replace('<br />', '\n')
+        if text_before_img.strip():
+            st.markdown(text_before_img)
+        
+        # 提取图片URL
+        src_start = html_content.find('src="', img_start) + 5
+        src_end = html_content.find('"', src_start)
+        img_url = html_content[src_start:src_end]
+        
+        # 显示图片
+        st.image(img_url, use_container_width=True)
+        
+        # 更新位置到图片标签结束
+        img_end = html_content.find('>', src_end) + 1
+        current_pos = img_end
 
 def render_news_details(data: Dict[str, Any]) -> None:
     """
-    渲染新闻详情部分
+    渲染新闻详情部分，包括标题、时间、基本信息和图片
     
     Args:
-        data: 新闻数据字典
+        data: 新闻数据字典，包含标题、时间、国家、市场、标签、描述等信息
     """
     st.header("📰 新闻详情")
     
@@ -148,15 +229,15 @@ def render_news_details(data: Dict[str, Any]) -> None:
     with col2:
         st.markdown("**标签:**")
         render_tags(data['tags'])
-        st.markdown(f"**整体情感:** {data['sentiment']:.2%}")
+        st.markdown(f"**整体情绪:** {data['sentiment']}")
     
     # 新闻正文
     st.markdown("### 新闻内容")
-    st.markdown(data['description'])
+    render_html_content(data['description'])
 
-def render_news_list(news_list: List[Dict[str, Any]]) -> int:
+def render_news_list(news_list: list) -> int:
     """
-    渲染新闻列表，返回选中的新闻索引
+    使用AgGrid渲染新闻列表，返回选中的新闻索引
     
     Args:
         news_list: 新闻列表
@@ -165,24 +246,49 @@ def render_news_list(news_list: List[Dict[str, Any]]) -> int:
         int: 选中的新闻索引
     """
     st.header("📋 新闻列表")
+
+    # 初始化 session state
+    if 'selected_news_index' not in st.session_state:
+        st.session_state.selected_news_index = 0
+
+    # 转换数据为DataFrame格式
+    df = pd.DataFrame([{
+        '标题': news['title'],
+        '时间': news['pub_time'],
+        '情绪': news['sentiment'],
+        '标签': ', '.join(news['tags'])[:50] + '...' if len(news['tags']) > 50 else ', '.join(news['tags']),
+        'index': i  # 添加索引列用于追踪选择
+    } for i, news in enumerate(news_list)])
+
+    # 配置AgGrid选项
+    gb = GridOptionsBuilder.from_dataframe(df)
+    gb.configure_selection(selection_mode='single', use_checkbox=False)
+    gb.configure_column('标题', minWidth=200)
+    gb.configure_column('时间', minWidth=100)
+    gb.configure_column('情绪', minWidth=10)
+    gb.configure_column('标签', minWidth=150)
+    gb.configure_column('index', hide=True)  # 隐藏索引列
     
-    selected_index = 0
-    for i, news in enumerate(news_list):
-        # 创建可点击的新闻卡片
-        with st.container():
-            if st.button(
-                f"📰 {news['title']}\n\n"
-                f"📅 {news['pub_time']}\n"
-                f"🌍 {news['country']} | 💹 情感: {news['sentiment']:.2%}",
-                key=f"news_{i}",
-                use_container_width=True
-            ):
-                selected_index = i
-            # 显示标签
-            render_tags(news['tags'])
-            st.markdown("---")
+    grid_options = gb.build()
+
+    # 显示AgGrid表格
+    grid_response = AgGrid(
+        df,
+        gridOptions=grid_options,
+        height=500,
+        data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
+        update_mode=GridUpdateMode.SELECTION_CHANGED,
+        fit_columns_on_grid_load=True,
+        theme='streamlit'  # 或者使用 'light', 'dark', 'blue', 'material'
+    )
+
+    # 处理选择
+    selected = grid_response['selected_rows']
+    if selected is not None and len(selected) > 0:
+        selected_row = selected.iloc[0]
+        st.session_state.selected_news_index = selected_row['index']
     
-    return selected_index
+    return st.session_state.selected_news_index
 
 def run():
     """
@@ -191,53 +297,10 @@ def run():
     st.title("📊 新闻监控分析系统")
     
     # 示例数据 - 多条新闻
-    sample_news_list = [
-        {
-            'title': "纳斯达克中国金龙指数收涨3.72% 热门中概股普涨",
-            'description': "【纳斯达克中国金龙指数收涨3.72% 热门中概股普涨】财联社1月25日电，纳斯达克中国金龙指数收涨3.72%，本周累计上涨2.8%，热门中概股普涨，金山云涨超13%，爱奇艺涨超11%，京东、好未来涨超5%，百度、名创优品涨超4%，蔚来、小鹏汽车涨超3%。",
-            'pub_time': "2025-01-25 05:00:56",
-            'country': "中国",
-            'markets': ['纳斯达克'],
-            'tags': ['中概股普涨', '指数上升'],
-            'related_industries': [
-                {'industry': '信息技术', 'sentiment': 0.8},
-                {'industry': '可选消费', 'sentiment': 0.75}
-            ],
-            'sentiment': 0.85,
-            'related_indexes': [
-                {'index': '纳斯达克中国金龙指数', 'sentiment': 0.85}
-            ],
-            'related_company': [
-                {'company': '金山云', 'sentiment': 0.9},
-                {'company': '爱奇艺', 'sentiment': 0.85}
-            ]
-        },
-        {
-            'title': "ChatGPT发布重大更新 OpenAI股价大涨",
-            'description': "OpenAI今日发布ChatGPT重大更新，新增多模态分析能力，股价应声大涨15%。",
-            'pub_time': "2025-01-25 04:30:00",
-            'country': "美国",
-            'markets': ['纳斯达克', '纽约证券交易所'],
-            'tags': ['AI', '股价上涨'],
-            'related_industries': [
-                {'industry': '人工智能', 'sentiment': 0.95},
-                {'industry': '科技', 'sentiment': 0.9}
-            ],
-            'sentiment': 0.9,
-            'related_indexes': [
-                {'index': '纳斯达克100', 'sentiment': 0.8}
-            ],
-            'related_company': [
-                {'company': 'OpenAI', 'sentiment': 0.95},
-                {'company': 'Microsoft', 'sentiment': 0.85}
-            ]
-        }
-    ]
-
-    
+    sample_news_list = get_news_list(limit_cnt=1000)
     
     # 创建左右两栏布局
-    left_col, right_col = st.columns([1, 2])
+    left_col, right_col = st.columns([1, 1])
     
     # 左侧新闻列表
     with left_col:
@@ -245,15 +308,16 @@ def run():
     
     # 右侧新闻详情和分析
     with right_col:
-        selected_news = sample_news_list[selected_index]
-        
-        # 渲染新闻详情
-        render_news_details(selected_news)
-        
-        # 渲染整体情感仪表盘
-        st.markdown("### 📈 整体情感分析")
-        render_sentiment_gauge(selected_news['sentiment'], "新闻整体情感倾向")
-        
-        # 渲染影响分析
-        st.markdown("### 🎯 影响分析")
-        render_impact_analysis(selected_news)
+        if selected_index is not None and selected_index < len(sample_news_list):
+            selected_news = sample_news_list[selected_index]
+            
+            # 渲染新闻详情
+            render_news_details(selected_news)
+            
+            # 渲染整体情绪仪表盘
+            st.markdown("### 📈 整体情绪分析")
+            render_sentiment_gauge(selected_news['sentiment'], "新闻整体情绪倾向")
+            
+            # 渲染影响分析
+            st.markdown("### 🎯 影响分析")
+            render_impact_analysis(selected_news)

@@ -43,6 +43,14 @@ class UserTableMeta(BaseModel):
     def get_all_table_names(cls, user: str, db_name: str):
         data = cls.select(cls.table_name).where(cls.user == user, cls.db_name == db_name).distinct().execute()
         return [item.table_name for item in data]
+    
+    @classmethod
+    def get_table_meta(cls, user: str, db_name: str, table_name: str) -> 'UserTableMeta':
+        ret = cls.select().where(cls.user == user, cls.db_name == db_name, cls.table_name == table_name).order_by(cls.version.desc()).first()
+        if ret:
+            ret.columns_info = json.loads(ret.columns_info)
+        
+        return ret
 
     @classmethod
     def get_table_columns_info(cls, user: str, db_name: str, table_name: str) -> List[dict]:

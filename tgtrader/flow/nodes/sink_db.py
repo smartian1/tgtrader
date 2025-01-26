@@ -9,6 +9,7 @@ from tgtrader.utils.db_wrapper import DBWrapper, DBType
 from loguru import logger
 from tgtrader.utils.db_path_utils import get_user_data_db_path
 from tgtrader.dao.t_user_table_meta import UserTableMeta
+from tgtrader.utils.defs import USER_TABLE_DB_NAME
 
 
 # DuckDB 保留关键字列表
@@ -89,7 +90,7 @@ class SinkDBNode(FlowNode):
                 raise
             
             db_path = get_user_data_db_path(self.user)
-            db_name = "flow_sinkdb"
+            db_name = USER_TABLE_DB_NAME
 
             # 添加初始进度回调
             if process_callback:
@@ -115,7 +116,7 @@ class SinkDBNode(FlowNode):
             if process_callback:
                 process_callback(f"【节点: {self.node_label}】检查表结构", message_type="info")
 
-            meta_info = UserTableMeta.get_table_columns_info(self.user, f"flow_sinkdb", table_name)
+            meta_info = UserTableMeta.get_table_columns_info(self.user, USER_TABLE_DB_NAME, table_name)
             if meta_info != field_config:
                 # 是否有新增字段
                 old_columns = db_wrapper.get_columns(table_name)

@@ -15,6 +15,7 @@ import arrow
 from typing import Dict
 from tgtrader.dao.t_api_key import TApiKey
 from tgtrader.dao.t_llm_template import TLLMTemplate
+from tgtrader.utils.defs import USER_TABLE_DB_NAME
 
 
 def data_source_db_config(node_id: str, src_page: str, node_cfg: dict):
@@ -244,7 +245,7 @@ def sink_db_config(node_id: str, src_page: str, node_cfg: dict):
 
     try:
         db_path = get_user_data_db_path(get_user_name())
-        db_name = "flow_sinkdb"
+        db_name = USER_TABLE_DB_NAME
         db_wrapper = DBWrapper(db_path=db_path, db_type=DBType.DUCKDB)
 
         node_cfg = node_cfg.get('content', {})

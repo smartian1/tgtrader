@@ -4,7 +4,7 @@ import arrow
 import pandas as pd
 import streamlit as st
 import re
-
+from tgtrader.streamlit_pages.utils.common import get_user_name
 from tgtrader.dao.t_sql_history_model import SqlHistoryModel
 from tgtrader.utils.duckdb_query import DuckDBQuery
 from tgtrader.streamlit_pages.pages.component.data_meta import build_db_meta_info
@@ -74,7 +74,7 @@ def run() -> None:
         sql_statements = split_sql_statements(sql)
 
         if data_source == '用户自定义数据':
-            db = get_user_data_database(st.session_state.user_info['username'])
+            db = get_user_data_database(get_user_name())
             db_query = DuckDBQuery(db)
         else:
             db_query = DuckDBQuery(data_source)

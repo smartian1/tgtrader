@@ -10,6 +10,7 @@ import pandas as pd
 import uuid
 from tqdm import tqdm
 from typing import Callable
+import json
 
 
 class DBType(Enum):
@@ -40,34 +41,33 @@ class DBWrapper:
         return self.database.table_exists(table_name)
     
     def get_columns(self, table_name: str) -> List['ColumnMetadata']:
-        return self.database.get_columns(table_name)
-    
+        """获取表的字段信息。
+
+        Args:
+            table_name (str): 表名
+
+        Returns:
+            List['ColumnMetadata']: 包含字段信息的列表。每个元素包含字段的名称、类型等元数据信息。
+
+        Raises:
+            Exception: 获取表字段信息失败时抛出
+        """
+        try:
+            table_info = self.database.get_columns(table_name)
+            return table_info
+        except Exception as e:
+            logger.error(f"Failed to get table columns for {table_name}: {str(e)}")
+            raise e
+
     def create_table(self, table_name: str, field_config: List[Dict], is_add_create_and_update_time: bool = True) -> None:
         """
         Args:
             table_name: 表名
             field_config: 字段配置列表
         """
-        model = self._create_dynamic_model(table_name, field_config, is_add_create_and_update_time)
+        model = self.create_dynamic_model(table_name, field_config, is_add_create_and_update_time)
         model.create_table()
 
-    def get_table_fields(self, table_name: str) -> list:
-        """
-        获取表的字段信息。
-
-        Args:
-            table_name: 表名
-
-        Returns:
-            list: 包含字段信息的列表
-        """
-        try:
-            table_info = self.database.get_columns(table_name)
-            return table_info
-        except Exception as e:
-            logger.error(f"Failed to get table fields for {table_name}: {str(e)}")
-            return []
-        
     def add_column(self, table_name: str, field_config: List[Dict]) -> None:
         """向已存在的表中添加新字段。
         
@@ -83,7 +83,7 @@ class DBWrapper:
             Exception: 添加字段失败时抛出
         """
         # 获取已有字段
-        existing_fields = self.get_table_fields(table_name)
+        existing_fields = self.get_columns(table_name)
         existing_field_names = [field.name for field in existing_fields]
         
         # 字段类型映射
@@ -160,7 +160,7 @@ class DBWrapper:
                 raise ValueError(f"DataFrame缺少必需的主键列: {missing_keys}")
 
             # 获取所有表字段
-            table_fields = self.get_table_fields(table_name)
+            table_fields = self.get_columns(table_name)
             field_names = [field.name for field in table_fields]
 
             # 过滤出DataFrame中存在的列
@@ -176,6 +176,11 @@ class DBWrapper:
                 
                 # 将DataFrame转换为记录列表
                 records = df.to_dict('records')
+                # 如果字段是list, dict等, 则转换为json字符串
+                for record in records:
+                    for key, value in record.items():
+                        if isinstance(value, list) or isinstance(value, dict):
+                            record[key] = json.dumps(value)
                 
                 with self.database.atomic():
                     total_records = len(records)
@@ -250,7 +255,7 @@ class DBWrapper:
             logger.error(f"Failed to insert data into table {table_name}: {str(e)}")
             raise e
 
-    def _create_dynamic_model(self, table_name: str, field_config: List[Dict], is_add_create_and_update_time: bool = True) -> type:
+    def create_dynamic_model(self, table_name: str, field_config: List[Dict], is_add_create_and_update_time: bool = True) -> type:
         """动态创建Peewee模型类.
         
         Args:
@@ -332,4 +337,66 @@ class DBWrapper:
             return dynamic_model
         except Exception as e:
             logger.exception(e)
+            raise e
+
+@dataclass
+class DynamicTableWrapper:
+    table_name: str
+    field_config: List[Dict]
+    db_path: str
+    db_type: DBType
+    
+    def __post_init__(self):
+        self.db_wrapper = DBWrapper(db_path=self.db_path, db_type=self.db_type)
+        self.model = self.db_wrapper.create_dynamic_model(self.table_name, self.field_config, is_add_create_and_update_time=True)
+    
+    def get_model(self):
+        return self.model
+
+    def query(self, limit_cnt: int = 10, order_by: str = None, **kwargs) -> List[Dict]:
+        """查询数据表中的记录。
+
+        Args:
+            limit_cnt (int, optional): 限制返回的记录数量. Defaults to 10.
+            order_by (str, optional): 排序字段名，可以包含排序方向，例如: "field_name DESC" 或 "field_name ASC". Defaults to None.
+            **kwargs: 查询条件，支持字段名作为关键字参数.
+
+        Returns:
+            List[Dict]: 查询结果列表，每个元素为一条记录的字典表示.
+
+        Raises:
+            Exception: 查询执行失败时抛出
+        """
+        try:
+            with self.db_wrapper.database.atomic():
+                query = self.model.select()
+                
+                # 添加查询条件
+                if kwargs:
+                    query = query.where(**kwargs)
+                
+                # 处理排序
+                if order_by:
+                    # 解析排序字段和方向
+                    order_parts = order_by.split()
+                    field_name = order_parts[0]
+                    direction = order_parts[1].upper() if len(order_parts) > 1 else 'ASC'
+                    
+                    # 获取字段对象
+                    field = getattr(self.model, field_name)
+                    
+                    # 应用排序
+                    if direction.upper() == 'DESC':
+                        query = query.order_by(field.desc())
+                    else:
+                        query = query.order_by(field.asc())
+                
+                # 应用限制
+                if limit_cnt:
+                    query = query.limit(limit_cnt)
+                
+                return list(query.dicts())
+                
+        except Exception as e:
+            logger.error(f"查询失败: {str(e)}")
             raise e
