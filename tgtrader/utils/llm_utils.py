@@ -94,7 +94,11 @@ class LLMUtils:
         "qwen-plus-latest": {
             "func": openai_client,
             "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1"
-        }
+        },
+        "qwen-turbo-latest": {
+            "func": openai_client,
+            "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1"
+        },
     }
 
     def __get_model_config(self):

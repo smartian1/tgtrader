@@ -555,10 +555,10 @@ def processor_llm_config(node_id: str, src_page: str, node_cfg: dict) -> dict | 
     )
     
     # 获取所有模板
-    templates = TLLMTemplate.get_all_templates()
-    template_options = [template.name for template in templates]
+    templates = TLLMTemplate.get_all_template()
+    template_options = [name for name, template in templates.items()]
     # 存一个dict
-    template_dict = {template.name: template.content for template in templates}
+    template_dict = {name: template for name, template in templates.items()}
     
     # 模板选择下拉框
     selected_template = st.selectbox(
