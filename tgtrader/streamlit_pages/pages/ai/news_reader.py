@@ -13,7 +13,7 @@ from tgtrader.dao.t_user_table_meta import UserTableMeta
 from tgtrader.utils.defs import USER_TABLE_DB_NAME
 from loguru import logger
 import json
-from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, DataReturnMode
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, DataReturnMode, JsCode
 
 
 def get_dynamic_table_wrapper():
@@ -37,7 +37,6 @@ def get_news_list(limit_cnt=50):
 
     Args:
         limit_cnt (int, optional): 获取新闻的数量限制. Defaults to 50.
-        create_time (int, optional): 创建时间过滤条件. Defaults to -1.
 
     Returns:
         list: 过滤后的新闻列表
@@ -61,6 +60,7 @@ def get_news_list(limit_cnt=50):
                 except json.JSONDecodeError:
                     pass
         
+        # 将情绪值从0-1转换为-100到100的范围
         news['sentiment'] = int(float(news['sentiment']) * 100)
 
     return news_list
@@ -125,10 +125,17 @@ def render_sentiment_gauge(sentiment: int, title: str) -> None:
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
         value=sentiment,
-        title={'text': title},
+        title={
+            'text': title, 
+            'font': {'size': 16},
+        },
+        number={'font': {'size': 30}},  # 调整中间数字的大小
         gauge={
-            'axis': {'range': [0, 100]},
+            'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
             'bar': {'color': "darkblue"},
+            'bgcolor': "white",
+            'borderwidth': 2,
+            'bordercolor': "gray",
             'steps': [
                 {'range': [0, 30], 'color': "red"},
                 {'range': [30, 70], 'color': "yellow"},
@@ -136,7 +143,11 @@ def render_sentiment_gauge(sentiment: int, title: str) -> None:
             ],
         }
     ))
-    fig.update_layout(height=200)
+    fig.update_layout(
+        height=125,  # 保持高度
+        margin=dict(l=10, r=10, t=40, b=0),  # 增加顶部边距，减少底部边距
+        font={'size': 12}
+    )
     st.plotly_chart(fig, use_container_width=True)
 
 def render_impact_analysis(data: Dict[str, Any]) -> None:
@@ -149,28 +160,33 @@ def render_impact_analysis(data: Dict[str, Any]) -> None:
     # 创建三列布局
     col1, col2, col3 = st.columns(3)
     
+    def format_value(value: float) -> str:
+        """格式化数值，添加颜色"""
+        color = '#FF6B6B' if value >= 0 else '#90EE90'  # 正值红色，负值绿色
+        return f'<span style="color: {color}">{value}</span>'
+    
     with col1:
         st.subheader("🏭 行业影响")
         for industry in data['related_industries']:
-            st.metric(
-                label=industry['industry'],
-                value=f"{industry['sentiment']}"
+            st.markdown(
+                f"**{industry['industry']}**  \n{format_value(float(industry['sentiment']))}",
+                unsafe_allow_html=True
             )
     
     with col2:
         st.subheader("📊 指数影响")
         for index in data['related_indexes']:
-            st.metric(
-                label=index['index'],
-                value=f"{index['sentiment']}"
+            st.markdown(
+                f"**{index['index']}**  \n{format_value(float(index['sentiment']))}",
+                unsafe_allow_html=True
             )
     
     with col3:
         st.subheader("🏢 公司影响")
         for company in data['related_company']:
-            st.metric(
-                label=company['company'],
-                value=f"{company['sentiment']}"
+            st.markdown(
+                f"**{company['company']}**  \n{format_value(float(company['sentiment']))}",
+                unsafe_allow_html=True
             )
 
 def render_html_content(html_content: str) -> None:
@@ -229,11 +245,35 @@ def render_news_details(data: Dict[str, Any]) -> None:
     with col2:
         st.markdown("**标签:**")
         render_tags(data['tags'])
-        st.markdown(f"**整体情绪:** {data['sentiment']}")
+    
+    # 渲染整体情绪仪表盘
+    st.markdown("### 📈 整体情绪分析")
+    render_sentiment_gauge(data['sentiment'], "新闻整体情绪倾向")
+    
+    # 渲染影响分析
+    st.markdown("### 🎯 影响分析")
+    render_impact_analysis(data)
     
     # 新闻正文
     st.markdown("### 新闻内容")
     render_html_content(data['description'])
+
+def get_sentiment_color(sentiment: int) -> str:
+    """
+    根据情绪值返回对应的颜色
+    
+    Args:
+        sentiment: 情绪值 (0-100)
+    
+    Returns:
+        str: 对应的颜色代码
+    """
+    if sentiment >= 70:
+        return '#90EE90'  # 绿色
+    elif sentiment >= 30:
+        return '#FFD700'  # 黄色
+    else:
+        return '#FF6B6B'  # 红色
 
 def render_news_list(news_list: list) -> int:
     """
@@ -260,15 +300,90 @@ def render_news_list(news_list: list) -> int:
         'index': i  # 添加索引列用于追踪选择
     } for i, news in enumerate(news_list)])
 
+    # 配置情绪列的样式 - 使用中心对齐的水平进度条
+    cellrenderer_jscode = JsCode("""
+    class SentimentBarRenderer {
+        init(params) {
+            this.eGui = document.createElement('div');
+            this.eGui.style.width = '100%';
+            this.eGui.style.height = '20px';
+            this.eGui.style.display = 'flex';
+            this.eGui.style.alignItems = 'center';
+            
+            const barContainer = document.createElement('div');
+            barContainer.style.width = '80%';
+            barContainer.style.height = '12px';
+            barContainer.style.backgroundColor = '#f0f0f0';
+            barContainer.style.borderRadius = '6px';
+            barContainer.style.overflow = 'hidden';
+            barContainer.style.position = 'relative';
+            
+            // 添加中心线
+            const centerLine = document.createElement('div');
+            centerLine.style.position = 'absolute';
+            centerLine.style.left = '50%';
+            centerLine.style.width = '1px';
+            centerLine.style.height = '100%';
+            centerLine.style.backgroundColor = '#999';
+            barContainer.appendChild(centerLine);
+            
+            const bar = document.createElement('div');
+            const value = params.value || 0;  // 值范围为-100到100
+            
+            // 设置bar的位置和宽度
+            if (value >= 0) {
+                bar.style.left = '50%';
+                bar.style.width = (value/2) + '%';  // 除以2是因为50%是总宽度的一半
+                bar.style.backgroundColor = '#FF6B6B';  // 正值用红色
+            } else {
+                bar.style.right = '50%';
+                bar.style.width = (Math.abs(value)/2) + '%';  // 除以2是因为50%是总宽度的一半
+                bar.style.backgroundColor = '#90EE90';  // 负值用绿色
+            }
+            
+            bar.style.height = '100%';
+            bar.style.position = 'absolute';
+            bar.style.transition = 'all 0.3s';
+            
+            const text = document.createElement('span');
+            text.style.marginLeft = '5px';
+            text.style.fontSize = '12px';
+            text.innerText = value;
+            
+            barContainer.appendChild(bar);
+            this.eGui.appendChild(barContainer);
+            this.eGui.appendChild(text);
+        }
+        
+        getGui() {
+            return this.eGui;
+        }
+        
+        refresh(params) {
+            return false;
+        }
+    }
+    """)
+
     # 配置AgGrid选项
     gb = GridOptionsBuilder.from_dataframe(df)
     gb.configure_selection(selection_mode='single', use_checkbox=False)
     gb.configure_column('标题', minWidth=200)
     gb.configure_column('时间', minWidth=100)
-    gb.configure_column('情绪', minWidth=10)
-    gb.configure_column('标签', minWidth=150)
-    gb.configure_column('index', hide=True)  # 隐藏索引列
     
+    # 配置情绪列
+    gb.configure_column('情绪', 
+                       minWidth=120,
+                       cellRenderer=cellrenderer_jscode)
+    
+    gb.configure_column('标签', minWidth=150)
+    gb.configure_column('index', hide=True)
+
+    # 添加分页设置
+    gb.configure_pagination(enabled=True, 
+                          paginationAutoPageSize=False, 
+                          paginationPageSize=10)
+
     grid_options = gb.build()
 
     # 显示AgGrid表格
@@ -279,14 +394,14 @@ def render_news_list(news_list: list) -> int:
         data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
         update_mode=GridUpdateMode.SELECTION_CHANGED,
         fit_columns_on_grid_load=True,
-        theme='streamlit'  # 或者使用 'light', 'dark', 'blue', 'material'
+        theme='streamlit',
+        allow_unsafe_jscode=True
     )
 
     # 处理选择
     selected = grid_response['selected_rows']
     if selected is not None and len(selected) > 0:
-        selected_row = selected.iloc[0]
-        st.session_state.selected_news_index = selected_row['index']
+        st.session_state.selected_news_index = selected.iloc[0]['index']
     
     return st.session_state.selected_news_index
 
@@ -313,11 +428,3 @@ def run():
             
             # 渲染新闻详情
             render_news_details(selected_news)
-            
-            # 渲染整体情绪仪表盘
-            st.markdown("### 📈 整体情绪分析")
-            render_sentiment_gauge(selected_news['sentiment'], "新闻整体情绪倾向")
-            
-            # 渲染影响分析
-            st.markdown("### 🎯 影响分析")
-            render_impact_analysis(selected_news)
