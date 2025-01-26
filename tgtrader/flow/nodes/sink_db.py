@@ -147,6 +147,12 @@ class SinkDBNode(FlowNode):
             total_records = 0
             total_dfs = len(input_data)
             for idx, (_, df) in enumerate(input_data.items(), 1):
+
+                if df is None or df.empty:
+                    if process_callback:
+                        process_callback(f"【节点: {self.node_label}】数据集 {idx}/{total_dfs} 为空，跳过", message_type="warning")
+                        continue
+                    
                 if process_callback:
                     process_callback(f"【节点: {self.node_label}】处理数据集 {idx}/{total_dfs}", message_type="info")
 

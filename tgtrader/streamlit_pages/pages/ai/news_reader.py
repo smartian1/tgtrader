@@ -80,15 +80,18 @@ def render_tags(tags: List[str]) -> None:
         .tag-container {
             display: flex;
             flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 4px;
+            gap: 4px;
+            margin: 0;
+            padding: 0;
         }
         .tag {
-            padding: 4px 12px;
+            display: inline-block;
+            padding: 2px 10px;
             border-radius: 16px;
             font-size: 14px;
-            color: white;
-            display: inline-block;
+            color: #333;
+            white-space: nowrap;
+            margin: 2px;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -104,12 +107,12 @@ def render_tags(tags: List[str]) -> None:
         '#FF7F50',  # 珊瑚色
         '#3CB371'   # 中海洋绿
     ]
+    
     # 生成标签HTML
     tags_html = '<div class="tag-container">'
     for tag in tags:
-        # 从pastel_colors随机挑选颜色
         color = random.choice(pastel_colors)
-        tags_html += f'<span class="tag" style="background-color: {color}; color: #333;">{tag}</span>'
+        tags_html += f'<div class="tag" style="background-color: {color};">{tag}</div>'
     tags_html += '</div>'
     
     st.markdown(tags_html, unsafe_allow_html=True)
@@ -231,10 +234,6 @@ def render_news_details(data: Dict[str, Any]) -> None:
     Args:
         data: 新闻数据字典，包含标题、时间、国家、市场、标签、描述等信息
     """
-    st.header("📰 新闻详情")
-    
-    # 新闻标题和时间
-    st.subheader(data['title'])
     st.caption(f"发布时间: {data['pub_time']}")
     
     # 基本信息
