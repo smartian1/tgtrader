@@ -381,7 +381,7 @@ def render_news_list(news_list: list) -> int:
     # 添加分页设置
     gb.configure_pagination(enabled=True, 
                           paginationAutoPageSize=False, 
-                          paginationPageSize=10)
+                          paginationPageSize=50)
 
     grid_options = gb.build()
 
@@ -389,7 +389,7 @@ def render_news_list(news_list: list) -> int:
     grid_response = AgGrid(
         df,
         gridOptions=grid_options,
-        height=500,
+        height=1000,
         data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
         update_mode=GridUpdateMode.SELECTION_CHANGED,
         fit_columns_on_grid_load=True,
