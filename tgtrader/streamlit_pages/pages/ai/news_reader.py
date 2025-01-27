@@ -385,6 +385,8 @@ def render_news_list(news_list: list) -> int:
 
     grid_options = gb.build()
 
+    df = df.sort_values(by='时间', ascending=False)
+
     # 显示AgGrid表格
     grid_response = AgGrid(
         df,
