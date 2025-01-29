@@ -31,6 +31,27 @@ def _replace_template_vars(template: str, row: pd.Series) -> str:
             
     return result
 
+
+def clean_json_text(text: str) -> str:
+    """清理JSON文本，去掉首尾换行符和JSON对象外的文本。
+    
+    Args:
+        text: 要清理的JSON文本
+        
+    Returns:
+        str: 清理后的JSON文本，只保留最外层花括号内的内容
+    """
+    # 先去掉首尾空白字符
+    text = text.strip()
+    
+    # 找到第一个{和最后一个}的位置
+    start = text.find('{')
+    end = text.rfind('}')
+    
+    if start != -1 and end != -1:
+        return text[start:end + 1]
+    return text
+
 def openai_client(base_url: str, model: str, api_key: str, prompt_template: str, input_data: Dict[str, pd.DataFrame], callback: Callable):
     """通过OpenAI API处理数据并替换模板。
     
@@ -69,6 +90,9 @@ def openai_client(base_url: str, model: str, api_key: str, prompt_template: str,
                 # 解析返回的JSON结果
                 response_text = completion.choices[0].message.content
                 callback(f"处理第{index}行, 模型返回结果: {response_text}", "info")
+                
+                # 清理JSON文本
+                response_text = clean_json_text(response_text)
                 
                 # 直接解析JSON响应
                 response_json = json.loads(response_text)
