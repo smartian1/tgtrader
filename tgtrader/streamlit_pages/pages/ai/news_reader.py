@@ -240,7 +240,11 @@ def render_news_details(data: Dict[str, Any]) -> None:
     col1, col2 = st.columns(2)
     with col1:
         st.markdown(f"**国家/地区:** {data['country']}")
-        st.markdown(f"**相关市场:** {', '.join(data['markets'])}")
+
+        if isinstance(data['markets'], list):
+            st.markdown(f"**相关市场:** {', '.join(data['markets'])}")
+        else:
+            st.markdown(f"**相关市场:** {data['markets']}")
     with col2:
         st.markdown("**标签:**")
         render_tags(data['tags'])

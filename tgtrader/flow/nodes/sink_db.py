@@ -10,6 +10,7 @@ from loguru import logger
 from tgtrader.utils.db_path_utils import get_user_data_db_path
 from tgtrader.dao.t_user_table_meta import UserTableMeta
 from tgtrader.utils.defs import USER_TABLE_DB_NAME
+import json
 
 
 # DuckDB 保留关键字列表
@@ -117,7 +118,7 @@ class SinkDBNode(FlowNode):
                 process_callback(f"【节点: {self.node_label}】检查表结构", message_type="info")
 
             meta_info = UserTableMeta.get_table_columns_info(self.user, USER_TABLE_DB_NAME, table_name)
-            if meta_info != field_config:
+            if self.compare_field_config(meta_info, field_config):
                 # 是否有新增字段
                 old_columns = db_wrapper.get_columns(table_name)
                 old_columns = [column.name for column in old_columns]
@@ -185,3 +186,21 @@ class SinkDBNode(FlowNode):
             if process_callback:
                 process_callback(f"【节点: {self.node_label}】数据库写入失败: {str(e)}", message_type="error")
             raise
+
+    def compare_field_config(self, arr1, arr2):
+        # 转换为忽略input_field_mapping的字典
+        to_dict = lambda arr: {x["field_name"]: {k:v for k,v in x.items() if k != "input_field_mapping"} for x in arr}
+        d1, d2 = to_dict(arr1), to_dict(arr2)
+        
+        # 找出所有差异
+        added = [{"field":k, "type":"added"} for k in d2.keys() - d1.keys()]
+        removed = [{"field":k, "type":"removed"} for k in d1.keys() - d2.keys()]
+        
+        # 找出修改项
+        modified = []
+        for k in d1.keys() & d2.keys():
+            diff = {key: (d1[k][key], d2[k][key]) for key in d1[k] if d1[k][key] != d2[k].get(key)}
+            if diff:
+                modified.append({"field":k, "type":"modified", "details":diff})
+        
+        return added + removed + modified
