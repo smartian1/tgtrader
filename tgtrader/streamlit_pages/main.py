@@ -13,6 +13,7 @@ from tgtrader.streamlit_pages.pages.knowledge_base.knowledge_base import run as 
 from tgtrader.streamlit_pages.pages.factors.factor_process import run as factor_process_run
 from tgtrader.streamlit_pages.pages.ai.ai_flow import run as ai_flow_run
 from tgtrader.streamlit_pages.pages.ai.news_reader import run as news_reader_run
+from tgtrader.streamlit_pages.pages.tasks.task_mgr import run as task_mgr_run
 
 
 def logout():
@@ -59,6 +60,9 @@ def run():
 
         my_strategies_page = st.Page(my_strategies_run, title='我的策略', icon=':material/person:', url_path='strategies_my')
         strategy_pages['策略分析'] = [my_strategies_page]
+
+        task_mgr_page = st.Page(task_mgr_run, title='任务管理', icon=':material/task:', url_path='task_mgr')
+        strategy_pages['任务管理'] = [task_mgr_page]
 
         knowledge_base_page = st.Page(knowledge_base_run, title='知识库', icon=':material/book:', url_path='knowledge_base')
         strategy_pages['知识库'] = [knowledge_base_page]
