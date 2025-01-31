@@ -86,7 +86,15 @@ class TaskScheduler:
             logging.info("Task scheduler stopped")
             
     def _scan_tasks(self) -> None:
-        """扫描任务表，同步任务运行状态."""
+        """扫描任务表，同步任务运行状态.
+        
+        该方法会定期检查数据库中的任务状态，并确保调度器中的任务与数据库保持同步.
+        主要处理以下几种情况：
+        1. 新增任务的调度
+        2. 已删除任务的清理
+        3. 任务配置（如crontab）的变更
+        4. 任务运行状态的变更
+        """
         try:
             # 获取所有任务
             all_tasks = TTask.select()
@@ -96,37 +104,91 @@ class TaskScheduler:
             
             # 遍历所有任务
             for task in all_tasks:
-                if task.id not in running_task_ids:
-                    if task.status == 1:
-                        # 数据库中是运行状态，但实际未运行的任务，启动它
-                        self._add_job(task)
-                else:
-                    # 任务正在运行，检查crontab是否变更
-                    job = self.scheduler.get_job(self.running_jobs[task.id])
-                    if job:
-                        current_crontab = str(job.trigger)
-                        if current_crontab != task.crontab:
-                            # crontab配置已变更，需要重新调度
-                            logging.info(f"Task {task.id} crontab changed from {current_crontab} to {task.crontab}")
-                            self._remove_job(task.id)
-                            if task.status == 1:
-                                self._add_job(task)
-                    
-                    # 检查运行状态
-                    if task.status == 0:
-                        # 数据库中是停止状态，但实际在运行的任务，停止它
-                        self._remove_job(task.id)
-                    
-            # 清理已删除的任务
-            for task_id in list(running_task_ids):
                 try:
-                    TTask.get_by_id(task_id)
-                except:
-                    # 任务已从数据库中删除，停止它
-                    self._remove_job(task_id)
+                    self._sync_task_status(task, running_task_ids)
+                except Exception as e:
+                    logging.error(f"Failed to sync task {task.id}: {str(e)}")
+                    continue
+            
+            # 清理已删除的任务
+            self._cleanup_deleted_tasks(running_task_ids)
                     
         except Exception as e:
             logging.error(f"Failed to scan tasks: {str(e)}")
+            
+    def _sync_task_status(self, task: TTask, running_task_ids: set) -> None:
+        """同步单个任务的状态.
+        
+        Args:
+            task (TTask): 要同步的任务
+            running_task_ids (set): 当前运行中的任务ID集合
+        """
+        if not self._validate_task(task):
+            logging.warning(f"Task {task.id} validation failed, skipping")
+            return
+            
+        if task.id not in running_task_ids:
+            if task.status == 1:  # 运行状态
+                # 数据库中是运行状态，但实际未运行的任务，启动它
+                logging.info(f"Starting non-running task {task.id}")
+                self._add_job(task)
+        else:
+            # 任务正在运行，首先检查任务是否应该继续运行
+            if task.status == 0:  # 停止状态
+                logging.info(f"Stopping running task {task.id} as it's marked as stopped")
+                self._remove_job(task.id)
+                return
+                
+            # 检查crontab是否变更
+            job = self.scheduler.get_job(self.running_jobs[task.id])
+            if not job:
+                logging.warning(f"Job not found for task {task.id}, removing from running jobs")
+                self._remove_job(task.id)
+                return
+                
+            current_crontab = str(job.trigger)
+            if current_crontab != task.crontab:
+                logging.info(f"Task {task.id} crontab changed from {current_crontab} to {task.crontab}")
+                self._remove_job(task.id)
+                self._add_job(task)
+                
+    def _validate_task(self, task: TTask) -> bool:
+        """验证任务配置的有效性.
+        
+        Args:
+            task (TTask): 要验证的任务
+            
+        Returns:
+            bool: 任务配置是否有效
+        """
+        try:
+            if not task.crontab or not task.flow_id:
+                logging.warning(f"Task {task.id} missing required fields")
+                return False
+                
+            # 验证crontab格式
+            CronTrigger.from_crontab(task.crontab)
+            
+            # 验证flow是否存在
+            FlowCfg.get_by_id(task.flow_id)
+            
+            return True
+        except Exception as e:
+            logging.warning(f"Task {task.id} validation failed: {str(e)}")
+            return False
+            
+    def _cleanup_deleted_tasks(self, running_task_ids: set) -> None:
+        """清理已删除的任务.
+        
+        Args:
+            running_task_ids (set): 当前运行中的任务ID集合
+        """
+        for task_id in list(running_task_ids):
+            try:
+                TTask.get_by_id(task_id)
+            except Exception as e:
+                logging.info(f"Removing deleted task {task_id}: {str(e)}")
+                self._remove_job(task_id)
             
     def _add_job(self, task: TTask) -> None:
         """添加任务到调度器.
