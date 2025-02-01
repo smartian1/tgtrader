@@ -28,7 +28,13 @@ pip install tgtrader -i https://mirrors.aliyun.com/pypi/simple/
 
 ![alt text](https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/preview.png)
 
+
+
 ## 更新日志
+**v1.2.0**
+- 数据流支持使用AI大模型解析财经新闻
+- 支持任务调度，定时执行数据加工流
+  
 **v1.1.0**
 - 支持画布拖拽构建数据加工流程
 
