@@ -170,6 +170,4 @@ class TTask(BaseModel):
         cls.delete_by_id(task_id)
 
 
-# 重新初始化表
-db.drop_tables([TTask])
 TTask.init_table() 
