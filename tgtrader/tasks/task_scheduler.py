@@ -1,17 +1,40 @@
 from typing import Dict, Optional, Any
-import logging
 import signal
 import sys
+import logging
 from datetime import datetime
+from threading import Event
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.jobstores.memory import MemoryJobStore
 from tgtrader.dao.t_task import TTask
 from tgtrader.dao.t_flow import FlowCfg
+from tgtrader.service.flow_config_service import FlowConfigService
+from loguru import logger
 
-# 配置日志
-logging.basicConfig()
-logging.getLogger('apscheduler').setLevel(logging.INFO)
+# 将APScheduler的日志转发到loguru
+class InterceptHandler(logging.Handler):
+    """将标准库的logging转发到loguru的处理器."""
+    
+    def emit(self, record: logging.LogRecord) -> None:
+        # 获取对应的loguru级别
+        try:
+            level = logger.level(record.levelname).name
+        except ValueError:
+            level = record.levelno
+
+        # 找到调用者的文件名和行号
+        frame, depth = logging.currentframe(), 2
+        while frame.f_code.co_filename == logging.__file__:
+            frame = frame.f_back
+            depth += 1
+
+        logger.opt(depth=depth, exception=record.exc_info).log(
+            level, record.getMessage()
+        )
+
+# 配置APScheduler的日志
+logging.getLogger("apscheduler").handlers = [InterceptHandler()]
 
 class TaskScheduler:
     """
@@ -58,32 +81,36 @@ class TaskScheduler:
             signum (int): 信号编号
             frame (Optional[object]): 当前栈帧
         """
-        logging.info(f"Received signal {signum}, shutting down...")
+        logger.info(f"Received signal {signum}, shutting down...")
         self.stop()
-        sys.exit(0)
+        # 通知主线程退出
+        if hasattr(self, '_exit_event'):
+            self._exit_event.set()
+        else:
+            sys.exit(0)
         
     def start(self) -> None:
         """启动调度器并开始任务扫描."""
         # 启动调度器
         self.scheduler.start()
-        logging.info("Task scheduler started")
+        logger.info("Task scheduler started")
         
         # 添加任务扫描job
         self.scheduler.add_job(
             func=self._scan_tasks,
             trigger='interval',
-            seconds=30,  # 每30秒扫描一次任务表
+            seconds=5,
             id='task_scanner',
             name='Task Scanner',
             replace_existing=True
         )
-        logging.info("Task scanner started")
+        logger.info("Task scanner started")
         
     def stop(self) -> None:
         """停止调度器."""
         if self.scheduler.running:
             self.scheduler.shutdown()
-            logging.info("Task scheduler stopped")
+            logger.info("Task scheduler stopped")
             
     def _scan_tasks(self) -> None:
         """扫描任务表，同步任务运行状态.
@@ -107,14 +134,14 @@ class TaskScheduler:
                 try:
                     self._sync_task_status(task, running_task_ids)
                 except Exception as e:
-                    logging.error(f"Failed to sync task {task.id}: {str(e)}")
+                    logger.error(f"Failed to sync task {task.id}: {str(e)}")
                     continue
             
             # 清理已删除的任务
             self._cleanup_deleted_tasks(running_task_ids)
                     
         except Exception as e:
-            logging.error(f"Failed to scan tasks: {str(e)}")
+            logger.error(f"Failed to scan tasks: {str(e)}")
             
     def _sync_task_status(self, task: TTask, running_task_ids: set) -> None:
         """同步单个任务的状态.
@@ -124,33 +151,42 @@ class TaskScheduler:
             running_task_ids (set): 当前运行中的任务ID集合
         """
         if not self._validate_task(task):
-            logging.warning(f"Task {task.id} validation failed, skipping")
+            logger.warning(f"Task {task.id} validation failed, skipping")
             return
             
         if task.id not in running_task_ids:
             if task.status == 1:  # 运行状态
                 # 数据库中是运行状态，但实际未运行的任务，启动它
-                logging.info(f"Starting non-running task {task.id}")
+                logger.info(f"Starting non-running task {task.id}")
                 self._add_job(task)
         else:
             # 任务正在运行，首先检查任务是否应该继续运行
             if task.status == 0:  # 停止状态
-                logging.info(f"Stopping running task {task.id} as it's marked as stopped")
+                logger.info(f"Stopping running task {task.id} as it's marked as stopped")
                 self._remove_job(task.id)
                 return
                 
             # 检查crontab是否变更
             job = self.scheduler.get_job(self.running_jobs[task.id])
             if not job:
-                logging.warning(f"Job not found for task {task.id}, removing from running jobs")
+                logger.warning(f"Job not found for task {task.id}, removing from running jobs")
                 self._remove_job(task.id)
                 return
                 
-            current_crontab = str(job.trigger)
-            if current_crontab != task.crontab:
-                logging.info(f"Task {task.id} crontab changed from {current_crontab} to {task.crontab}")
-                self._remove_job(task.id)
-                self._add_job(task)
+            # 将当前任务的crontab转换为CronTrigger对象
+            try:
+                new_trigger = CronTrigger.from_crontab(task.crontab)
+                current_trigger = job.trigger
+                
+                # 直接比较两个触发器的表达式
+                if str(current_trigger) != str(new_trigger):
+                    logger.info(f"Task {task.id} crontab changed from {current_trigger} to {task.crontab}")
+                    self._remove_job(task.id)
+                    self._add_job(task)
+            except Exception as e:
+                logger.exception(e)
+                logger.error(f"Failed to compare crontab for task {task.id}: {str(e)}")
+                return
                 
     def _validate_task(self, task: TTask) -> bool:
         """验证任务配置的有效性.
@@ -163,18 +199,21 @@ class TaskScheduler:
         """
         try:
             if not task.crontab or not task.flow_id:
-                logging.warning(f"Task {task.id} missing required fields")
+                logger.warning(f"Task {task.id} missing required fields")
                 return False
                 
             # 验证crontab格式
             CronTrigger.from_crontab(task.crontab)
             
             # 验证flow是否存在
-            FlowCfg.get_by_id(task.flow_id)
-            
+            flow = FlowCfg.get_or_none(FlowCfg.flow_id == task.flow_id)
+            if not flow:
+                logger.warning(f"Flow {task.flow_id} not found for task {task.id}")
+                return False
             return True
         except Exception as e:
-            logging.warning(f"Task {task.id} validation failed: {str(e)}")
+            logger.exception(e)
+            logger.warning(f"Task {task.id} validation failed: {str(e)}")
             return False
             
     def _cleanup_deleted_tasks(self, running_task_ids: set) -> None:
@@ -187,7 +226,8 @@ class TaskScheduler:
             try:
                 TTask.get_by_id(task_id)
             except Exception as e:
-                logging.info(f"Removing deleted task {task_id}: {str(e)}")
+                logger.exception(e)
+                logger.info(f"Removing deleted task {task_id}: {str(e)}")
                 self._remove_job(task_id)
             
     def _add_job(self, task: TTask) -> None:
@@ -214,10 +254,11 @@ class TaskScheduler:
             )
             
             self.running_jobs[task.id] = job.id
-            logging.info(f"Added task {task.flow_name} (ID: {task.id}) with schedule: {task.crontab}")
+            logger.info(f"Added task {task.flow_name} (ID: {task.id}) with schedule: {task.crontab}")
             
         except Exception as e:
-            logging.error(f"Failed to add task {task.id}: {str(e)}")
+            logger.exception(e)
+            logger.error(f"Failed to add task {task.id}: {str(e)}")
             
     def _remove_job(self, task_id: int) -> None:
         """从调度器中移除任务.
@@ -230,9 +271,10 @@ class TaskScheduler:
             try:
                 self.scheduler.remove_job(job_id)
                 del self.running_jobs[task_id]
-                logging.info(f"Removed task {task_id}")
+                logger.info(f"Removed task {task_id}")
             except Exception as e:
-                logging.error(f"Failed to remove task {task_id}: {str(e)}")
+                logger.exception(e)
+                logger.error(f"Failed to remove task {task_id}: {str(e)}")
                 
     def _execute_task(self, task_id: int) -> None:
         """执行任务.
@@ -241,27 +283,28 @@ class TaskScheduler:
             task_id (int): 任务ID
         """
         try:
-            task = TTask.get_by_id(task_id)
-            flow = FlowCfg.get_by_id(task.flow_id)
+            task = TTask.get_or_none(TTask.id == task_id)
             
-            # TODO: 实现具体的任务执行逻辑
-            logging.info(f"Executing task {task.flow_name} (ID: {task.id}) at {datetime.now()}")
+            logger.info(f"Executing task {task.flow_name} (ID: {task.id}) at {datetime.now()}")
             
-            # 这里需要根据实际情况调用相应的流程执行函数
-            # flow.execute() 或其他执行方法
+            FlowConfigService.run_flow(user=task.username, flow_id=task.flow_id)
             
         except Exception as e:
-            logging.error(f"Failed to execute task {task_id}: {str(e)}")
+            logger.exception(e)
+            logger.error(f"Failed to execute task {task_id}: {str(e)}")
 
     @classmethod
     def run_service(cls) -> None:
         """运行任务服务的主函数."""
         scheduler = cls()
+        # 创建退出事件
+        scheduler._exit_event = Event()
         scheduler.start()
         
         # 保持主线程运行
         try:
-            signal.pause()
+            # 等待退出事件
+            scheduler._exit_event.wait()
         except (KeyboardInterrupt, SystemExit):
             scheduler.stop()
 
