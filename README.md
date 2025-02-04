@@ -87,8 +87,9 @@ source venv_tgtrader/bin/activate
 安装tgtrader
 pip install tgtrader
 
-初始化数据
+初始化数据(会提示输入管理员admin密码，连续输入两次即可，后续登录时使用)
 python -m tgtrader.streamlit_pages.init_data
+
 
 启动客户端
 1. 创建一个python文件(要与初始化数据时目录保持一致)，例如：tgtrader_cli.py
