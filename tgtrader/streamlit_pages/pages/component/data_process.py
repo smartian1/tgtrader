@@ -16,6 +16,7 @@ from tgtrader.service.flow_config_service import FlowConfigService
 from streamlit_flow.elements import StreamlitFlowNode, StreamlitFlowEdge
 from functools import partial
 from tgtrader.streamlit_pages.pages.component.data_flow_component import data_source_rss_config, processor_llm_config
+from tgtrader.streamlit_pages.utils.common import get_user_name
 
 
 class NodeType(enum.Enum):
@@ -61,9 +62,6 @@ def get_support_node_type_list(flow_type: FlowType):
         return [NodeType.DATA_SOURCE_RSS, NodeType.DATA_SOURCE_DB, NodeType.PROCESSOR_PYTHON_CODE, NodeType.PROCESSOR_LLM, NodeType.SINK_DB]
     else:
         return []
-
-def get_user_name():
-    return st.session_state.user_info['username']
 
 def get_selected_node_content(flow_data, sel_node_id):
     for node in flow_data['nodes']:

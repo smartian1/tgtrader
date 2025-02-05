@@ -50,18 +50,29 @@ def __get_db_model_info_by_table_name(data_source: str, table_name: str) -> Tupl
         return None, None
     
 def build_db_meta_info(src_page: str):
-    st.markdown("### 表字段信息查询")
-    col1, col2 = st.columns(2)
-    with col1:
-        data_source = st.selectbox("数据源", ["Akshare", "用户自定义数据"], key=f"data_meta_build_data_source_{src_page}")
-    with col2:
-        table_name = st.selectbox("表名", __get_table_names(data_source), key=f"data_meta_build_table_name_{src_page}")
-    
-    table_name, fields = __get_db_model_info_by_table_name(data_source, table_name)
-    field_data = {
-        '字段名': [field.name for field in fields],
-        '类型': [str(field.field_type) for field in fields],
-        '说明': [field.comment for field in fields]
-    }
-    df = pd.DataFrame(field_data)
-    st.table(df)
+    try:
+        st.markdown("### 表字段信息查询")
+        col1, col2 = st.columns(2)
+        with col1:
+            data_source = st.selectbox("数据源", ["Akshare", "用户自定义数据"], key=f"data_meta_build_data_source_{src_page}")
+        with col2:
+            table_name = st.selectbox("表名", __get_table_names(data_source), key=f"data_meta_build_table_name_{src_page}")
+        
+        try:
+            table_name, fields = __get_db_model_info_by_table_name(data_source, table_name)
+            field_data = {
+                '字段名': [field.name for field in fields],
+                '类型': [str(field.field_type) for field in fields],
+                '说明': [field.comment for field in fields]
+            }
+        except Exception as e:
+            field_data = {
+                '字段名': [],
+                '类型': [],
+                '说明': []
+            }
+        df = pd.DataFrame(field_data)
+        st.table(df)
+    except Exception as e:
+        logger.error(f"获取表字段信息失败: {e}")
+
