@@ -12,7 +12,7 @@ from tgtrader.utils.db_path_utils import get_user_data_database
 
 def add_limit_if_missing(sql: str, limit: int = 100) -> str:
     """
-    检查SQL语句是否包含LIMIT子句，如果没有则添加.
+    检查SQL语句是否包含LIMIT子句，如果是SELECT语句且没有LIMIT则添加.
 
     Args:
         sql (str): 原始SQL语句
@@ -23,6 +23,10 @@ def add_limit_if_missing(sql: str, limit: int = 100) -> str:
     """
     # 移除SQL末尾的分号和空白字符
     sql = sql.strip().rstrip(';')
+    
+    # 检查是否是SELECT语句（不区分大小写）
+    if not sql.upper().startswith('SELECT'):
+        return sql
     
     # 使用正则表达式检查是否已有LIMIT子句（不区分大小写）
     if not re.search(r'\bLIMIT\s+\d+\b', sql, re.IGNORECASE):

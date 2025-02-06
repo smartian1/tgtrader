@@ -183,7 +183,15 @@ def _create_field_config_editor(node_id: str, src_page: str, is_create_table: bo
 
 
 def _validate_table_config(table_name: str, field_config_df: pd.DataFrame) -> tuple[bool, str]:
-    """验证表配置的合法性"""
+    """验证表配置的合法性
+    
+    Args:
+        table_name: 表名
+        field_config_df: 字段配置DataFrame
+        
+    Returns:
+        tuple[bool, str]: (是否有效, 错误信息)
+    """
     # DuckDB保留关键字列表
     DUCKDB_RESERVED_KEYWORDS = {
         'add', 'all', 'alter', 'and', 'any', 'as', 'asc', 'between', 'by', 'case', 
@@ -225,8 +233,8 @@ def _validate_table_config(table_name: str, field_config_df: pd.DataFrame) -> tu
     # 检查主键字段是否有映射字段
     primary_key_rows = field_config_df[field_config_df["是否主键"] == True]
     for _, row in primary_key_rows.iterrows():
-        if not pd.notna(row.get('映射前节点输入字段', None)):
-            return False, "主键字段必须有映射字段"
+        if pd.isna(row.get('映射前节点输入字段', None)) or not row.get('映射前节点输入字段', '').strip():
+            return False, f"主键字段 '{row['字段名']}' 必须配置映射字段"
 
     return True, ""
 

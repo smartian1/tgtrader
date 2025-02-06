@@ -58,7 +58,6 @@ class SinkDBNode(FlowNode):
         Returns:
             None
         """
-        
         last_progress = -1
         def percent_callback(progress: int):
             nonlocal last_progress

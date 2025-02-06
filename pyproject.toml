@@ -4,12 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tgtrader"
-version = "1.2.0a3"
+version = "1.2.0a11"
 description = "TianGong Quantitative Investment Research Analysis Client"
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MPL-2.0" }
-
 
 authors = [
     { name = "smartian", email = "smartian@163.com" }

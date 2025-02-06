@@ -253,6 +253,8 @@ class DBWrapper:
             
         except Exception as e:
             logger.error(f"Failed to insert data into table {table_name}: {str(e)}")
+            logger.error(f"df columns: {df.columns}")
+            logger.error(f"{df}")
             raise e
 
     def create_dynamic_model(self, table_name: str, field_config: List[Dict], is_add_create_and_update_time: bool = True) -> type:

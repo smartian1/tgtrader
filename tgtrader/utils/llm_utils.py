@@ -8,6 +8,7 @@ import os
 from openai import OpenAI
 import json
 from tgtrader.dao.t_api_key import TApiKey
+from loguru import logger
 
 def _replace_template_vars(template: str, row: pd.Series) -> str:
     """替换模板中被{{}}包裹的变量为行数据中的值。
@@ -101,12 +102,15 @@ def openai_client(base_url: str, model: str, api_key: str, prompt_template: str,
                 merged_result = {**row.to_dict(), **response_json}
                 results.append(merged_result)
                 
+
             except Exception as e:
                 error_msg = f"处理行 {index} 时发生错误: {str(e)}"
                 callback(error_msg, "error")
                 continue
     
-    return pd.DataFrame(results)
+    ret = pd.DataFrame(results)
+    return ret
+
 
 @dataclass
 class LLMUtils:
