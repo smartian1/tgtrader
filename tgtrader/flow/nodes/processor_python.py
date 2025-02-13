@@ -39,7 +39,7 @@ class PythonProcessorNode(FlowNode):
                 
             # 创建本地命名空间执行代码
             local_vars = {}
-            exec(code, globals(), local_vars)
+            exec(code, local_vars)
 
             # 检查是否定义了计算函数
             if 'calc' not in local_vars:
