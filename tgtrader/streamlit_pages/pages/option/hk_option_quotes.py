@@ -311,6 +311,10 @@ def run():
 
             stock_price = get_stock_price(stock_code)
 
+            # 显示股票最新价
+            if stock_price:
+                st.metric(label=f"{stock_code} 最新价", value=f"{stock_price:.3f}")
+
             # 分离看涨和看跌期权
             call_options = df[df['type'] == OptionType.CALL].sort_values(
                 'strike_price', ascending=True).reset_index(drop=True)
