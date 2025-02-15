@@ -113,8 +113,8 @@ class FutuOptionGateway:
         if not self.conn:
             raise Exception("行情接口未连接")
             
-        # 富途API限制每次最多查询400个股票
-        MAX_CODES_PER_BATCH = 400
+        # 富途API限制每次最多查询1000个股票
+        MAX_CODES_PER_BATCH = 1000
         result = []
         
         try:

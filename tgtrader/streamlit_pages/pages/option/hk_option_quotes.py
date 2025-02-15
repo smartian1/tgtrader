@@ -6,6 +6,7 @@ from datetime import datetime
 import numpy as np
 from tgtrader.gateway.futu.futu_option_gateway import FutuOptionGateway
 from tgtrader.gateway.futu.defs import OptionType
+from tgtrader.gateway.futu.futu_stock_gateway import FutuStockGateway
 
 def run():
     """
@@ -110,6 +111,13 @@ def run():
                         })
                 
                 df = pd.DataFrame(chain_data)
+
+                # 获取股票最新价格
+                stock_gateway = FutuStockGateway()
+                stock_snapshot = stock_gateway.get_stock_snapshot([stock_code])
+                stock_price = None
+                if stock_snapshot:
+                    stock_price = stock_snapshot[0].last_price
                 
                 # 分离看涨和看跌期权
                 call_options = df[df['type'] == OptionType.CALL].sort_values('strike_price', ascending=True).reset_index(drop=True)
@@ -164,10 +172,22 @@ def run():
                 # 创建两列布局
                 col_call, col_put = st.columns(2)
                 
+                # 定义样式函数
+                def highlight_options(row, stock_price, option_type):
+                    if stock_price is None:
+                        return [''] * len(row)
+                    strike = row['行权价']
+                    if option_type == 'call':
+                        return ['background-color: #e6ffe6' if strike < stock_price else 'background-color: #ffe6e6' for _ in row]
+                    else:  # put
+                        return ['background-color: #e6ffe6' if strike > stock_price else 'background-color: #ffe6e6' for _ in row]
+
                 with col_call:
                     st.subheader("看涨期权")
                     st.dataframe(
-                        call_display.style.format({
+                        call_display.style
+                        .apply(lambda x: highlight_options(x, stock_price, 'call'), axis=1)
+                        .format({
                             '买量': '{:,.0f}',
                             '卖量': '{:,.0f}',
                             '持仓量': '{:,.0f}',
@@ -190,7 +210,9 @@ def run():
                 with col_put:
                     st.subheader("看跌期权")
                     st.dataframe(
-                        put_display.style.format({
+                        put_display.style
+                        .apply(lambda x: highlight_options(x, stock_price, 'put'), axis=1)
+                        .format({
                             '买量': '{:,.0f}',
                             '卖量': '{:,.0f}',
                             '持仓量': '{:,.0f}',
