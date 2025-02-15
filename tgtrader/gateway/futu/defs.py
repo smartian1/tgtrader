@@ -5,92 +5,20 @@ from dataclasses import dataclass
 from typing import Optional, List, Tuple
 
 
-class MarketType(Enum):
-    """富途市场类型枚举"""
-    NONE = "NONE"  # 未知市场
-    HK = "HK"  # 香港市场
-    US = "US"  # 美国市场
-    CN = "CN"  # 中国市场
-    HKCC = "HKCC"  # 香港期货市场
-    FUTURES = "FUTURES"  # 期货市场
-
 class SecurityType(Enum):
     """富途证券类型枚举"""
-    STOCK = "STOCK"  # 股票
-    IDX = "IDX"  # 指数
-    ETF = "ETF"  # ETF基金
-    WARRANT = "WARRANT"  # 窝轮
+    NONE = "NONE"  # 未知
     BOND = "BOND"  # 债券
-    OPTION = "OPTION"  # 期权
+    BWRT = "BWRT"  # 一揽子权证
+    STOCK = "STOCK"  # 正股
+    ETF = "ETF"  # 信托,基金
+    WARRANT = "WARRANT"  # 窝轮
+    IDX = "IDX"  # 指数
+    PLATE = "PLATE"  # 板块
+    DRVT = "DRVT"  # 期权
+    PLATESET = "PLATESET"  # 板块集
+    FUTURE = "FUTURE"  # 期货
 
-class SubType(Enum):
-    """富途行情订阅类型枚举"""
-    NONE = "NONE"  # 未知类型
-    BASIC = "BASIC"  # 基础报价
-    TICKER = "TICKER"  # 逐笔成交
-    ORDER_BOOK = "ORDER_BOOK"  # 买卖盘
-    K_1M = "K_1M"  # 1分钟K线
-    K_5M = "K_5M"  # 5分钟K线
-    K_15M = "K_15M"  # 15分钟K线
-    K_30M = "K_30M"  # 30分钟K线
-    K_60M = "K_60M"  # 60分钟K线
-    K_DAY = "K_DAY"  # 日K线
-    K_WEEK = "K_WEEK"  # 周K线
-    K_MON = "K_MON"  # 月K线
-    K_QUARTER = "K_QUARTER"  # 季K线
-    K_YEAR = "K_YEAR"  # 年K线
-
-class OrderType(Enum):
-    """富途订单类型枚举"""
-    NORMAL = "NORMAL"  # 普通订单
-    ENHANCED_LIMIT = "ENHANCED_LIMIT"  # 增强限价单
-    AUCTION = "AUCTION"  # 竞价单
-    MARKET = "MARKET"  # 市价单
-    ABSOLUTE_LIMIT = "ABSOLUTE_LIMIT"  # 绝对限价单
-    MARKET_THEN_LIMIT = "MARKET_THEN_LIMIT"  # 市价转限价单
-
-class OrderStatus(Enum):
-    """富途订单状态枚举"""
-    NONE = "NONE"  # 未知状态
-    SUBMITTED = "SUBMITTED"  # 已提交
-    FILLED_PART = "FILLED_PART"  # 部分成交
-    FILLED_ALL = "FILLED_ALL"  # 全部成交
-    CANCELLED_ALL = "CANCELLED_ALL"  # 全部撤单
-    CANCELLED_PART = "CANCELLED_PART"  # 部分撤单
-    SUBMIT_FAILED = "SUBMIT_FAILED"  # 提交失败
-    FAILED = "FAILED"  # 下单失败
-    DISABLED = "DISABLED"  # 已失效
-
-class TradeSide(Enum):
-    """富途交易方向枚举"""
-    NONE = "NONE"  # 未知方向
-    BUY = "BUY"  # 买入
-    SELL = "SELL"  # 卖出
-
-class PositionSide(Enum):
-    """富途持仓方向枚举"""
-    NONE = "NONE"  # 未知方向
-    LONG = "LONG"  # 多仓
-    SHORT = "SHORT"  # 空仓
-
-class Currency(Enum):
-    """富途货币类型枚举"""
-    NONE = "NONE"  # 未知货币
-    HKD = "HKD"  # 港币
-    USD = "USD"  # 美元
-    CNH = "CNH"  # 离岸人民币
-    CNY = "CNY"  # 在岸人民币
-    SGD = "SGD"  # 新加坡元
-    JPY = "JPY"  # 日元
-
-class ModifyOrderOp(Enum):
-    """富途改单操作类型枚举"""
-    NONE = "NONE"  # 未知操作
-    NORMAL = "NORMAL"  # 普通改单
-    CANCEL = "CANCEL"  # 撤单
-    DISABLE = "DISABLE"  # 失效
-    ENABLE = "ENABLE"  # 生效
-    DELETE = "DELETE"  # 删除
     
 class OptionType(Enum):
     """富途期权类型枚举"""
@@ -99,18 +27,21 @@ class OptionType(Enum):
     PUT = "PUT"  # 认沽期权
 
 class OptionCondType(Enum):
-    """富途期权条件类型枚举"""
-    NONE = "NONE"  # 未知类型
-    AMERICAN = "AMERICAN"  # 美式期权
-    EUROPEAN = "EUROPEAN"  # 欧式期权
-    BERMUDA = "BERMUDA"  # 百慕大式期权
+    """富途期权条件类型枚举
+
+    描述期权的条件类型，包括全部、价内和价外
+    """
+    ALL = "ALL"  # 所有期权
+    WITHIN = "WITHIN"  # 价内期权
+    OUTSIDE = "OUTSIDE"  # 价外期权
+
 
 class IndexOptionType(Enum):
     """富途指数期权类型枚举
 
     描述不同类型的指数期权
     """
-    NONE = "NONE"  # 未知类型
+    NONE = "N/A"  # 未知类型
     NORMAL = "NORMAL"  # 普通的指数期权
     SMALL = "SMALL"  # 小型指数期权
 
@@ -177,7 +108,7 @@ class WrtType(Enum):
     BEAR = "BEAR"  # 熊证
     INLINE = "INLINE"  # 界内证
 
-class OptionAreaType(Enum):
+class FutuOptionAreaType(Enum):
     """富途期权区域类型枚举
 
     描述期权的行权时间和方式的枚举类型
@@ -195,6 +126,17 @@ class DarkStatus(Enum):
     NONE = "NONE"  # 无暗盘交易
     TRADING = "TRADING"  # 暗盘交易中
     END = "END"  # 暗盘交易结束
+
+class OptionExpirationCycle(Enum):
+    """富途期权到期周期枚举
+
+    描述期权的不同到期周期类型
+    """
+    NONE = 'N/A'  # 未知
+    WEEK = "WEEK"  # 周期权
+    MONTH = "MONTH"  # 月期权
+    ENDOFMONTH = 'END_OF_MONTH'
+    QUARTERLY = 'QUARTERLY'
 
 
 @dataclass
@@ -275,7 +217,7 @@ class StockPriceSnapshot:
     option_expiry_date_distance: Optional[int] = None  # 距离到期日天数
     option_contract_nominal_value: Optional[float] = None  # 合约名义金额
     option_owner_lot_multiplier: Optional[float] = None  # 相等正股手数
-    option_area_type: Optional[OptionAreaType] = None  # 期权类型（按行权时间）
+    option_area_type: Optional[FutuOptionAreaType] = None  # 期权类型（按行权时间）
     option_contract_multiplier: Optional[float] = None  # 合约乘数
     plate_valid: Optional[bool] = None  # 是否为板块类型
     plate_raise_count: Optional[int] = None  # 板块类型上涨支数
@@ -369,7 +311,7 @@ class StockQuote:
     expiry_date_distance: Optional[int] = None  # 距离到期日天数
     contract_nominal_value: Optional[float] = None  # 合约名义金额
     owner_lot_multiplier: Optional[float] = None  # 相等正股手数
-    option_area_type: Optional[OptionAreaType] = None  # 期权类型（按行权时间）
+    option_area_type: Optional[FutuOptionAreaType] = None  # 期权类型（按行权时间）
     contract_multiplier: Optional[float] = None  # 合约乘数
     pre_price: Optional[float] = None  # 盘前价格
     pre_high_price: Optional[float] = None  # 盘前最高价
@@ -403,6 +345,23 @@ class StockOrderBook:
     svr_recv_time_ask: Optional[str] = None  # 富途服务器从交易所收到卖盘数据的时间
     bid_orders: Optional[List[Tuple[float, int, int, List]]] = None  # 买盘订单列表，包含(委托价格，委托数量，委托订单数，委托订单明细)
     ask_orders: Optional[List[Tuple[float, int, int, List]]] = None  # 卖盘订单列表，包含(委托价格，委托数量，委托订单数，委托订单明细)
+
+
+@dataclass
+class OptionExpirationDate:
+    """期权到期日信息数据类
+
+    包含期权的到期日相关详细信息。
+
+    Attributes:
+        strike_time (str): 期权链行权日
+        option_expiry_date_distance (int): 距离到期日天数
+        expiration_cycle (ExpirationCycle): 交割周期
+    """
+    strike_time: str  # 期权链行权日
+    option_expiry_date_distance: int  # 距离到期日天数
+    expiration_cycle: OptionExpirationCycle  # 交割周期
+
 
 @dataclass
 class OptionChainItem:

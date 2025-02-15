@@ -4,7 +4,11 @@ import futu as ft
 from dataclasses import dataclass
 from loguru import logger
 from futu import *
-from tgtrader.gateway.futu.defs import SecurityType, OptionType, IndexOptionType, StockPriceSnapshot, StockQuote, StockOrderBook, OptionChainItem
+from tgtrader.gateway.futu.defs import SecurityType, \
+    OptionType, IndexOptionType, StockPriceSnapshot, \
+        StockQuote, StockOrderBook, OptionChainItem, \
+            OptionExpirationDate, OptionExpirationCycle, \
+                FutuOptionAreaType
 import time
 from typing import List
 
@@ -25,7 +29,18 @@ class FutuOptionGateway:
         """
         获取期权到期日
         """
-        return self.conn.get_option_expiration_date(code)
+        ret, data = self.conn.get_option_expiration_date(code)
+        if ret != RET_OK:
+            raise Exception(f"获取期权到期日失败: {data}")
+        
+        ret = []
+        for _, row in data.iterrows():
+            ret.append(OptionExpirationDate(
+                strike_time=row['strike_time'],
+                option_expiry_date_distance=row['option_expiry_date_distance'],
+                expiration_cycle=OptionExpirationCycle(row['expiration_cycle'])
+            ))
+        return ret
     
     def get_option_chain(self, code: str, date: str) -> List[OptionChainItem]:
         """获取期权链数据
@@ -56,27 +71,19 @@ class FutuOptionGateway:
                 opt_type = (OptionType.CALL if row['option_type'] == 'CALL' 
                            else OptionType.PUT)
                 
-                # 获取期权实时报价
-                try:
-                    quote = self.get_stock_quote(row['code'])
-                except Exception as e:
-                    logger.warning(f"获取期权{row['code']}报价失败: {str(e)}")
-                    quote = None
-                
                 # 创建期权链项
                 item = OptionChainItem(
                     code=row['code'],  # 期权代码
                     name=row['name'],  # 期权名称
                     lot_size=int(row['lot_size']),  # 每手数量
-                    stock_type=SecurityType.OPTION,  # 证券类型为期权
-                    option_type=opt_type,  # 期权类型（认购/认沽）
-                    stock_owner=code,  # 标的代码
-                    strike_time=date,  # 到期日
+                    stock_type=SecurityType(row['stock_type']),  # 证券类型
+                    option_type=OptionType(row['option_type']),  # 期权类型（认购/认沽）
+                    stock_owner=row['stock_owner'],  # 标的代码
+                    strike_time=row['strike_time'],  # 到期日
                     strike_price=float(row['strike_price']),  # 行权价
                     suspension=bool(row.get('suspension', False)),  # 是否停牌
                     stock_id=int(row.get('stock_id', 0)),  # 股票ID
-                    quote=quote,  # 期权实时报价
-                    index_option_type=None  # 指数期权类型，暂不支持
+                    index_option_type=IndexOptionType(row.get('index_option_type', 'NONE'))  # 指数期权类型，暂不支持
                 )
                 result.append(item)
             
@@ -159,7 +166,7 @@ class FutuOptionGateway:
                             option_expiry_date_distance=int(quote.get('option_expiry_date_distance', 0)),
                             option_contract_nominal_value=float(quote.get('option_contract_nominal_value', 0)),
                             option_owner_lot_multiplier=float(quote.get('option_owner_lot_multiplier', 0)),
-                            option_area_type=OptionAreaType(quote.get('option_area_type', 'NONE')),
+                            option_area_type=FutuOptionAreaType(quote.get('option_area_type', 'NONE')),
                             option_contract_multiplier=float(quote.get('option_contract_multiplier', 0))
                         )
                         result.append(snapshot)
@@ -202,10 +209,6 @@ class FutuOptionGateway:
             for i in range(0, len(code_list), MAX_CODES_PER_BATCH):
                 batch_codes = code_list[i:i + MAX_CODES_PER_BATCH]
 
-                ret_sub, err_message = self.conn.subscribe(batch_codes, [SubType.QUOTE], subscribe_push=False)
-                if ret_sub != RET_OK:
-                    raise Exception(f"订阅期权失败: {err_message}")
-                
                 # 获取期权实时报价
                 ret, data = self.conn.get_stock_quote(batch_codes)
                 if ret != RET_OK:
@@ -218,11 +221,6 @@ class FutuOptionGateway:
                 # 处理每个期权的数据
                 for _, quote in data.iterrows():
                     try:
-                        # 验证是否为期权数据
-                        if not quote.get('option_valid', False):
-                            logger.warning(f"代码 {quote.get('code', 'unknown')} 不是有效的期权")
-                            continue
-                            
                         snapshot = StockQuote(
                             code=str(quote['code']),
                             name=str(quote['name']),
@@ -250,7 +248,7 @@ class FutuOptionGateway:
                             expiry_date_distance=int(quote.get('option_expiry_date_distance', 0)),
                             contract_nominal_value=float(quote.get('option_contract_nominal_value', 0)),
                             owner_lot_multiplier=float(quote.get('option_owner_lot_multiplier', 0)),
-                            option_area_type=OptionAreaType(quote.get('option_area_type', 'NONE')),
+                            option_area_type=FutuOptionAreaType(quote.get('option_area_type', 'NONE')),
                             contract_multiplier=float(quote.get('option_contract_multiplier', 0)),
                             data_time=str(quote.get('data_time', '')),
                             data_date=str(quote.get('data_date', ''))
@@ -259,7 +257,7 @@ class FutuOptionGateway:
                     except Exception as e:
                         logger.warning(f"处理期权{quote.get('code', 'unknown')}数据异常: {str(e)}")
                         continue
-                
+
                 # 如果不是最后一批，加入适当延时避免频率限制
                 if i + MAX_CODES_PER_BATCH < len(code_list):
                     time.sleep(0.5)  # 500ms延时
@@ -287,10 +285,6 @@ class FutuOptionGateway:
             raise Exception("行情接口未连接")
             
         try:
-            ret_sub, err_message = self.conn.subscribe([code], [SubType.ORDER_BOOK], subscribe_push=False)
-            if ret_sub != RET_OK:
-                raise Exception(f"订阅订单簿失败: {err_message}")
-            
             # 获取实时订单簿
             ret, data = self.conn.get_order_book(code)
             if ret != RET_OK:
@@ -300,25 +294,37 @@ class FutuOptionGateway:
                 logger.warning(f"未获取到{code}的订单簿数据")
                 return StockOrderBook(code=code, name='')
                 
-            # 提取买卖盘数据
-            bid_orders = [(float(price), int(volume), len(detail), detail) 
-                          for price, volume, detail in zip(data['Bid'], data['BidVol'], data.get('BidOrderNum', [{}]))]
-            ask_orders = [(float(price), int(volume), len(detail), detail) 
-                          for price, volume, detail in zip(data['Ask'], data['AskVol'], data.get('AskOrderNum', [{}]))]
-            
-            # 获取股票名称
-            ret_quote, quote_data = self.conn.get_stock_quote(code)
-            name = quote_data['name'] if ret_quote == RET_OK else ''
-            
             return StockOrderBook(
-                code=code, 
-                name=name,
-                svr_recv_time_bid=data.get('svr_recv_time_bid', ''),
-                svr_recv_time_ask=data.get('svr_recv_time_ask', ''),
-                bid_orders=bid_orders,
-                ask_orders=ask_orders
+                code=data['code'], 
+                name=data['name'],
+                svr_recv_time_bid=data['svr_recv_time_bid'],
+                svr_recv_time_ask=data['svr_recv_time_ask'],
+                bid_orders=data['Bid'],
+                ask_orders=data['Ask']
             )
             
         except Exception as e:
             logger.error(f"获取订单簿数据异常: {str(e)}")
             raise
+
+    def subscribe(self, code_list: List[str], sub_type: SubType, subscribe_push: bool = False):
+        """订阅行情数据
+        
+        Args:
+            code_list: 标的代码列表，例如 ['HK.00700', 'HK.09988']
+            sub_type: 订阅类型，例如 SubType.QUOTE 为实时报价
+        """
+        ret_sub, err_message = self.conn.subscribe(code_list, [sub_type], subscribe_push=subscribe_push)
+        if ret_sub != RET_OK:
+            raise Exception(f"订阅失败: {err_message}")
+
+    def unsubscribe(self, code_list: List[str], sub_type: SubType):
+        """取消订阅行情数据
+        
+        Args:
+            code_list: 标的代码列表，例如 ['HK.00700', 'HK.09988']
+            sub_type: 订阅类型，例如 SubType.QUOTE 为实时报价
+        """
+        ret_sub, err_message = self.conn.unsubscribe(code_list, [sub_type])
+        if ret_sub != RET_OK:
+            raise Exception(f"取消订阅失败: {err_message}")
