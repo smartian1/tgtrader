@@ -25,6 +25,29 @@ class FutuStockGateway:
     def __post_init__(self):
         self.conn = ft.OpenQuoteContext(host=self.host, port=self.port)
 
+    def close(self):
+        if self.conn:
+            self.conn.close()
+            self.conn = None
+
+    def __enter__(self):
+        """上下文管理器进入方法，确保连接已建立
+        
+        Returns:
+            FutuStockGateway: 当前实例
+        """
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """上下文管理器退出方法，确保关闭连接
+        
+        Args:
+            exc_type: 异常类型
+            exc_val: 异常值
+            exc_tb: 异常追踪信息
+        """
+        self.close()
+
     def get_stock_snapshot(self, code_list: List[str]) -> List[StockPriceSnapshot]:
         """获取标的实时报价数据
         
