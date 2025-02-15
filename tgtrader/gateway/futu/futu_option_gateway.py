@@ -28,11 +28,13 @@ class FutuOptionGateway:
 
     def __post_init__(self):
         self.conn = ft.OpenQuoteContext(host=self.host, port=self.port)
+        logger.info("富途期权网关已初始化")
     
     def close(self):
         if self.conn:
             self.conn.close()
             self.conn = None
+            logger.info("富途期权网关已关闭")
 
     def __enter__(self):
         """上下文管理器进入方法，确保连接已建立

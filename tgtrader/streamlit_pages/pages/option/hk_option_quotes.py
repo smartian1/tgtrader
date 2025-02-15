@@ -71,6 +71,174 @@ def get_stock_price(stock_code: str):
 
     return stock_price
 
+def create_grid_options(df, stock_price=None, option_type='call'):
+    """
+    创建AG Grid的配置选项
+    Args:
+        df: DataFrame containing the option data
+        stock_price: Current stock price for highlighting
+        option_type: 'call' or 'put' to determine highlighting logic
+    Returns:
+        Grid options for AG Grid
+    """
+    gb = GridOptionsBuilder.from_dataframe(df)
+    
+    # 配置基础列宽
+    column_widths = {
+        "序号": 60,
+        "行权价": 80,
+        "最新价": 80,
+        "买价": 30,
+        "买量": 30,
+        "卖价": 30,
+        "卖量": 30,
+        "成交量": 80,
+        "未平仓数": 50,
+        "内在价值": 100,
+        "隐波": 70,
+        "Delta": 70,
+        "Gamma": 70,
+        "Theta": 70,
+        "Vega": 70,
+        "Rho": 70
+    }
+    
+    # 设置列宽和固定列
+    for col, width in column_widths.items():
+        if col in df.columns:
+            pin_side = 'right' if (option_type == 'call' and col == '序号') else \
+                      'left' if (option_type == 'put' and col == '序号') else None
+            gb.configure_column(col, width=width, pinned=pin_side)
+    
+    # 配置默认列属性
+    gb.configure_default_column(
+        resizable=True,
+        sorteable=True,
+        filterable=True,
+        type=["numericColumn", "numberColumnFilter"],
+        cellStyle={'text-align': 'right'}
+    )
+    
+    # 添加条件样式
+    if stock_price:
+        highlight_condition = f"params.data['行权价'] < {stock_price}" if option_type == 'call' \
+            else f"params.data['行权价'] > {stock_price}"
+        
+        js_code = f"""
+        function(params) {{
+            if ({highlight_condition}) {{
+                return {{'backgroundColor': '#e6ffe6'}}; // 浅绿色
+            }} else if (params.data['行权价'] {'>' if option_type == 'call' else '<'} {stock_price}) {{
+                return {{'backgroundColor': '#ffe6e6'}}; // 浅红色
+            }}
+            return {{'backgroundColor': '#ffffff'}}; // 相等时白色
+        }}
+        """
+        gb.configure_grid_options(getRowStyle=JsCode(js_code))
+    
+    return gb.build()
+
+def display_option_table(df, title, stock_price=None, option_type='call'):
+    """
+    显示期权数据表格
+    Args:
+        df: DataFrame containing the option data
+        title: Table title
+        stock_price: Current stock price for highlighting
+        option_type: 'call' or 'put' to determine highlighting logic
+    """
+    st.subheader(title)
+    grid_options = create_grid_options(df, stock_price, option_type)
+    AgGrid(df,
+           gridOptions=grid_options,
+           height=600,
+           width='100%',
+           allow_unsafe_jscode=True,
+           fit_columns_on_grid_load=False)
+
+def prepare_option_display_data(options_df, stock_price=None, option_type='call'):
+    """
+    准备期权显示数据
+    Args:
+        options_df: DataFrame containing raw option data
+        stock_price: Current stock price for intrinsic value calculation
+        option_type: 'call' or 'put' to determine column order
+    Returns:
+        DataFrame formatted for display
+    """
+    display_df = options_df[[
+        'strike_price', 'last_price', 'bid_price', 'bid_vol',
+        'ask_price', 'ask_vol', 'open_interest', 'volume',
+        'implied_volatility', 'delta', 'gamma', 'theta', 'vega', 'rho'
+    ]].copy()
+    
+    # 计算内在价值
+    if stock_price:
+        is_call = options_df['type'].iloc[0] == OptionType.CALL
+        display_df['intrinsic_value'] = display_df['strike_price'].apply(
+            lambda x: round(max(stock_price - x if is_call else x - stock_price, 0), 3))
+    else:
+        display_df['intrinsic_value'] = 0.0
+    
+    # 设置序号
+    display_df.index = range(1, len(display_df) + 1)
+    display_df['序号'] = display_df.index
+    
+    # 重命名列
+    chinese_columns = {
+        'strike_price': '行权价',
+        'last_price': '最新价',
+        'bid_price': '买价',
+        'bid_vol': '买量',
+        'ask_price': '卖价',
+        'ask_vol': '卖量',
+        'open_interest': '未平仓数',
+        'volume': '成交量',
+        'implied_volatility': '隐波',
+        'intrinsic_value': '内在价值',
+        'delta': 'Delta',
+        'gamma': 'Gamma',
+        'theta': 'Theta',
+        'vega': 'Vega',
+        'rho': 'Rho'
+    }
+    display_df.rename(columns=chinese_columns, inplace=True)
+    
+    # 定义基础列顺序
+    base_columns = ['序号', '行权价', '最新价', '内在价值', '买价', '买量', 
+                    '卖价', '卖量', '未平仓数', '成交量', '隐波',
+                    'Delta', 'Gamma', 'Theta', 'Vega', 'Rho']
+    
+    # 如果是看涨期权，反转除序号外的列顺序
+    if option_type == 'call':
+        reversed_columns = base_columns[1:][::-1]  # 反转除序号外的所有列
+        col_order = ['序号'] + reversed_columns
+    else:
+        col_order = base_columns
+    
+    return display_df[col_order]
+
+def display_option_chain(call_options, put_options, stock_price=None):
+    """
+    显示期权链数据
+    Args:
+        call_options: DataFrame containing call options
+        put_options: DataFrame containing put options
+        stock_price: Current stock price
+    """
+    # 准备数据
+    call_display = prepare_option_display_data(call_options, stock_price, 'call')
+    put_display = prepare_option_display_data(put_options, stock_price, 'put')
+    
+    # 创建两列布局显示数据
+    col_call, col_put = st.columns(2)
+    
+    with col_call:
+        display_option_table(call_display, "看涨期权", stock_price, 'call')
+    
+    with col_put:
+        display_option_table(put_display, "看跌期权", stock_price, 'put')
+
 def run():
     """
     期权报价页面
@@ -149,180 +317,8 @@ def run():
             put_options = df[df['type'] == OptionType.PUT].sort_values(
                 'strike_price', ascending=True).reset_index(drop=True)
 
-            # 设置列名映射
-            columns_map = {
-                'volume': '成交量',
-                'last_price': '最新价',
-                'bid_price': '买价',
-                'ask_price': '卖价',
-                'ask_vol': '卖量',
-                'bid_vol': '买量',
-                'strike_price': '行权价',
-                'code': '合约',
-                'open_interest': '未平仓数',
-                'implied_volatility': '隐波',
-                'delta': 'Delta',
-                'theta': 'Theta',
-                'vega': 'Vega',
-                'rho': 'Rho',
-                'gamma': 'Gamma'
-            }
-
-            # 准备看涨期权数据
-            call_display = call_options[[
-                'rho', 'vega', 'theta', 'gamma', 'delta', 'implied_volatility',
-                'volume', 'open_interest',
-                'ask_vol', 'ask_price', 'bid_vol', 'bid_price',
-                'last_price', 'strike_price'
-            ]].copy()
-            call_display.columns = [columns_map[col]
-                                    for col in call_display.columns]
-
-            # 准备看跌期权数据
-            put_display = put_options[[
-                'strike_price', 'last_price',
-                'bid_price', 'bid_vol', 'ask_price', 'ask_vol',
-                'open_interest', 'volume',
-                'implied_volatility', 'delta', 'gamma', 'theta', 'vega', 'rho',
-            ]].copy()
-            put_display.columns = [
-                '行权价', '最新价',
-                '买价', '买量', '卖价', '卖量',
-                '未平仓数', '成交量',
-                '隐波', 'Delta', 'Gamma', 'Theta', 'Vega', 'Rho',
-            ]
-
-            # 设置序号从1开始
-            call_display.index = range(1, len(call_display) + 1)
-            put_display.index = range(1, len(put_display) + 1)
-
-            # 添加序号列
-            call_display['序号'] = call_display.index
-            put_display['序号'] = put_display.index
-            
-            # 重新排列put_display的列，让序号在最前
-            put_cols = put_display.columns.tolist()
-            put_cols.remove('序号')
-            put_display = put_display[['序号'] + put_cols]
-
-            # 创建两列布局
-            col_call, col_put = st.columns(2)
-
-            # 定义样式函数
-            def highlight_options(row, stock_price, option_type):
-                if stock_price is None:
-                    return [''] * len(row)
-                strike = row['行权价']
-                if option_type == 'call':
-                    return ['background-color: #e6ffe6' if strike < stock_price else 'background-color: #ffe6e6' for _ in row]
-                else:  # put
-                    return ['background-color: #e6ffe6' if strike > stock_price else 'background-color: #ffe6e6' for _ in row]
-
-            with col_call:
-                st.subheader("看涨期权")
-                # Display data using AgGrid
-                gb = GridOptionsBuilder.from_dataframe(call_display)
-                
-                # 配置列宽和固定列
-                gb.configure_column("序号", width=60, pinned='right')
-                gb.configure_column("行权价", width=80)
-                gb.configure_column("Rho", width=70)
-                gb.configure_column("Vega", width=70)
-                gb.configure_column("Theta", width=70)
-                gb.configure_column("Gamma", width=70)
-                gb.configure_column("Delta", width=70)
-                gb.configure_column("隐波", width=70)
-                gb.configure_column("卖价", width=30)
-                gb.configure_column("卖量", width=30)
-                gb.configure_column("买价", width=30)
-                gb.configure_column("买量", width=30)
-                gb.configure_column("成交量", width=80)
-                gb.configure_column("未平仓数", width=50)
-                gb.configure_column("最新价", width=80)
-                
-                # 配置列对齐方式
-                gb.configure_default_column(
-                    resizable=True,
-                    sorteable=True,
-                    filterable=True,
-                    type=["numericColumn", "numberColumnFilter"],
-                    cellStyle={'text-align': 'right'}
-                )
-                
-                # 为整行添加条件样式
-                if stock_price:
-                    gb.configure_grid_options(
-                        getRowStyle=JsCode(f"""
-                        function(params) {{
-                            if (params.data['行权价'] < {stock_price}) {{
-                                return {{'backgroundColor': '#e6ffe6'}}; // 浅绿色
-                            }} else if (params.data['行权价'] > {stock_price}) {{
-                                return {{'backgroundColor': '#ffe6e6'}}; // 浅红色
-                            }}
-                            return {{'backgroundColor': '#ffffff'}}; // 相等时白色
-                        }}
-                        """))
-                
-                grid_options = gb.build()
-                AgGrid(call_display, 
-                        gridOptions=grid_options,
-                        height=600,
-                        width='100%',
-                        allow_unsafe_jscode=True,  # 允许使用JsCode
-                        fit_columns_on_grid_load=False)  # 禁用自动适应列宽
-
-            with col_put:
-                st.subheader("看跌期权")
-                # Display data using AgGrid
-                gb = GridOptionsBuilder.from_dataframe(put_display)
-                
-                # 配置列宽和固定列
-                gb.configure_column("序号", width=60, pinned='left')
-                gb.configure_column("行权价", width=60)
-                gb.configure_column("最新价", width=60)
-                gb.configure_column("买价", width=30)
-                gb.configure_column("买量", width=30)
-                gb.configure_column("卖价", width=30)
-                gb.configure_column("卖量", width=30)
-                gb.configure_column("未平仓数", width=50)
-                gb.configure_column("成交量", width=80)
-                gb.configure_column("隐波", width=70)
-                gb.configure_column("Delta", width=70)
-                gb.configure_column("Gamma", width=70)
-                gb.configure_column("Theta", width=70)
-                gb.configure_column("Vega", width=70)
-                gb.configure_column("Rho", width=70)
-                
-                # 配置列对齐方式
-                gb.configure_default_column(
-                    resizable=True,
-                    sorteable=True,
-                    filterable=True,
-                    type=["numericColumn", "numberColumnFilter"],
-                    cellStyle={'text-align': 'right'}
-                )
-                
-                # 为整行添加条件样式
-                if stock_price:
-                    gb.configure_grid_options(
-                        getRowStyle=JsCode(f"""
-                        function(params) {{
-                            if (params.data['行权价'] > {stock_price}) {{
-                                return {{'backgroundColor': '#e6ffe6'}}; // 浅绿色
-                            }} else if (params.data['行权价'] < {stock_price}) {{
-                                return {{'backgroundColor': '#ffe6e6'}}; // 浅红色
-                            }}
-                            return {{'backgroundColor': '#ffffff'}}; // 相等时白色
-                        }}
-                        """))
-                
-                grid_options = gb.build()
-                AgGrid(put_display, 
-                        gridOptions=grid_options,
-                        height=600,
-                        width='100%',
-                        allow_unsafe_jscode=True,  # 允许使用JsCode
-                        fit_columns_on_grid_load=False)  # 禁用自动适应列宽
+            # 显示期权链数据
+            display_option_chain(call_options, put_options, stock_price)
 
         except Exception as e:
             logger.exception(e)
