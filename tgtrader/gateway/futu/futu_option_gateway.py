@@ -158,7 +158,7 @@ class FutuOptionGateway:
                             option_strike_price=float(quote.get('option_strike_price', 0)),
                             option_contract_size=float(quote.get('option_contract_size', 0)),
                             option_open_interest=int(quote.get('option_open_interest', 0)),
-                            option_implied_volatility=float(quote.get('option_implied_volatility', 0)),
+                            option_implied_volatility=float(quote.get('option_implied_volatility', 0))/100,
                             option_premium=float(quote.get('option_premium', 0)),
                             option_delta=float(quote.get('option_delta', 0)),
                             option_gamma=float(quote.get('option_gamma', 0)),
@@ -233,7 +233,7 @@ class FutuOptionGateway:
                             open_interest=int(
                                 quote.get('option_open_interest', 0)),
                             implied_volatility=float(
-                                quote.get('option_implied_volatility', 0)),
+                                quote.get('option_implied_volatility', 0))/100,
                             premium=float(quote.get('option_premium', 0)),
                             delta=float(quote.get('option_delta', 0)),
                             gamma=float(quote.get('option_gamma', 0)),

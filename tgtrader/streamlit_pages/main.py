@@ -14,6 +14,7 @@ from tgtrader.streamlit_pages.pages.factors.factor_process import run as factor_
 from tgtrader.streamlit_pages.pages.ai.ai_flow import run as ai_flow_run
 from tgtrader.streamlit_pages.pages.ai.news_reader import run as news_reader_run
 from tgtrader.streamlit_pages.pages.tasks.task_mgr import run as task_mgr_run
+from tgtrader.streamlit_pages.pages.option.hk_option_quotes import run as hk_option_quotes_run
 
 
 def logout():
@@ -48,7 +49,12 @@ def run():
                                icon=':material/psychology:', url_path='ai_flow')
         news_reader_page = st.Page(news_reader_run, title='新闻阅读器',
                                icon=':material/psychology:', url_path='news_reader')
+        
         strategy_pages['AI'] = [ai_flow_page, news_reader_page]
+
+        option_quotes_page = st.Page(hk_option_quotes_run, title='港股期权行情',
+                                     icon=':material/psychology:', url_path='option_quotes')
+        strategy_pages['期权'] = [option_quotes_page]
 
         factor_process_page = st.Page(
             factor_process_run, title='因子加工', icon=':material/scatter_plot:', url_path='factor_process')
