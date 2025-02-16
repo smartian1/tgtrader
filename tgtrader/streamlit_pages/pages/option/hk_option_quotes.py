@@ -123,7 +123,7 @@ def run():
         try:
             expiry_dates = get_option_expiration_date(stock_code)
             st.session_state.expiry_dates = [
-                date.strike_time for date in expiry_dates]
+                date.strike_time for date in expiry_dates if date.option_expiry_date_distance > 0]
         except Exception as e:
             logger.exception(e)
             st.error(f"获取期权到期日失败: {str(e)}")
@@ -161,6 +161,8 @@ def run():
 
             # 显示期权链数据
             option_trades = display_option_chain(call_options, put_options, stock_price)
+
+            btn_submit_order = st.button("提交订单")
 
         except Exception as e:
             logger.exception(e)

@@ -342,6 +342,21 @@ def _show_selected_option(selected, option_type='call'):
                 'option_type': '看涨' if option_type == 'call' else '看跌',
                 'price': entered_price
             }
+
+            # 校验数量和价格
+            if new_trade['quantity'] <= 0:
+                st.warning("数量必须大于0")
+                return
+            if new_trade['price'] <= 0:
+                st.warning("价格必须大于0")
+                return
+            if (new_trade['price'] > (selected["卖价"] if selected["卖价"] > 0 else selected["最新价"]) * 2 and direction == "买入"):
+                st.warning("价格超过卖一价或最新价2倍，请检查")
+                return
+            if (new_trade['price'] < (selected["买价"] if selected["买价"] > 0 else selected["最新价"]) * 0.5 and direction == "卖出"):
+                st.warning("价格低于买一价或最新价0.5倍，请检查")
+                return
+
             if 'option_trades' not in st.session_state:
                 st.session_state.option_trades = []
             # 检查同一个code的，不能重复添加
