@@ -301,8 +301,12 @@ def _show_selected_option(selected, option_type='call'):
             }
             if 'option_trades' not in st.session_state:
                 st.session_state.option_trades = []
-            st.session_state.option_trades.append(new_trade)
-            st.success(f"已添加{direction} {quantity}张 行权价{selected['行权价']}的{'看涨' if option_type == 'call' else '看跌'}期权, 价格: {entered_price}")
+            # 检查同一个code的，不能重复添加
+            if not any(trade['option_info']['期权代码'] == selected['期权代码'] for trade in st.session_state.option_trades):
+                st.session_state.option_trades.append(new_trade)
+                st.success(f"已添加{direction} {quantity}张 行权价{selected['行权价']}的{'看涨' if option_type == 'call' else '看跌'}期权, 价格: {entered_price}")
+            else:
+                st.warning(f"已存在该期权的交易记录，不能重复添加")
 
 
 def _prepare_option_display_data(options_df, stock_price=None, option_type='call'):
