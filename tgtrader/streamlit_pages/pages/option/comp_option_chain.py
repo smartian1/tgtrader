@@ -2,6 +2,7 @@
 import streamlit as st
 from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
 from tgtrader.gateway.futu.defs import OptionType
+from loguru import logger
 
 
 def display_option_chain(call_options, put_options, stock_price=None):
@@ -13,21 +14,20 @@ def display_option_chain(call_options, put_options, stock_price=None):
         stock_price: Current stock price
     """
     # 准备数据
-    call_display = prepare_option_display_data(
-        call_options, stock_price, 'call')
-    put_display = prepare_option_display_data(put_options, stock_price, 'put')
+    call_display = _prepare_option_display_data(call_options, stock_price, 'call')
+    put_display = _prepare_option_display_data(put_options, stock_price, 'put')
 
     # 创建两列布局显示数据
     col_call, col_put = st.columns(2)
 
     with col_call:
-        display_option_table(call_display, "看涨期权", stock_price, 'call')
+        _display_option_table(call_display, "看涨期权", stock_price, 'call')
 
     with col_put:
-        display_option_table(put_display, "看跌期权", stock_price, 'put')
+        _display_option_table(put_display, "看跌期权", stock_price, 'put')
 
 
-def create_grid_options(df, stock_price=None, option_type='call'):
+def _create_grid_options(df, stock_price=None, option_type='call'):
     """
     创建AG Grid的配置选项
     Args:
@@ -41,22 +41,22 @@ def create_grid_options(df, stock_price=None, option_type='call'):
 
     # 配置基础列宽
     column_widths = {
-        "序号": 60,
+        "序号": 70,
         "行权价": 80,
         "最新价": 80,
-        "买价": 30,
-        "买量": 30,
-        "卖价": 30,
-        "卖量": 30,
+        "买价": 70,
+        "买量": 70,
+        "卖价": 70,
+        "卖量": 70,
         "成交量": 80,
-        "未平仓数": 50,
+        "未平仓数": 80,
         "内在价值": 100,
-        "隐波": 70,
-        "Delta": 70,
-        "Gamma": 70,
-        "Theta": 70,
-        "Vega": 70,
-        "Rho": 70
+        "隐波": 80,
+        "Delta": 80,
+        "Gamma": 80,
+        "Theta": 80,
+        "Vega": 80,
+        "Rho": 80
     }
 
     # 设置列宽和固定列
@@ -69,8 +69,8 @@ def create_grid_options(df, stock_price=None, option_type='call'):
     # 配置默认列属性
     gb.configure_default_column(
         resizable=True,
-        sorteable=True,
-        filterable=True,
+        sorteable=False,
+        filterable=False,
         type=["numericColumn", "numberColumnFilter"],
         cellStyle={'text-align': 'right'}
     )
@@ -96,7 +96,7 @@ def create_grid_options(df, stock_price=None, option_type='call'):
     return gb.build()
 
 
-def display_option_table(df, title, stock_price=None, option_type='call'):
+def _display_option_table(df, title, stock_price=None, option_type='call'):
     """
     显示期权数据表格
     Args:
@@ -106,7 +106,7 @@ def display_option_table(df, title, stock_price=None, option_type='call'):
         option_type: 'call' or 'put' to determine highlighting logic
     """
     st.subheader(title)
-    grid_options = create_grid_options(df, stock_price, option_type)
+    grid_options = _create_grid_options(df, stock_price, option_type)
     grid_response = AgGrid(df,
                            gridOptions=grid_options,
                            height=600,
@@ -119,7 +119,7 @@ def display_option_table(df, title, stock_price=None, option_type='call'):
     return selected
 
 
-def prepare_option_display_data(options_df, stock_price=None, option_type='call'):
+def _prepare_option_display_data(options_df, stock_price=None, option_type='call'):
     """
     准备期权显示数据
     Args:
