@@ -1,9 +1,10 @@
 # encoding: utf-8
 import streamlit as st
-from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
+from st_aggrid import AgGrid, GridOptionsBuilder, JsCode, GridUpdateMode
 from tgtrader.gateway.futu.defs import OptionType
 from loguru import logger
 import numpy as np
+import pandas as pd
 
 
 def display_option_chain(call_options, put_options, stock_price=None):
@@ -26,6 +27,9 @@ def display_option_chain(call_options, put_options, stock_price=None):
 
     with col_put:
         _display_option_table(put_display, "看跌期权", stock_price, 'put')
+
+    # 显示交易列表
+    _show_trade_list()
 
 
 def _create_grid_options(df, stock_price=None, option_type='call'):
@@ -96,6 +100,7 @@ def _create_grid_options(df, stock_price=None, option_type='call'):
 
     return gb.build()
 
+
 def _display_option_table(df, title, stock_price=None, option_type='call'):
     """
     显示期权数据表格
@@ -127,7 +132,99 @@ def _display_option_table(df, title, stock_price=None, option_type='call'):
 
         _show_selected_option(selected_option, option_type)
 
-    return selected
+
+def _show_trade_list():
+    """显示交易列表"""
+    if 'option_trades' not in st.session_state:
+        st.session_state.option_trades = []
+    
+    if st.session_state.option_trades:
+        st.markdown("### 交易列表")
+
+        # 准备表格数据
+        trades_data = []
+        valid_trades = []  # 用于存储有效的交易
+        for trade in st.session_state.option_trades:
+            try:
+                trades_data.append({
+                    '期权代码': trade['option_info']['期权代码'],
+                    '类型': trade['option_type'],
+                    '行权价': trade['option_info']['行权价'],
+                    '方向': trade['direction'],
+                    '数量': trade['quantity'],
+                    '价格': trade['price'],
+                    '隐波': f"{trade['option_info'].get('隐波', 0):.2%}",
+                    'Delta': f"{trade['option_info'].get('Delta', 0):.4f}",
+                    'Gamma': f"{trade['option_info'].get('Gamma', 0):.4f}",
+                    'Theta': f"{trade['option_info'].get('Theta', 0):.4f}",
+                    'Vega': f"{trade['option_info'].get('Vega', 0):.4f}"
+                })
+                valid_trades.append(trade)
+            except (KeyError, TypeError, IndexError):
+                # 如果交易数据无效，跳过这条记录
+                continue
+        
+        # 更新session_state中的交易列表，只保留有效的交易
+        st.session_state.option_trades = valid_trades
+        
+        if not trades_data:
+            return
+        
+        df = pd.DataFrame(trades_data)
+        
+        # 设置列的编辑属性
+        column_config = {
+            '期权代码': st.column_config.TextColumn(disabled=True),
+            '类型': st.column_config.TextColumn(disabled=True),
+            '行权价': st.column_config.NumberColumn(disabled=True),
+            '方向': st.column_config.SelectboxColumn(
+                options=['买入', '卖出'],
+                required=True
+            ),
+            '数量': st.column_config.NumberColumn(
+                min_value=1,
+                step=1,
+                required=True
+            ),
+            '价格': st.column_config.NumberColumn(
+                min_value=0.001,
+                step=0.001,
+                format="%.3f",
+                required=True
+            ),
+            '隐波': st.column_config.TextColumn(disabled=True),
+            'Delta': st.column_config.TextColumn(disabled=True),
+            'Gamma': st.column_config.TextColumn(disabled=True),
+            'Theta': st.column_config.TextColumn(disabled=True),
+            'Vega': st.column_config.TextColumn(disabled=True)
+        }
+        
+        # 使用data_editor显示和编辑数据
+        edited_df = st.data_editor(
+            df,
+            column_config=column_config,
+            height=300,
+            use_container_width=True,
+            disabled=["column_order", "filters", "adding_rows"]
+        )
+        
+        # 检查数据是否有更改
+        if not edited_df.equals(df):
+            # 更新交易列表中的数据
+            for i, row in edited_df.iterrows():
+                if i < len(st.session_state.option_trades):
+                    st.session_state.option_trades[i]['direction'] = row['方向']
+                    st.session_state.option_trades[i]['quantity'] = row['数量']
+                    st.session_state.option_trades[i]['price'] = row['价格']
+        
+        # 处理删除操作
+        if len(edited_df) != len(trades_data):
+            remaining_options = edited_df['期权代码'].tolist()
+            st.session_state.option_trades = [
+                trade for trade in st.session_state.option_trades 
+                if trade['option_info']['期权代码'] in remaining_options
+            ]
+
 
 def _show_selected_option(selected, option_type='call'):
     with st.container():
@@ -172,13 +269,40 @@ def _show_selected_option(selected, option_type='call'):
                 key=f"quantity_{option_type}"
             )
         with col5:
-            if st.button("添加", key=f"add_button_{option_type}"):
-                st.session_state[f'last_option_trade_{option_type}'] = {
-                    'option_info': selected,
-                    'direction': direction,
-                    'quantity': quantity
-                }
-                st.success(f"已添加{direction} {quantity}张 行权价{selected['行权价']}的{'看涨' if option_type == 'call' else '看跌'}期权")
+            # 价格来源选择
+            price_source = st.radio(
+                "价格来源",
+                options=["立即成交", "最新价"],
+                key=f"price_source_{option_type}",
+                horizontal=True
+            )
+            
+            if price_source == "立即成交":
+                # 根据方向自动选择买一/卖一价
+                entered_price = selected["卖价"] if direction == "买入" else selected["买价"]
+                st.write(f"使用{'卖' if direction == '买入' else '买'}一价: {entered_price}")
+            else:
+                # 允许用户手动输入价格，默认显示最新价
+                entered_price = st.number_input(
+                    "价格",
+                    value=selected["最新价"],
+                    key=f"price_{option_type}"
+                )
+
+        if st.button("添加", key=f"add_button_{option_type}"):
+            # 添加新交易到列表
+            new_trade = {
+                'option_info': selected,
+                'direction': direction,
+                'quantity': quantity,
+                'timestamp': pd.Timestamp.now(),
+                'option_type': '看涨' if option_type == 'call' else '看跌',
+                'price': entered_price
+            }
+            if 'option_trades' not in st.session_state:
+                st.session_state.option_trades = []
+            st.session_state.option_trades.append(new_trade)
+            st.success(f"已添加{direction} {quantity}张 行权价{selected['行权价']}的{'看涨' if option_type == 'call' else '看跌'}期权, 价格: {entered_price}")
 
 
 def _prepare_option_display_data(options_df, stock_price=None, option_type='call'):
