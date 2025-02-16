@@ -131,8 +131,8 @@ def _display_option_table(df, title, stock_price=None, option_type='call'):
 
 def _show_selected_option(selected, option_type='call'):
     with st.container():
-        st.markdown("### 期权信息")
-        col1, col2 = st.columns(2)
+        st.markdown(f"### 序号{selected['序号']}【{selected['期权代码']}】")
+        col1, col2, col3 = st.columns(3)
         with col1:
             st.write(f"行权价: {selected['行权价']}")
             st.write(f"最新价: {selected['最新价']}")
@@ -143,9 +143,18 @@ def _show_selected_option(selected, option_type='call'):
             st.write(f"未平仓: {selected['未平仓数']}")
             if '隐波' in selected:
                 st.write(f"隐含波动率: {selected['隐波']:.2%}")
+        with col3:
             if 'Delta' in selected:
                 st.write(f"Delta: {selected['Delta']:.4f}")
-        
+            if 'Gamma' in selected:
+                st.write(f"Gamma: {selected['Gamma']:.4f}")
+            if 'Theta' in selected:
+                st.write(f"Theta: {selected['Theta']:.4f}")
+            if 'Vega' in selected:
+                st.write(f"Vega: {selected['Vega']:.4f}")
+            if 'Rho' in selected:
+                st.write(f"Rho: {selected['Rho']:.4f}")
+
         # 交易操作界面
         col3, col4, col5 = st.columns([1, 1, 1])
         with col3:
