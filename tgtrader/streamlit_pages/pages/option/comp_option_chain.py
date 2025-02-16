@@ -115,7 +115,7 @@ def _display_option_table(df, title, stock_price=None, option_type='call'):
     grid_options = _create_grid_options(df, stock_price, option_type)
     grid_response = AgGrid(df,
                            gridOptions=grid_options,
-                           height=600,
+                           height=500,
                            width='100%',
                            allow_unsafe_jscode=True,
                            fit_columns_on_grid_load=False,
