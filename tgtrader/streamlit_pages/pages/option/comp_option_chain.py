@@ -149,7 +149,7 @@ def _prepare_option_display_data(options_df, stock_price=None, option_type='call
     display_df = options_df[[
         'strike_price', 'last_price', 'bid_price', 'bid_vol',
         'ask_price', 'ask_vol', 'open_interest', 'volume',
-        'implied_volatility', 'delta', 'gamma', 'theta', 'vega', 'rho'
+        'implied_volatility', 'delta', 'gamma', 'theta', 'vega', 'rho', 'code'
     ]].copy()
 
     # 计算内在价值
@@ -180,14 +180,15 @@ def _prepare_option_display_data(options_df, stock_price=None, option_type='call
         'gamma': 'Gamma',
         'theta': 'Theta',
         'vega': 'Vega',
-        'rho': 'Rho'
+        'rho': 'Rho',
+        'code': '期权代码'
     }
     display_df.rename(columns=chinese_columns, inplace=True)
 
     # 定义基础列顺序
     base_columns = ['序号', '行权价', '最新价', '内在价值', '买价', '买量',
                     '卖价', '卖量', '未平仓数', '成交量', '隐波',
-                    'Delta', 'Gamma', 'Theta', 'Vega', 'Rho']
+                    'Delta', 'Gamma', 'Theta', 'Vega', 'Rho', '期权代码']
 
     # 如果是看涨期权，反转除序号外的列顺序
     if option_type == 'call':
