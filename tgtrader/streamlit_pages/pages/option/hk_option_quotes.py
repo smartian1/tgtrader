@@ -7,6 +7,7 @@ from loguru import logger
 from tgtrader.streamlit_pages.pages.option.comp_option_chain import display_option_chain
 
 
+@st.cache_data(ttl=5)
 def get_option_expiration_date(stock_code: str):
     with FutuOptionGateway() as option_gateway:
         expiry_dates = option_gateway.get_option_expiration_date(
@@ -15,6 +16,7 @@ def get_option_expiration_date(stock_code: str):
     return expiry_dates
 
 
+@st.cache_data(ttl=5)
 def get_option_chain(stock_code: str, expiry_date: str):
     # 初始化FUTU期权网关
     with FutuOptionGateway() as option_gateway:
@@ -62,6 +64,7 @@ def get_option_chain(stock_code: str, expiry_date: str):
         return df
 
 
+@st.cache_data(ttl=5)
 def get_stock_price(stock_code: str):
     # 获取股票最新价格
     with FutuStockGateway() as stock_gateway:
