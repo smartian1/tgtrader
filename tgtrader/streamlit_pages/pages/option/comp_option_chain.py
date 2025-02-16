@@ -247,7 +247,8 @@ def _show_trade_list():
             column_config=column_config,
             height=300,
             use_container_width=True,
-            disabled=["column_order", "filters", "adding_rows"]
+            disabled=["adding_rows", "column_order", "filters"],
+            num_rows="dynamic"
         )
         
         # 检查数据是否有更改

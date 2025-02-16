@@ -161,7 +161,6 @@ def run():
 
             # 显示期权链数据
             option_trades = display_option_chain(call_options, put_options, stock_price)
-            logger.debug(option_trades)
 
         except Exception as e:
             logger.exception(e)
