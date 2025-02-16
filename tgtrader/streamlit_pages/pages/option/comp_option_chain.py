@@ -3,6 +3,7 @@ import streamlit as st
 from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
 from tgtrader.gateway.futu.defs import OptionType
 from loguru import logger
+import numpy as np
 
 
 def display_option_chain(call_options, put_options, stock_price=None):
@@ -95,7 +96,6 @@ def _create_grid_options(df, stock_price=None, option_type='call'):
 
     return gb.build()
 
-
 def _display_option_table(df, title, stock_price=None, option_type='call'):
     """
     显示期权数据表格
@@ -106,6 +106,7 @@ def _display_option_table(df, title, stock_price=None, option_type='call'):
         option_type: 'call' or 'put' to determine highlighting logic
     """
     st.subheader(title)
+
     grid_options = _create_grid_options(df, stock_price, option_type)
     grid_response = AgGrid(df,
                            gridOptions=grid_options,
@@ -116,7 +117,59 @@ def _display_option_table(df, title, stock_price=None, option_type='call'):
                            key=f"option_grid_{option_type}")
 
     selected = grid_response['selected_rows']
+
+    # 显示选中行的期权信息和交易操作界面
+    if selected is not None and len(selected) > 0:
+        selected_option = selected.iloc[0]
+
+        # 根据选中的code，从df里查询当前最新信息并更新
+        selected_option = df[df['期权代码'] == selected_option['期权代码']].iloc[0]
+
+        _show_selected_option(selected_option, option_type)
+
     return selected
+
+def _show_selected_option(selected, option_type='call'):
+    with st.container():
+        st.markdown("### 期权信息")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write(f"行权价: {selected['行权价']}")
+            st.write(f"最新价: {selected['最新价']}")
+            st.write(f"买价: {selected['买价']}")
+            st.write(f"卖价: {selected['卖价']}")
+        with col2:
+            st.write(f"成交量: {selected['成交量']}")
+            st.write(f"未平仓: {selected['未平仓数']}")
+            if '隐波' in selected:
+                st.write(f"隐含波动率: {selected['隐波']:.2%}")
+            if 'Delta' in selected:
+                st.write(f"Delta: {selected['Delta']:.4f}")
+        
+        # 交易操作界面
+        col3, col4, col5 = st.columns([1, 1, 1])
+        with col3:
+            direction = st.selectbox(
+                "交易方向",
+                options=["买入", "卖出"],
+                key=f"direction_{option_type}"
+            )
+        with col4:
+            quantity = st.number_input(
+                "数量",
+                min_value=1,
+                value=1,
+                step=1,
+                key=f"quantity_{option_type}"
+            )
+        with col5:
+            if st.button("添加", key=f"add_button_{option_type}"):
+                st.session_state[f'last_option_trade_{option_type}'] = {
+                    'option_info': selected,
+                    'direction': direction,
+                    'quantity': quantity
+                }
+                st.success(f"已添加{direction} {quantity}张 行权价{selected['行权价']}的{'看涨' if option_type == 'call' else '看跌'}期权")
 
 
 def _prepare_option_display_data(options_df, stock_price=None, option_type='call'):
