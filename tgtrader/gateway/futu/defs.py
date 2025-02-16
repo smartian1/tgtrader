@@ -377,3 +377,148 @@ class OptionChainItem:
     suspension: bool
     stock_id: int
     index_option_type: Optional[IndexOptionType] = None
+
+class TradeEnv(enum.Enum):
+    """交易环境"""
+    SIMULATE = 'SIMULATE'  # 模拟环境
+    REAL = 'REAL'  # 真实环境
+
+class TradeAccType(enum.Enum):
+    """交易账户类型"""
+    NONE = 'NONE'  # 未知类型
+    CASH = 'CASH'  # 现金账户
+    MARGIN = 'MARGIN'  # 保证金账户
+
+class SimAccountType(enum.Enum):
+    """模拟账户类型"""
+    NONE = 'NONE'  # 未知类型
+    STOCK = 'STOCK'  # 股票模拟账户
+    OPTION = 'OPTION'  # 期权模拟账户
+    FUTURES = 'FUTURES'  # 期货模拟账户
+
+class TradeMarket(enum.Enum):
+    """交易市场"""
+    NONE = 'NONE'  # 未知市场
+    HK = 'HK'  # 香港市场
+    US = 'US'  # 美国市场
+    CNA = 'CNA'  # A股市场
+    HKCC = 'HKCC'  # 香港 A 股通市场
+    FUTURES = 'FUTURES'  # 期货市场
+    FUTURES_SIMULATE_US = 'FUTURES_SIMULATE_US'  # 美国期货模拟市场
+    FUTURES_SIMULATE_HK = 'FUTURES_SIMULATE_HK'  # 香港期货模拟市场
+    FUTURES_SIMULATE_SG = 'FUTURES_SIMULATE_SG'  # 新加坡期货模拟市场
+    FUTURES_SIMULATE_JP = 'FUTURES_SIMULATE_JP'  # 日本期货模拟市场
+    HKFUND = 'HKFUND'  # 香港基金市场
+    USFUND = 'USFUND'  # 美国基金市场
+    SG = 'SG'  # 新加坡市场
+    JP = 'JP'  # 日本市场
+    AU = 'AU'  # 澳大利亚市场
+    MY = 'MY'  # 马来西亚市场
+    CA = 'CA'  # 加拿大市场
+
+class AccoutStatus(enum.Enum):
+    """账户状态"""
+    ACTIVE = 'ACTIVE'  # 生效账户
+    DISABLED = 'DISABLED'  # 失效账户
+
+@dataclass
+class AccountInfo:
+    """交易业务账户信息"""
+    acc_id: int  # 交易业务账户
+    trd_env: TradeEnv  # 交易环境
+    acc_type: TradeAccType  # 账户类型
+    uni_card_num: str  # 综合账户卡号，同移动端内的展示
+    card_num: str  # 业务账户卡号
+    security_firm: str  # 所属券商
+    sim_acc_type: SimAccountType  # 模拟账户类型
+    trdmarket_authlist: List[TradeMarket]  # 交易市场权限
+    acc_status: AccoutStatus  # 账户状态
+
+class CurrencyType(enum.Enum):
+    """货币类型"""
+    NONE = 'NONE'  # 未知货币
+    HKD = 'HKD'  # 港元
+    USD = 'USD'  # 美元
+    CNH = 'CNH'  # 离岸人民币
+    JPY = 'JPY'  # 日元
+    SGD = 'SGD'  # 新元
+    AUD = 'AUD'  # 澳元
+    CAD = 'CAD'  # 加拿大元
+    MYR = 'MYR'  # 马来西亚林吉特
+
+class AccountRiskLevel(enum.Enum):
+    """客户风险等级"""
+    NONE = 'NONE'  # 未知
+    SAFE = 'SAFE'  # 安全
+    WARNING = 'WARNING'  # 预警
+    DANGER = 'DANGER'  # 危险
+    ABSOLUTE_SAFE = 'ABSOLUTE_SAFE'  # 绝对安全
+    OPT_DANGER = 'OPT_DANGER'  # 危险
+
+class AccountRiskStatus(enum.Enum):
+    """客户风险状态"""
+    NONE = 'NONE'  # 未知
+    LEVEL1 = 'LEVEL1'  # 非常安全
+    LEVEL2 = 'LEVEL2'  # 安全
+    LEVEL3 = 'LEVEL3'  # 较安全
+    LEVEL4 = 'LEVEL4'  # 较低风险
+    LEVEL5 = 'LEVEL5'  # 中等风险
+    LEVEL6 = 'LEVEL6'  # 偏高风险
+    LEVEL7 = 'LEVEL7'  # 预警
+    LEVEL8 = 'LEVEL8'  # 危险
+    LEVEL9 = 'LEVEL9'  # 危险
+
+class DtStatus(enum.Enum):
+    """动态调整状态"""
+    NONE = 'NONE'  # 未知
+    UNLIMITED = 'UNLIMITED'  # 无限次
+    EM_CALL = 'EM_CALL'  # EM-Call
+    DT_CALL = 'DT_CALL'  # DT-Call
+
+
+@dataclass
+class AccountCashInfo:
+    """资金信息"""
+    power: float  # 最大购买力
+    max_power_short: float  # 卖空购买力
+    net_cash_power: float  # 现金购买力
+    total_assets: float  # 总资产净值
+    securities_assets: float  # 证券资产净值
+    funds_assets: float  # 基金资产净值
+    bonds_assets: float  # 债券资产净值
+    cash: float  # 现金
+    market_val: float  # 证券市值
+    long_mv: float  # 多头市值
+    short_mv: float  # 空头市值
+    pending_asset: float  # 在途资产
+    interest_charged_amount: float  # 计息金额
+    frozen_cash: float  # 冻结资金
+    avl_withdrawal_cash: float  # 现金可提
+    max_withdrawal: float  # 最大可提
+    currency: CurrencyType  # 计价货币
+    available_funds: float  # 可用资金
+    unrealized_pl: float  # 未实现盈亏
+    realized_pl: float  # 已实现盈亏
+    risk_level: AccountRiskLevel  # 风控状态
+    risk_status: AccountRiskStatus  # 风险状态
+    initial_margin: float  # 初始保证金
+    margin_call_margin: float  # Margin Call 保证金
+    maintenance_margin: float  # 维持保证金
+    hk_cash: float  # 港元现金
+    hk_avl_withdrawal_cash: float  # 港元可提
+    hkd_net_cash_power: float  # 港元现金购买力
+    hkd_assets: float  # 港股资产净值
+    us_cash: float  # 美元现金
+    us_avl_withdrawal_cash: float  # 美元可提
+    usd_net_cash_power: float  # 美元现金购买力
+    usd_assets: float  # 美股资产净值
+    cn_cash: float  # 人民币现金
+    cn_avl_withdrawal_cash: float  # 人民币可提
+    cnh_net_cash_power: float  # 人民币现金购买力
+    cnh_assets: float  # A股资产净值
+    is_pdt: bool  # 是否为 PDT 账户
+    pdt_seq: str  # 剩余日内交易次数
+    beginning_dtbp: float  # 初始日内交易购买力
+    remaining_dtbp: float  # 剩余日内交易购买力
+    dt_call_amount: float  # 日内交易待缴金额
+    dt_status: DtStatus  # 日内交易限制情况
