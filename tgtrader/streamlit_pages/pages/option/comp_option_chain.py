@@ -168,9 +168,11 @@ def _display_option_table(df, title, stock_price=None, option_type='call'):
         selected_option = selected.iloc[0]
 
         # 根据选中的code，从df里查询当前最新信息并更新
-        selected_option = df[df['期权代码'] == selected_option['期权代码']].iloc[0]
+        selected_option = df[df['期权代码'] == selected_option['期权代码']]
 
-        _show_selected_option(selected_option, option_type)
+        if selected_option is not None and len(selected_option) > 0:
+            selected_option = selected_option.iloc[0]
+            _show_selected_option(selected_option, option_type)
 
 
 def _show_trade_list():
