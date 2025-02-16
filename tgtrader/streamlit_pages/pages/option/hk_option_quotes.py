@@ -160,7 +160,8 @@ def run():
                 'strike_price', ascending=True).reset_index(drop=True)
 
             # 显示期权链数据
-            display_option_chain(call_options, put_options, stock_price)
+            option_trades = display_option_chain(call_options, put_options, stock_price)
+            logger.debug(option_trades)
 
         except Exception as e:
             logger.exception(e)

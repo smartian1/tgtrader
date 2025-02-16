@@ -1,11 +1,28 @@
 # encoding: utf-8
+from dataclasses import dataclass
 import streamlit as st
 from st_aggrid import AgGrid, GridOptionsBuilder, JsCode, GridUpdateMode
 from tgtrader.gateway.futu.defs import OptionType
 from loguru import logger
 import numpy as np
 import pandas as pd
+import enum
 
+class OptionTradeDirection(enum.Enum):
+    BUY = '买入'
+    SELL = '卖出'
+
+class OptionType(enum.Enum):
+    CALL = '看涨'
+    PUT = '看跌'
+
+@dataclass
+class OptionTrade:
+    direction: OptionTradeDirection
+    quantity: int
+    timestamp: str
+    option_type: OptionType
+    price: float
 
 def display_option_chain(call_options, put_options, stock_price=None):
     """
@@ -14,6 +31,15 @@ def display_option_chain(call_options, put_options, stock_price=None):
         call_options: DataFrame containing call options
         put_options: DataFrame containing put options
         stock_price: Current stock price
+
+    Returns:
+        List of option trades, each containing the following information:
+
+        - direction (str): 买入/卖出
+        - quantity (int): Number of contracts
+        - timestamp (str): Timestamp when the trade was executed
+        - option_type (str): 看涨/看跌
+        - price (float): Execution price
     """
     # 准备数据
     call_display = _prepare_option_display_data(call_options, stock_price, 'call')
@@ -30,6 +56,20 @@ def display_option_chain(call_options, put_options, stock_price=None):
 
     # 显示交易列表
     _show_trade_list()
+
+    if 'option_trades' in st.session_state:
+        return [
+            OptionTrade(
+                direction=OptionTradeDirection(trade['direction']),
+                quantity=trade['quantity'],
+                timestamp=trade['timestamp'],
+                option_type=OptionType(trade['option_type']),
+                price=trade['price']
+            )
+            for trade in st.session_state.option_trades
+        ]
+    else:
+        return []
 
 
 def _create_grid_options(df, stock_price=None, option_type='call'):
