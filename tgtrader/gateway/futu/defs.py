@@ -378,25 +378,25 @@ class OptionChainItem:
     stock_id: int
     index_option_type: Optional[IndexOptionType] = None
 
-class TradeEnv(enum.Enum):
+class TradeEnv(Enum):
     """交易环境"""
     SIMULATE = 'SIMULATE'  # 模拟环境
     REAL = 'REAL'  # 真实环境
 
-class TradeAccType(enum.Enum):
+class TradeAccType(Enum):
     """交易账户类型"""
     NONE = 'NONE'  # 未知类型
     CASH = 'CASH'  # 现金账户
     MARGIN = 'MARGIN'  # 保证金账户
 
-class SimAccountType(enum.Enum):
+class SimAccountType(Enum):
     """模拟账户类型"""
-    NONE = 'NONE'  # 未知类型
+    NONE = 'N/A'  # 未知类型
     STOCK = 'STOCK'  # 股票模拟账户
     OPTION = 'OPTION'  # 期权模拟账户
     FUTURES = 'FUTURES'  # 期货模拟账户
 
-class TradeMarket(enum.Enum):
+class TradeMarket(Enum):
     """交易市场"""
     NONE = 'NONE'  # 未知市场
     HK = 'HK'  # 香港市场
@@ -416,7 +416,7 @@ class TradeMarket(enum.Enum):
     MY = 'MY'  # 马来西亚市场
     CA = 'CA'  # 加拿大市场
 
-class AccoutStatus(enum.Enum):
+class AccoutStatus(Enum):
     """账户状态"""
     ACTIVE = 'ACTIVE'  # 生效账户
     DISABLED = 'DISABLED'  # 失效账户
@@ -434,7 +434,7 @@ class AccountInfo:
     trdmarket_authlist: List[TradeMarket]  # 交易市场权限
     acc_status: AccoutStatus  # 账户状态
 
-class CurrencyType(enum.Enum):
+class CurrencyType(Enum):
     """货币类型"""
     NONE = 'NONE'  # 未知货币
     HKD = 'HKD'  # 港元
@@ -446,16 +446,16 @@ class CurrencyType(enum.Enum):
     CAD = 'CAD'  # 加拿大元
     MYR = 'MYR'  # 马来西亚林吉特
 
-class AccountRiskLevel(enum.Enum):
+class AccountRiskLevel(Enum):
     """客户风险等级"""
-    NONE = 'NONE'  # 未知
+    NONE = 'N/A'  # 未知
     SAFE = 'SAFE'  # 安全
     WARNING = 'WARNING'  # 预警
     DANGER = 'DANGER'  # 危险
     ABSOLUTE_SAFE = 'ABSOLUTE_SAFE'  # 绝对安全
     OPT_DANGER = 'OPT_DANGER'  # 危险
 
-class AccountRiskStatus(enum.Enum):
+class AccountRiskStatus(Enum):
     """客户风险状态"""
     NONE = 'NONE'  # 未知
     LEVEL1 = 'LEVEL1'  # 非常安全
@@ -468,9 +468,9 @@ class AccountRiskStatus(enum.Enum):
     LEVEL8 = 'LEVEL8'  # 危险
     LEVEL9 = 'LEVEL9'  # 危险
 
-class DtStatus(enum.Enum):
+class DtStatus(Enum):
     """动态调整状态"""
-    NONE = 'NONE'  # 未知
+    NONE = 'N/A'  # 未知
     UNLIMITED = 'UNLIMITED'  # 无限次
     EM_CALL = 'EM_CALL'  # EM-Call
     DT_CALL = 'DT_CALL'  # DT-Call

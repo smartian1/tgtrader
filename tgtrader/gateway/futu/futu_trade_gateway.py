@@ -2,10 +2,12 @@
 
 from dataclasses import dataclass
 from typing import List, Dict, Tuple, Optional, Callable
-from futu import *
+import futu as ft
+from futu import RET_OK
 from tgtrader.gateway.futu.defs import AccountInfo, TradeEnv, \
     AccoutStatus, TradeAccType, SimAccountType, AccountCashInfo, \
-        CurrencyType, AccountRiskLevel, AccountRiskStatus, DtStatus
+        CurrencyType, AccountRiskLevel, AccountRiskStatus, DtStatus, \
+            TradeMarket
 from loguru import logger
 
 @dataclass
@@ -43,7 +45,7 @@ class FutuTradeGateway:
         """
         self.close()
 
-    def get_account_list(self) -> List[AccountInfo]:
+    def get_account_list(self, trd_env: TradeEnv=None) -> List[AccountInfo]:
         """获取账户列表
         
         Returns:
@@ -57,6 +59,9 @@ class FutuTradeGateway:
         for _, row in data.iterrows():
             acc_status = AccoutStatus(row['acc_status'])
             if acc_status != AccoutStatus.ACTIVE:
+                continue
+
+            if trd_env and trd_env != TradeEnv(row['trd_env']):
                 continue
 
             result.append(AccountInfo(
@@ -86,26 +91,14 @@ class FutuTradeGateway:
 
         return True
 
-    def query_account_info(self, acc_id: int) -> AccountInfo:
-        """查询账户信息
+    def get_account_cash_info_list(self, acc_id: int) -> AccountInfo:
+        """查询账户资金信息
         
         Args:
             acc_id: 账户ID
         """
-        ret, data = self.conn.accinfo_query(acc_id=acc_id, refresh_cache=False, currency=Currency.HKD)
-        if ret != RET_OK:
-            raise Exception(f"查询账户信息失败: {data}")
-        
-    def get_account_cash_info_list(self, acc_id: int) -> List[AccountCashInfo]:
-        """获取账户资金信息列表
-        
-        Args:
-            acc_id: 账户ID
-            
-        Returns:
-            List[AccountCashInfo]: 账户资金信息列表
-        """
-        ret, data = self.conn.accinfo_query(acc_id=acc_id, refresh_cache=True)
+        ret, data = self.conn.accinfo_query(acc_id=acc_id, refresh_cache=False, currency=ft.Currency.HKD)
+    
         if ret != RET_OK:
             raise Exception(f"获取账户资金信息失败: {data}")
         
@@ -117,8 +110,8 @@ class FutuTradeGateway:
                 net_cash_power=row['net_cash_power'],
                 total_assets=row['total_assets'],
                 securities_assets=row['securities_assets'],
-                funds_assets=row['funds_assets'],
-                bonds_assets=row['bonds_assets'],
+                funds_assets=row['fund_assets'],
+                bonds_assets=row['bond_assets'],
                 cash=row['cash'],
                 market_val=row['market_val'],
                 long_mv=row['long_mv'],
