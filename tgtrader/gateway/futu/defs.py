@@ -522,3 +522,224 @@ class AccountCashInfo:
     remaining_dtbp: float  # 剩余日内交易购买力
     dt_call_amount: float  # 日内交易待缴金额
     dt_status: DtStatus  # 日内交易限制情况
+
+
+class PositionSide(Enum):
+    """持仓方向枚举"""
+    NONE = "N/A"  # 未知
+    LONG = "LONG"  # 多仓
+    SHORT = "SHORT"  # 空仓
+
+
+@dataclass
+class PositionInfo:
+    """持仓信息数据类
+    
+    包含股票、期货等金融产品的持仓详细信息，包括持仓数量、成本、盈亏等数据
+    """
+    position_side: PositionSide  # 持仓方向
+    code: str  # 股票代码
+    stock_name: str  # 股票名称
+    position_market: TradeMarket  # 持仓所属市场
+    qty: float  # 持有数量
+    can_sell_qty: float  # 可用数量
+    currency: CurrencyType  # 交易货币
+    nominal_price: float  # 市价
+    cost_price: float  # 摊薄成本价（证券账户）或平均开仓价（期货账户）
+    cost_price_valid: bool  # 成本价是否有效
+    market_val: float  # 市值
+    pl_ratio: float  # 盈亏比例
+    pl_ratio_valid: bool  # 盈亏比例是否有效
+    pl_val: float  # 盈亏金额
+    pl_val_valid: bool  # 盈亏金额是否有效
+    today_pl_val: float  # 今日盈亏金额
+    today_trd_val: float  # 今日交易金额
+    today_buy_qty: float  # 今日买入总量
+    today_buy_val: float  # 今日买入总额
+    today_sell_qty: float  # 今日卖出总量
+    today_sell_val: float  # 今日卖出总额
+    unrealized_pl: float  # 未实现盈亏
+    realized_pl: float  # 已实现盈亏
+
+class TrdSide(Enum):
+    """交易方向枚举
+    
+    描述交易订单的买卖方向
+    """
+    NONE = "N/A"  # 未知方向
+    BUY = "BUY"  # 买入
+    SELL = "SELL"  # 卖出
+    SELL_SHORT = "SELL_SHORT"  # 卖空
+    BUY_BACK = "BUY_BACK"  # 买回
+
+    def get_numeric_value(self) -> int:
+        TrdSide_Unknown = 0
+        TrdSide_Buy = 1
+        TrdSide_Sell = 2
+        TrdSide_SellShort = 3
+        TrdSide_BuyBack = 4
+
+        if self == TrdSide.NONE:
+            return TrdSide_Unknown
+        elif self == TrdSide.BUY:
+            return TrdSide_Buy
+        elif self == TrdSide.SELL:
+            return TrdSide_Sell
+        elif self == TrdSide.SELL_SHORT:
+            return TrdSide_SellShort
+        elif self == TrdSide.BUY_BACK:
+            return TrdSide_BuyBack
+        else:
+            raise ValueError(f"Invalid TrdSide value: {self}")
+
+
+
+class OrderType(Enum):
+    """订单类型枚举
+    
+    描述不同类型的交易订单，包括限价单、市价单等
+    """
+    NONE = "N/A"  # 未知类型
+    NORMAL = "NORMAL"  # 限价单
+    MARKET = "MARKET"  # 市价单
+    ABSOLUTE_LIMIT = "ABSOLUTE_LIMIT"  # 绝对限价订单
+    AUCTION = "AUCTION"  # 竞价市价单
+    AUCTION_LIMIT = "AUCTION_LIMIT"  # 竞价限价单
+    SPECIAL_LIMIT = "SPECIAL_LIMIT"  # 特别限价单
+    SPECIAL_LIMIT_ALL = "SPECIAL_LIMIT_ALL"  # 特别限价且要求全部成交订单
+    STOP = "STOP"  # 止损市价单
+    STOP_LIMIT = "STOP_LIMIT"  # 止损限价单
+    MARKET_IF_TOUCHED = "MARKET_IF_TOUCHED"  # 触及市价单（止盈）
+    LIMIT_IF_TOUCHED = "LIMIT_IF_TOUCHED"  # 触及限价单（止盈）
+    TRAILING_STOP = "TRAILING_STOP"  # 跟踪止损市价单
+    TRAILING_STOP_LIMIT = "TRAILING_STOP_LIMIT"  # 跟踪止损限价单
+    TWAP_LIMIT = "TWAP_LIMIT"  # 时间加权限价算法单（港股和美股）
+    TWAP = "TWAP"  # 时间加权市价算法单（仅美股）
+    VWAP_LIMIT = "VWAP_LIMIT"  # 成交量加权限价算法单（港股和美股）
+    VWAP = "VWAP"  # 成交量加权市价算法单（仅美股）
+
+    def get_numeric_value(self) -> int:
+        OrderType_Unknown = 0
+        OrderType_Normal = 1
+        OrderType_Market = 2
+        OrderType_AbsoluteLimit = 5
+        OrderType_Auction = 6
+        OrderType_AuctionLimit = 7
+        OrderType_SpecialLimit = 8
+        OrderType_SpecialLimit_All = 9
+        OrderType_Stop = 10
+        OrderType_StopLimit = 11
+        OrderType_MarketifTouched = 12
+        OrderType_LimitifTouched = 13
+        OrderType_TrailingStop = 14
+        OrderType_TrailingStopLimit = 15
+        OrderType_TWAP = 16
+        OrderType_TWAPLimit = 17
+        OrderType_VWAP = 18
+        OrderType_VWAPLimit = 19
+
+        if self == OrderType.NONE:
+            return OrderType_Unknown
+        elif self == OrderType.NORMAL:
+            return OrderType_Normal
+        elif self == OrderType.MARKET:
+            return OrderType_Market
+        elif self == OrderType.ABSOLUTE_LIMIT:
+            return OrderType_AbsoluteLimit
+        elif self == OrderType.AUCTION:
+            return OrderType_Auction
+        elif self == OrderType.AUCTION_LIMIT:
+            return OrderType_AuctionLimit
+        elif self == OrderType.SPECIAL_LIMIT:
+            return OrderType_SpecialLimit
+        elif self == OrderType.SPECIAL_LIMIT_ALL:
+            return OrderType_SpecialLimit_All
+        elif self == OrderType.STOP:
+            return OrderType_Stop
+        elif self == OrderType.STOP_LIMIT:
+            return OrderType_StopLimit
+        elif self == OrderType.MARKET_IF_TOUCHED:
+            return OrderType_MarketifTouched
+        elif self == OrderType.LIMIT_IF_TOUCHED:
+            return OrderType_LimitifTouched
+        elif self == OrderType.TRAILING_STOP:
+            return OrderType_TrailingStop
+        elif self == OrderType.TRAILING_STOP_LIMIT:
+            return OrderType_TrailingStopLimit
+        elif self == OrderType.TWAP_LIMIT:
+            return OrderType_TWAPLimit
+        elif self == OrderType.TWAP:
+            return OrderType_TWAP
+        elif self == OrderType.VWAP_LIMIT:
+            return OrderType_VWAPLimit
+        elif self == OrderType.VWAP:
+            return OrderType_VWAP
+        else:
+            raise ValueError(f"Invalid OrderType value: {self}")
+
+
+class OrderStatus(Enum):
+    """订单状态枚举
+    
+    描述订单在不同阶段的状态
+    """
+    NONE = "N/A"  # 未知状态
+    WAITING_SUBMIT = "WAITING_SUBMIT"  # 待提交
+    SUBMITTING = "SUBMITTING"  # 提交中
+    SUBMITTED = "SUBMITTED"  # 已提交，等待成交
+    FILLED_PART = "FILLED_PART"  # 部分成交
+    FILLED_ALL = "FILLED_ALL"  # 全部已成交
+    CANCELLED_PART = "CANCELLED_PART"  # 部分成交，剩余部分已撤单
+    CANCELLED_ALL = "CANCELLED_ALL"  # 全部已撤单，无成交
+    FAILED = "FAILED"  # 下单失败，服务拒绝
+    DISABLED = "DISABLED"  # 已失效
+    DELETED = "DELETED"  # 已删除，无成交的订单才能删除
+
+
+class TimeInForce(Enum):
+    """订单有效期限枚举
+    
+    描述订单的有效期限类型
+    """
+    DAY = "DAY"  # 当日有效
+    GTC = "GTC"  # 撤单前有效
+
+
+class TrailType(Enum):
+    """跟踪类型枚举
+    
+    描述跟踪止损订单的跟踪方式
+    """
+    NONE = "N/A"  # 未知
+    RATIO = "RATIO"  # 比例
+    AMOUNT = "AMOUNT"  # 金额
+
+
+@dataclass
+class OrderInfo:
+    """历史订单信息数据类
+    
+    包含历史订单的详细信息，包括订单类型、状态、价格、数量等数据
+    """
+    trd_side: TrdSide  # 交易方向
+    order_type: OrderType  # 订单类型
+    order_status: OrderStatus  # 订单状态
+    order_id: str  # 订单号
+    code: str  # 股票代码
+    stock_name: str  # 股票名称
+    order_market: TradeMarket  # 订单标的所属市场
+    qty: float  # 订单数量
+    price: float  # 订单价格
+    currency: CurrencyType  # 交易货币
+    create_time: str  # 创建时间
+    updated_time: str  # 最后更新时间
+    dealt_qty: float  # 成交数量
+    dealt_avg_price: float  # 成交均价
+    last_err_msg: str  # 最后的错误描述
+    remark: str  # 下单时备注的标识
+    time_in_force: TimeInForce  # 有效期限
+    fill_outside_rth: bool  # 是否允许盘前盘后（用于港股盘前竞价与美股盘前盘后）
+    aux_price: float  # 触发价格
+    trail_type: TrailType  # 跟踪类型
+    trail_value: float  # 跟踪金额/百分比
+    trail_spread: float  # 指定价差
