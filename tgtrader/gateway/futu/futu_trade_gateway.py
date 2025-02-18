@@ -9,7 +9,7 @@ from tgtrader.gateway.futu.defs import AccountInfo, TradeEnv, \
         CurrencyType, AccountRiskLevel, AccountRiskStatus, DtStatus, \
             TradeMarket, PositionInfo, PositionSide, \
                 OrderInfo, OrderType, OrderStatus, TimeInForce, TrailType, \
-                    TradeSize
+                    TradeSide, CancelOrderInfo
 from loguru import logger
 
 @dataclass
@@ -209,7 +209,7 @@ class FutuTradeGateway:
         result = []
         for _, row in data.iterrows():
             result.append(OrderInfo(
-                trd_side=TradeSize(row['trd_side']),
+                trd_side=TradeSide(row['trd_side']),
                 order_type=OrderType(row['order_type']),
                 order_status=OrderStatus(row['order_status']),
                 order_id=str(row['order_id']),
@@ -244,7 +244,7 @@ class FutuTradeGateway:
         result = []
         for _, row in data.iterrows():
             result.append(OrderInfo(
-                trd_side=TradeSize(row['trd_side']),
+                trd_side=TradeSide(row['trd_side']),
                 order_type=OrderType(row['order_type']),
                 order_status=OrderStatus(row['order_status']),
                 order_id=str(row['order_id']),
@@ -301,13 +301,13 @@ class FutuTradeGateway:
         result = []
         for _, row in data.iterrows():
             result.append(OrderInfo(
-                trd_side=TrdSide(row['trd_side']),
+                trd_side=TradeSide(row['trd_side']),
                 order_type=OrderType(row['order_type']),
                 order_status=OrderStatus(row['order_status']),
                 order_id=str(row['order_id']),
                 code=row['code'],
                 stock_name=row['stock_name'],
-                order_market=TradeMarket(row['order_market']),
+                order_market=TradeMarket.HK,
                 qty=float(row['qty']),
                 price=float(row['price']),
                 currency=CurrencyType(row['currency']),
@@ -325,4 +325,30 @@ class FutuTradeGateway:
                 trail_spread=float(row.get('trail_spread', 0.0)) if row.get('trail_spread') != 'N/A' else 0.0
             ))
         
+        return result[0] if result else None
+
+    def cancel_order(self, acc_id: int, order_info: OrderInfo):
+        """撤单
+        
+        Args:
+            acc_id: 账户ID
+            order_info: 订单信息
+        """
+        ret, data = self.conn.modify_order(
+            acc_id=acc_id,
+            order_id=order_info.order_id,
+            modify_order_op=ft.ModifyOrderOp.CANCEL,
+            qty=order_info.qty,
+            price=order_info.price)
+
+        if ret != RET_OK:
+            raise Exception(f"撤单失败: {data}")
+        
+        result = []
+        for _, row in data.iterrows():
+            result.append(CancelOrderInfo(
+                order_id=str(row['order_id']),
+                trd_env=TradeEnv(row['trd_env'])
+                ))
+
         return result

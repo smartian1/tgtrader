@@ -561,7 +561,7 @@ class PositionInfo:
     unrealized_pl: float  # 未实现盈亏
     realized_pl: float  # 已实现盈亏
 
-class TradeSize(Enum):
+class TradeSide(Enum):
     """交易方向枚举
     
     描述交易订单的买卖方向
@@ -579,15 +579,15 @@ class TradeSize(Enum):
         TrdSide_SellShort = 3
         TrdSide_BuyBack = 4
 
-        if self == TradeSize.NONE:
+        if self == TradeSide.NONE:
             return TrdSide_Unknown
-        elif self == TradeSize.BUY:
+        elif self == TradeSide.BUY:
             return TrdSide_Buy
-        elif self == TradeSize.SELL:
+        elif self == TradeSide.SELL:
             return TrdSide_Sell
-        elif self == TradeSize.SELL_SHORT:
+        elif self == TradeSide.SELL_SHORT:
             return TrdSide_SellShort
-        elif self == TradeSize.BUY_BACK:
+        elif self == TradeSide.BUY_BACK:
             return TrdSide_BuyBack
         else:
             raise ValueError(f"Invalid TrdSide value: {self}")
@@ -678,6 +678,19 @@ class OrderType(Enum):
             raise ValueError(f"Invalid OrderType value: {self}")
 
 
+class ModifyOrderOperation(Enum):
+    """订单修改操作枚举
+    
+    描述对订单可以进行的不同修改操作类型
+    """
+    NONE = "N/A"  # 未知操作
+    NORMAL = "NORMAL"  # 修改订单
+    CANCEL = "CANCEL"  # 撤单
+    DISABLE = "DISABLE"  # 使失效
+    ENABLE = "ENABLE"  # 使生效
+    DELETE = "DELETE"  # 删除
+
+
 class OrderStatus(Enum):
     """订单状态枚举
     
@@ -721,7 +734,7 @@ class OrderInfo:
     
     包含历史订单的详细信息，包括订单类型、状态、价格、数量等数据
     """
-    trd_side: TradeSize  # 交易方向
+    trd_side: TradeSide  # 交易方向
     order_type: OrderType  # 订单类型
     order_status: OrderStatus  # 订单状态
     order_id: str  # 订单号
@@ -743,3 +756,8 @@ class OrderInfo:
     trail_type: TrailType  # 跟踪类型
     trail_value: float  # 跟踪金额/百分比
     trail_spread: float  # 指定价差
+
+@dataclass
+class CancelOrderInfo:
+    trd_env: TradeEnv
+    order_id: str
