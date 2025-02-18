@@ -59,7 +59,7 @@ def get_news_list(limit_cnt=50):
                 try:
                     news[column] = json.loads(news[column])
                 except json.JSONDecodeError as e:
-                    logger.exception(e)
+                    pass
         
         # 将情绪值从0-1转换为-100到100的范围
         news['sentiment'] = int(float(news['sentiment']) * 100)
