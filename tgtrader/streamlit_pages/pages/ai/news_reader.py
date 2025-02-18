@@ -48,6 +48,9 @@ def get_news_list(limit_cnt=50):
         .limit(limit_cnt) \
         .order_by(model.create_time.desc())
 
+    # 调试模式下打印生成的SQL语句
+    logger.info(f'Generated SQL: {query}')  
+
     news_list = list(query.dicts())
 
     json_columns = ['tags', 'markets', 'related_industries', 'related_indexes', 'related_company']
