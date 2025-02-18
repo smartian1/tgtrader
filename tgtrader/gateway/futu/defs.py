@@ -561,7 +561,7 @@ class PositionInfo:
     unrealized_pl: float  # 未实现盈亏
     realized_pl: float  # 已实现盈亏
 
-class TrdSide(Enum):
+class TradeSize(Enum):
     """交易方向枚举
     
     描述交易订单的买卖方向
@@ -579,15 +579,15 @@ class TrdSide(Enum):
         TrdSide_SellShort = 3
         TrdSide_BuyBack = 4
 
-        if self == TrdSide.NONE:
+        if self == TradeSize.NONE:
             return TrdSide_Unknown
-        elif self == TrdSide.BUY:
+        elif self == TradeSize.BUY:
             return TrdSide_Buy
-        elif self == TrdSide.SELL:
+        elif self == TradeSize.SELL:
             return TrdSide_Sell
-        elif self == TrdSide.SELL_SHORT:
+        elif self == TradeSize.SELL_SHORT:
             return TrdSide_SellShort
-        elif self == TrdSide.BUY_BACK:
+        elif self == TradeSize.BUY_BACK:
             return TrdSide_BuyBack
         else:
             raise ValueError(f"Invalid TrdSide value: {self}")
@@ -721,7 +721,7 @@ class OrderInfo:
     
     包含历史订单的详细信息，包括订单类型、状态、价格、数量等数据
     """
-    trd_side: TrdSide  # 交易方向
+    trd_side: TradeSize  # 交易方向
     order_type: OrderType  # 订单类型
     order_status: OrderStatus  # 订单状态
     order_id: str  # 订单号
