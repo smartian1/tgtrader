@@ -53,6 +53,7 @@ def get_news_list(limit_cnt=50):
     json_columns = ['tags', 'markets', 'related_industries', 'related_indexes', 'related_company']
     
     for news in news_list:
+        logger.info(f"news info: title: {news['title']}, create_time: {news['create_time']}")
         for column in json_columns:
             if news[column]:
                 try:
