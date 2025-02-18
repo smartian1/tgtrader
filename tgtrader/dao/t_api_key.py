@@ -47,8 +47,13 @@ class TApiKey(BaseModel):
             api_keys = list(cls.select().where(cls.username == username).order_by(cls.create_time.desc()))
             for api_key in api_keys:
                 # 解密API Key
-                decrypted_key = cls.decrypt(username, api_key.api_key)
-                
+                try:
+                    decrypted_key = cls.decrypt(username, api_key.api_key)
+                except Exception as e:
+                    decrypted_key = '解析失败，请删除后重新增加'
+                    logger.exception(e)
+                    continue
+
                 # 如果需要隐藏中间部分，只显示前后4个字符
                 if hide_middle:
                     if len(decrypted_key) > 8:
