@@ -7,6 +7,7 @@ import time
 from tgtrader.dao.t_user import User
 from tgtrader.streamlit_pages.utils.common import encrypt, decrypt
 from peewee import *
+from loguru import logger
 
 
 class TApiKey(BaseModel):
