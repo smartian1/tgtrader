@@ -104,7 +104,7 @@ def openai_client(base_url: str, model: str, api_key: str, prompt_template: str,
                 
 
             except Exception as e:
-                error_msg = f"处理行 {index} 时发生错误: {str(e)}"
+                error_msg = f"处理行 {index} 时发生错误: {str(e)}, content: {processed_prompt}"
                 callback(error_msg, "error")
                 continue
     
