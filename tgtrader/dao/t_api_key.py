@@ -53,7 +53,6 @@ class TApiKey(BaseModel):
                 except Exception as e:
                     decrypted_key = '解析失败，请删除后重新增加'
                     logger.exception(e)
-                    continue
 
                 # 如果需要隐藏中间部分，只显示前后4个字符
                 if hide_middle:
