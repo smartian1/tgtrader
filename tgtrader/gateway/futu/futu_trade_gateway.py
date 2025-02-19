@@ -93,7 +93,7 @@ class FutuTradeGateway:
 
         return True
 
-    def get_account_cash_info_list(self, acc_id: int) -> AccountInfo:
+    def get_account_cash_info_list(self, acc_id: int) -> AccountCashInfo:
         """查询账户资金信息
         
         Args:
