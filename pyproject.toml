@@ -28,7 +28,7 @@ dependencies = [
     "matplotlib==3.5.3",
     "ffn==1.1.1",
     "loguru==0.7.3",
-    "akshare==1.15.51",
+    "akshare==1.16.9",
     "tqdm==4.67.1",
     "cython==3.0.11",
     "pyprind==2.11.3",

@@ -5,6 +5,7 @@ from tgtrader.gateway.futu.defs import OptionType
 from tgtrader.gateway.futu.futu_stock_gateway import FutuStockGateway
 from loguru import logger
 from tgtrader.streamlit_pages.pages.option.comp_option_chain import display_option_chain
+from tgtrader.streamlit_pages.pages.option.futu_account_info import account_info_component
 
 
 @st.cache_data(ttl=5)
@@ -163,6 +164,8 @@ def run():
             option_trades = display_option_chain(call_options, put_options, stock_price)
 
             btn_submit_order = st.button("提交订单")
+            
+            account_info_component()
 
         except Exception as e:
             logger.exception(e)
