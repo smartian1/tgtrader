@@ -223,6 +223,7 @@ def display_right_column(not_finished_orders: List[OrderInfo], history_orders: L
         logger.error(f"Failed to get order details: {str(e)}")
         st.error(f"获取订单详情失败: {str(e)}")
 
+@st.fragment
 def account_info_component():
     """
     富途账户信息组件，包含账号选择、资金信息、持仓信息和订单信息展示.
@@ -237,6 +238,8 @@ def account_info_component():
         st.session_state.account_list = []
     if 'selected_account' not in st.session_state:
         st.session_state.selected_account = None
+    if 'password' not in st.session_state:
+        st.session_state.password = None
     
     # 上方控件区域
     col1, col2, col3 = st.columns([2, 2, 1])
@@ -271,6 +274,7 @@ def account_info_component():
             type="password",
             key="futu_account_password"
         )
+        st.session_state.password = password
     
     with col3:
         if st.button("查询", key="futu_query_button"):
@@ -287,3 +291,9 @@ def account_info_component():
     
     if 'query_account' in st.session_state and st.session_state.query_account:
         display_account_component()
+
+def get_account_and_password() -> tuple[AccountInfo, str]:
+    account_info = st.session_state.selected_account if 'selected_account' in st.session_state else None
+    pwd = st.session_state.password if 'password' in st.session_state else None
+
+    return account_info, pwd

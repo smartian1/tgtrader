@@ -6,7 +6,7 @@ from tgtrader.gateway.futu.futu_stock_gateway import FutuStockGateway
 from loguru import logger
 from tgtrader.streamlit_pages.pages.option.comp_option_chain import display_option_chain
 from tgtrader.streamlit_pages.pages.option.futu_account_info import account_info_component
-
+from tgtrader.streamlit_pages.pages.option.submit_option_order import submit_option_order
 
 @st.cache_data(ttl=5)
 def get_option_expiration_date(stock_code: str):
@@ -161,10 +161,12 @@ def run():
                 'strike_price', ascending=True).reset_index(drop=True)
 
             # 显示期权链数据
-            option_trades = display_option_chain(call_options, put_options, stock_price)
+            display_option_chain(call_options, put_options, stock_price)
 
-            btn_submit_order = st.button("提交订单")
+            # 提交订单
+            submit_option_order()
             
+            # 账户信息
             account_info_component()
 
         except Exception as e:
@@ -173,3 +175,4 @@ def run():
 
     elif query_button and not stock_code:
         st.warning("请输入股票代码")
+

@@ -18,12 +18,38 @@ class OptionType(enum.Enum):
 
 @dataclass
 class OptionTrade:
+    code: str
     direction: OptionTradeDirection
     quantity: int
     timestamp: str
     option_type: OptionType
     price: float
 
+    def convert_direction(self):
+        import futu as ft
+        if self.direction == OptionTradeDirection.BUY:
+            return ft.TrdSide.BUY
+        elif self.direction == OptionTradeDirection.SELL:
+            return ft.TrdSide.SELL
+
+# 获取添加到订单列表里的待交易订单
+def get_option_trader() -> list[OptionTrade]:
+    if 'option_trades' in st.session_state:
+        return [
+            OptionTrade(
+                code=trade['code'],
+                direction=OptionTradeDirection(trade['direction']),
+                quantity=trade['quantity'],
+                timestamp=trade['timestamp'],
+                option_type=OptionType(trade['option_type']),
+                price=trade['price']
+            )
+            for trade in st.session_state.option_trades
+        ]
+    else:
+        return []
+
+@st.fragment
 def display_option_chain(call_options, put_options, stock_price=None):
     """
     显示期权链数据
@@ -56,20 +82,6 @@ def display_option_chain(call_options, put_options, stock_price=None):
 
     # 显示交易列表
     _show_trade_list()
-
-    if 'option_trades' in st.session_state:
-        return [
-            OptionTrade(
-                direction=OptionTradeDirection(trade['direction']),
-                quantity=trade['quantity'],
-                timestamp=trade['timestamp'],
-                option_type=OptionType(trade['option_type']),
-                price=trade['price']
-            )
-            for trade in st.session_state.option_trades
-        ]
-    else:
-        return []
 
 
 def _create_grid_options(df, stock_price=None, option_type='call'):
@@ -336,6 +348,7 @@ def _show_selected_option(selected, option_type='call'):
             # 添加新交易到列表
             new_trade = {
                 'option_info': selected,
+                'code': selected['期权代码'],
                 'direction': direction,
                 'quantity': quantity,
                 'timestamp': pd.Timestamp.now(),
