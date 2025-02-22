@@ -1,12 +1,14 @@
 # encoding: utf-8
 from dataclasses import dataclass
 import streamlit as st
-from st_aggrid import AgGrid, GridOptionsBuilder, JsCode, GridUpdateMode
+from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
 from tgtrader.gateway.futu.defs import OptionType
 from loguru import logger
 import numpy as np
 import pandas as pd
 import enum
+from tgtrader.gateway.futu.futu_option_gateway import FutuOptionGateway
+
 
 class OptionTradeDirection(enum.Enum):
     BUY = '买入'
@@ -52,13 +54,95 @@ def get_option_trader() -> list[OptionTrade]:
 def clear_option_trader():
     st.session_state.option_trades = []
 
+@st.cache_data(ttl=5)
+def get_option_chain(stock_code: str, expiry_date: str):
+    # 初始化FUTU期权网关
+    with FutuOptionGateway() as option_gateway:
+        # 获取期权链数据
+        option_chain = option_gateway.get_option_chain(
+            stock_code, expiry_date)
+
+        if option_chain:
+            # 批量获取期权快照数据
+            option_codes = [item.code for item in option_chain]
+            snapshots = option_gateway.get_option_snapshot(
+                option_codes)
+
+            # 创建快照数据字典以便快速查找
+            snapshot_dict = {
+                snapshot.code: snapshot for snapshot in snapshots}
+
+            # 将期权链数据转换为DataFrame
+            chain_data = []
+            for item in option_chain:
+                snapshot = snapshot_dict.get(item.code)
+                if snapshot:
+                    chain_data.append({
+                        'code': item.code,
+                        'name': item.name,
+                        'type': item.option_type.value,
+                        'strike_price': item.strike_price,
+                        'last_price': snapshot.last_price if snapshot.last_price else 0.0,
+                        'bid_price': snapshot.bid_price if snapshot.bid_price else 0.0,
+                        'ask_price': snapshot.ask_price if snapshot.ask_price else 0.0,
+                        'ask_vol': snapshot.ask_vol if snapshot.ask_vol else 0.0,
+                        'bid_vol': snapshot.bid_vol if snapshot.bid_vol else 0.0,
+                        'volume': snapshot.volume if snapshot.volume else 0,
+                        'open_interest': snapshot.option_open_interest if snapshot.option_open_interest else 0,
+                        'implied_volatility': round(snapshot.option_implied_volatility, 4) if snapshot.option_implied_volatility else 0.0000,
+                        'delta': round(snapshot.option_delta, 4) if snapshot.option_delta else 0.0000,
+                        'gamma': round(snapshot.option_gamma, 4) if snapshot.option_gamma else 0.0000,
+                        'theta': round(snapshot.option_theta, 4) if snapshot.option_theta else 0.0000,
+                        'vega': round(snapshot.option_vega, 4) if snapshot.option_vega else 0.0000,
+                        'rho': round(snapshot.option_rho, 4) if snapshot.option_rho else 0.0000
+                    })
+
+        df = pd.DataFrame(chain_data)
+
+        return df
+
+# 程序入口
+def build_option_chain_page(stock_code, expiry_date, stock_price):
+    cache_option_chain(stock_code, expiry_date)
+    display_option_chain(stock_code, expiry_date, stock_price)
+
+
+@st.fragment(run_every=5)
+def cache_option_chain(stock_code: str, expiry_date: str):
+    df = get_option_chain(stock_code, expiry_date)
+    
+    if 'option_chain_cache' not in st.session_state:
+        st.session_state.option_chain_cache = {}
+
+    old_code = st.session_state.option_chain_cache.get('stock_code')
+    old_expiry_date = st.session_state.option_chain_cache.get('expiry_date')
+    if old_code != stock_code or old_expiry_date != expiry_date:
+        st.session_state.option_chain_cache.clear()
+
+    st.session_state.option_chain_cache = {
+        'stock_code': stock_code,
+        'expiry_date': expiry_date,
+        'df': df
+    }
+
+def get_option_chain_cache(stock_code, expiry_date):
+    if 'option_chain_cache' not in st.session_state:
+        return None
+
+    old_code = st.session_state.option_chain_cache.get('stock_code')
+    old_expiry_date = st.session_state.option_chain_cache.get('expiry_date')
+    if old_code != stock_code or old_expiry_date != expiry_date:
+        return None
+
+    return st.session_state.option_chain_cache.get('df')
+
 @st.fragment
-def display_option_chain(call_options, put_options, stock_price=None):
+def display_option_chain(stock_code, expiry_date, stock_price=None):
     """
     显示期权链数据
     Args:
-        call_options: DataFrame containing call options
-        put_options: DataFrame containing put options
+        stock_code: Stock code
+        expiry_date: Expiry date
         stock_price: Current stock price
 
     Returns:
@@ -70,6 +154,18 @@ def display_option_chain(call_options, put_options, stock_price=None):
         - option_type (str): 看涨/看跌
         - price (float): Execution price
     """
+    df = get_option_chain_cache(stock_code, expiry_date)
+
+    if df is None or df.empty:
+        st.warning("未找到相关期权数据")
+        return
+
+    # 分离看涨和看跌期权
+    call_options = df[df['type'] == 'CALL'].sort_values(
+        'strike_price', ascending=True).reset_index(drop=True)
+    put_options = df[df['type'] == 'PUT'].sort_values(
+        'strike_price', ascending=True).reset_index(drop=True)
+
     # 准备数据
     call_display = _prepare_option_display_data(call_options, stock_price, 'call')
     put_display = _prepare_option_display_data(put_options, stock_price, 'put')
