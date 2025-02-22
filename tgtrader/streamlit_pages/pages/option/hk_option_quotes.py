@@ -4,7 +4,7 @@ from tgtrader.gateway.futu.futu_option_gateway import FutuOptionGateway
 from tgtrader.gateway.futu.defs import OptionType
 from tgtrader.gateway.futu.futu_stock_gateway import FutuStockGateway
 from loguru import logger
-from tgtrader.streamlit_pages.pages.option.comp_option_chain import display_option_chain
+from tgtrader.streamlit_pages.pages.option.comp_option_chain import display_option_chain, clear_option_trader
 from tgtrader.streamlit_pages.pages.option.futu_account_info import account_info_component
 from tgtrader.streamlit_pages.pages.option.submit_option_order import submit_option_order
 
@@ -125,6 +125,13 @@ def run():
             expiry_dates = get_option_expiration_date(stock_code)
             st.session_state.expiry_dates = [
                 date.strike_time for date in expiry_dates if date.option_expiry_date_distance > 0]
+
+            # 是否选择了新的股票,如果是,需要清空相关信息
+            if 'stock_code' in st.session_state and stock_code != st.session_state.stock_code:
+                clear_option_trader()
+                
+            st.session_state.stock_code = stock_code
+            
         except Exception as e:
             logger.exception(e)
             st.error(f"获取期权到期日失败: {str(e)}")

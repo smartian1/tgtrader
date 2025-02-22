@@ -49,6 +49,9 @@ def get_option_trader() -> list[OptionTrade]:
     else:
         return []
 
+def clear_option_trader():
+    st.session_state.option_trades = []
+
 @st.fragment
 def display_option_chain(call_options, put_options, stock_price=None):
     """

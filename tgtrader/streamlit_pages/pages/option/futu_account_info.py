@@ -3,9 +3,10 @@
 import streamlit as st
 from typing import Dict, List, Optional, Tuple
 from tgtrader.gateway.futu.futu_trade_gateway import FutuTradeGateway
-from tgtrader.gateway.futu.defs import TradeEnv, AccountInfo, AccountCashInfo, PositionInfo, OrderInfo
+from tgtrader.gateway.futu.defs import TradeEnv, AccountInfo, AccountCashInfo, PositionInfo, OrderInfo, OrderStatus
 from loguru import logger
 import pandas as pd
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, JsCode, ColumnsAutoSizeMode, DataReturnMode
 
 def fetch_account_data(acc_id: str) -> Tuple[List[PositionInfo], Optional[AccountCashInfo], List[OrderInfo], List[OrderInfo]]:
     """从富途网关获取账户相关数据.
@@ -32,7 +33,10 @@ def fetch_account_data(acc_id: str) -> Tuple[List[PositionInfo], Optional[Accoun
         history_orders = gateway.get_history_order_list(acc_id)
         
     cash_info = cash_info_list[0] if cash_info_list else None
-    return positions, cash_info, not_finished_orders, history_orders
+    st.session_state.positions = positions
+    st.session_state.cash_info = cash_info
+    st.session_state.not_finished_orders = not_finished_orders
+    st.session_state.history_orders = history_orders
 
 def calculate_pl_values(positions: List[PositionInfo]) -> Tuple[float, float]:
     """计算总盈亏和今日盈亏.
@@ -113,7 +117,7 @@ def display_positions(positions: List[PositionInfo]) -> None:
     df = pd.DataFrame(positions_data)
     st.dataframe(df, hide_index=True, use_container_width=True)
 
-def display_order_list(orders: List[OrderInfo], title: str, show_time: bool = False) -> None:
+def display_order_list(orders: List[OrderInfo], title: str) -> None:
     """显示订单列表.
 
     将订单信息以表格形式展示，包括股票代码、名称、交易方向、价格等信息.
@@ -135,10 +139,8 @@ def display_order_list(orders: List[OrderInfo], title: str, show_time: bool = Fa
         "价格": [f"{order.price:.3f}" for order in orders],
         "数量": [order.qty for order in orders],
         "状态": [order.order_status.name for order in orders],
+        "时间": [order.create_time for order in orders],
     }
-    
-    if show_time:
-        orders_data["时间"] = [order.create_time for order in orders]
     
     df = pd.DataFrame(orders_data)
     st.dataframe(df, hide_index=True, use_container_width=True)
@@ -151,20 +153,16 @@ def display_account_component() -> None:
     2. 第二行显示未完成订单
     3. 第三行显示历史订单
 
-    Note:
-        依赖session_state中的query_account和selected_account状态
     """
-    if not st.session_state.query_account:
-        return
-
     try:
         if not st.session_state.selected_account:
             return
-            
-        positions, cash_info, not_finished_orders, history_orders = fetch_account_data(
-            st.session_state.selected_account.acc_id
-        )
         
+        positions = st.session_state.positions if 'positions' in st.session_state else []
+        cash_info = st.session_state.cash_info if 'cash_info' in st.session_state else None
+        not_finished_orders = st.session_state.not_finished_orders if 'not_finished_orders' in st.session_state else []
+        history_orders = st.session_state.history_orders if 'history_orders' in st.session_state else []
+
         # 第一行：账户资金信息和持仓信息 (1:2)
         account_col, positions_col = st.columns([1, 3])
         
@@ -179,10 +177,10 @@ def display_account_component() -> None:
             display_positions(positions)
         
         # 第二行：未完成订单
-        display_order_list(not_finished_orders, "未完成订单")
+        display_not_finished_order_list(not_finished_orders, st.session_state.selected_account.acc_id)
         
         # 第三行：历史订单
-        display_order_list(history_orders, "历史订单", show_time=True)
+        display_order_list(history_orders, "历史订单")
             
     except Exception as e:
         logger.exception("Failed to display account information")
@@ -222,6 +220,107 @@ def display_right_column(not_finished_orders: List[OrderInfo], history_orders: L
     except Exception as e:
         logger.error(f"Failed to get order details: {str(e)}")
         st.error(f"获取订单详情失败: {str(e)}")
+
+def display_not_finished_order_list(orders: List[OrderInfo], acc_id: str) -> None:
+    """显示未完成订单列表.
+
+    使用AgGrid显示未完成订单，并提供撤单功能.
+
+    Args:
+        orders: 未完成订单列表
+        acc_id: 账户ID
+    """
+    st.subheader("未完成订单")
+    if not orders:
+        st.info("暂无未完成订单")
+        return
+
+    # 转换数据为DataFrame格式
+    df = pd.DataFrame([{
+        "代码": order.code,
+        "名称": order.stock_name,
+        "方向": order.trd_side.name,
+        "价格": f"{order.price:.3f}",
+        "数量": order.qty,
+        "状态": order.order_status.name,
+        "order_id": order.order_id,  # 用于撤单操作
+        "时间": order.create_time
+    } for order in orders])
+
+    df = df.sort_values(by='时间', ascending=False)
+
+    # 配置AgGrid选项
+    gb = GridOptionsBuilder.from_dataframe(df)
+    gb.configure_selection(selection_mode='single', use_checkbox=False)
+    gb.configure_column('代码', minWidth=100)
+    gb.configure_column('名称', minWidth=100)
+    gb.configure_column('方向', minWidth=80)
+    gb.configure_column('价格', minWidth=80)
+    gb.configure_column('数量', minWidth=80)
+    gb.configure_column('状态', minWidth=100)
+    gb.configure_column('order_id', hide=True)  # 隐藏order_id列
+    gb.configure_column('时间', minWidth=160)
+
+    grid_options = gb.build()
+
+    # 显示AgGrid表格
+    grid_response = AgGrid(
+        df,
+        gridOptions=grid_options,
+        height=400,
+        update_mode=GridUpdateMode.SELECTION_CHANGED,
+        fit_columns_on_grid_load=True,
+        columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,
+        theme='streamlit'
+    )
+
+    # 处理选择和撤单
+    selected = grid_response['selected_rows']
+    if selected is not None and len(selected) > 0:
+        selected_order = selected.iloc[0]
+        logger.debug(f"Selected order: {selected_order}")
+        
+        # 显示撤单按钮
+        if st.button("撤销所选订单"):
+            try:
+                order_status = selected_order['状态']
+                if OrderStatus(order_status) not in [OrderStatus.WAITING_SUBMIT, 
+                                        OrderStatus.SUBMITTED,
+                                        OrderStatus.FILLED_PART]:
+                    st.warning("当前状态不可撤单")
+                    return
+
+                cancel_order(selected_order['order_id'], 
+                selected_order['数量'], 
+                selected_order['价格'])
+
+                st.success("撤单成功, 点击查询按钮刷新订单信息")
+
+            except Exception as e:
+                st.error(f"撤单失败: {str(e)}")
+                logger.exception(f"Cancel order failed: {str(e)}")
+
+def cancel_order(order_id, qty, price):
+    if 'selected_account' not in st.session_state or not st.session_state.selected_account:
+        st.warning("请先选择账户")
+        return
+    
+    if 'password' not in st.session_state or not st.session_state.password:
+        st.warning("请先输入密码")
+        return
+
+    order_info = OrderInfo(
+        order_id=order_id,
+        price=price,
+        qty=qty,
+    )
+    
+    acc_id = st.session_state.selected_account.acc_id
+    with FutuTradeGateway() as gateway:
+        gateway.unlock_trade(st.session_state.password, is_unlock=True)
+        gateway.cancel_order(acc_id, order_info)
+        gateway.unlock_trade(st.session_state.password, is_unlock=False)
+        logger.info(f"取消订单: {order_info}, acc_id: {acc_id}")
 
 @st.fragment
 def account_info_component():
@@ -286,11 +385,11 @@ def account_info_component():
                 st.error("请输入交易密码")
                 return
 
-            if 'query_account' not in st.session_state or not st.session_state.query_account:
-                st.session_state.query_account = True
+            fetch_account_data(
+                st.session_state.selected_account.acc_id
+            )
     
-    if 'query_account' in st.session_state and st.session_state.query_account:
-        display_account_component()
+    display_account_component()
 
 def get_account_and_password() -> tuple[AccountInfo, str]:
     account_info = st.session_state.selected_account if 'selected_account' in st.session_state else None

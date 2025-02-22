@@ -734,28 +734,28 @@ class OrderInfo:
     
     包含历史订单的详细信息，包括订单类型、状态、价格、数量等数据
     """
-    trd_side: TradeSide  # 交易方向
-    order_type: OrderType  # 订单类型
-    order_status: OrderStatus  # 订单状态
-    order_id: str  # 订单号
-    code: str  # 股票代码
-    stock_name: str  # 股票名称
-    order_market: TradeMarket  # 订单标的所属市场
-    qty: float  # 订单数量
-    price: float  # 订单价格
-    currency: CurrencyType  # 交易货币
-    create_time: str  # 创建时间
-    updated_time: str  # 最后更新时间
-    dealt_qty: float  # 成交数量
-    dealt_avg_price: float  # 成交均价
-    last_err_msg: str  # 最后的错误描述
-    remark: str  # 下单时备注的标识
-    time_in_force: TimeInForce  # 有效期限
-    fill_outside_rth: bool  # 是否允许盘前盘后（用于港股盘前竞价与美股盘前盘后）
-    aux_price: float  # 触发价格
-    trail_type: TrailType  # 跟踪类型
-    trail_value: float  # 跟踪金额/百分比
-    trail_spread: float  # 指定价差
+    trd_side: TradeSide = TradeSide.NONE  # 交易方向
+    order_type: OrderType = OrderType.NONE  # 订单类型
+    order_status: OrderStatus = OrderStatus.NONE  # 订单状态
+    order_id: str = ""  # 订单号
+    code: str = ""  # 股票代码
+    stock_name: str = ""  # 股票名称
+    order_market: TradeMarket = TradeMarket.NONE  # 订单标的所属市场
+    qty: float = 0.0  # 订单数量
+    price: float = 0.0  # 订单价格
+    currency: CurrencyType = CurrencyType.NONE  # 交易货币
+    create_time: str = ""  # 创建时间
+    updated_time: str = ""  # 最后更新时间
+    dealt_qty: float = 0.0  # 成交数量
+    dealt_avg_price: float = 0.0  # 成交均价
+    last_err_msg: str = ""  # 最后的错误描述
+    remark: str = ""  # 下单时备注的标识
+    time_in_force: TimeInForce = TimeInForce.DAY  # 有效期限
+    fill_outside_rth: bool = False  # 是否允许盘前盘后（用于港股盘前竞价与美股盘前盘后）
+    aux_price: float = 0.0  # 触发价格
+    trail_type: TrailType = TrailType.NONE  # 跟踪类型
+    trail_value: float = 0.0  # 跟踪金额/百分比
+    trail_spread: float = 0.0  # 指定价差
 
 @dataclass
 class CancelOrderInfo:

@@ -1,10 +1,11 @@
 # encoding: utf-8
 
+from time import sleep
 import streamlit as st
 from loguru import logger
 
 from tgtrader.gateway.futu.futu_trade_gateway import FutuTradeGateway
-from tgtrader.streamlit_pages.pages.option.comp_option_chain import get_option_trader
+from tgtrader.streamlit_pages.pages.option.comp_option_chain import get_option_trader, clear_option_trader
 from tgtrader.streamlit_pages.pages.option.futu_account_info import get_account_and_password
 
 @st.fragment
@@ -35,4 +36,7 @@ def submit_option_order():
 
             gateway.unlock_trade(password, is_unlock=False)
 
+        clear_option_trader()
         st.success("下单成功, 请点击账户查询，查看订单状态")
+        sleep(1)
+        st.rerun()
