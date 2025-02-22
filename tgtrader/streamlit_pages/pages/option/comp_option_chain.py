@@ -54,7 +54,6 @@ def get_option_trader() -> list[OptionTrade]:
 def clear_option_trader():
     st.session_state.option_trades = []
 
-@st.cache_data(ttl=5)
 def get_option_chain(stock_code: str, expiry_date: str):
     # 初始化FUTU期权网关
     with FutuOptionGateway() as option_gateway:
@@ -107,7 +106,7 @@ def build_option_chain_page(stock_code, expiry_date, stock_price):
     display_option_chain(stock_code, expiry_date, stock_price)
 
 
-@st.fragment(run_every=5)
+@st.fragment(run_every=10)
 def cache_option_chain(stock_code: str, expiry_date: str):
     df = get_option_chain(stock_code, expiry_date)
     
