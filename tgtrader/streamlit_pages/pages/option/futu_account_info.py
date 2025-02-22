@@ -389,6 +389,9 @@ def account_info_component():
                 st.session_state.selected_account.acc_id
             )
     
+    if not password:
+        return
+        
     display_account_component()
 
 def get_account_and_password() -> tuple[AccountInfo, str]:

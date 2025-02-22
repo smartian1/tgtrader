@@ -128,6 +128,11 @@ def run():
     if query_button and stock_code:
         try:
             expiry_dates = get_option_expiration_date(stock_code)
+
+            if not expiry_dates:
+                st.error("获取期权数据失败, 请检查股票代码是否正确")
+                return
+
             st.session_state.expiry_dates = [
                 date.strike_time for date in expiry_dates if date.option_expiry_date_distance > 0]
 
