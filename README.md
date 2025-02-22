@@ -1,9 +1,3 @@
-# 欢迎页面
-
-import streamlit as st
-
-def run():
-    st.markdown("""
 # tgtrader天工量化投研分析客户端
 
 - 提供开箱即用的分析工具
@@ -21,8 +15,7 @@ def run():
 
 ## 源码地址
 
-github: https://github.com/smartian1/tgtrader
-
+> github: https://github.com/smartian1/tgtrader
 gitee: https://gitee.com/smartian123/tgtrader   
 
 ## 安装
@@ -43,17 +36,20 @@ pip install tgtrader -i https://mirrors.aliyun.com/pypi/simple/
 - 支持港股期权交易
 ![alt text](https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/hk_option.png)
 
-
 **v1.2.0**
 
 - 数据流支持使用AI大模型解读财经新闻
 - 支持任务调度，定时执行数据加工流，用于实时解析财经新闻
+**AI大模型解读财经新闻**
+![alt text](https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/news_reader.png)
 
 
 
 **v1.1.0**
 
 - 支持画布拖拽构建数据加工流程，无需写代码
+**拖拽构建数据加工流程**
+![alt text](https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/preview.png)
 
 
 
@@ -63,6 +59,7 @@ pip install tgtrader -i https://mirrors.aliyun.com/pypi/simple/
 
 - 增加知识库页面，显示jupyter notebook
 
+  <img src="https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/data_query.png" alt="alt text" style="zoom:50%;" />
 
 **v1.0.0**
 
@@ -76,6 +73,9 @@ pip install tgtrader -i https://mirrors.aliyun.com/pypi/simple/
 
 - **策略详情**: 查看策略详情, 并支持查看策略回测和模拟阶段绩效
 
+  <img src="https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/target_weight_strategy.png" alt="目标权重策略" style="zoom:50%;" />
+
+<img src="https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/target_weight_strategy_result.png" alt="目标权重策略" style="zoom:50%;" />
 
 ## 客户端使用说明
 
@@ -92,8 +92,9 @@ source venv_tgtrader/bin/activate
 安装tgtrader
 pip install tgtrader
 
-初始化数据
+初始化数据(会提示输入管理员admin密码，连续输入两次即可，后续登录时使用)
 python -m tgtrader.streamlit_pages.init_data
+
 
 启动客户端
 1. 创建一个python文件(要与初始化数据时目录保持一致)，例如：tgtrader_cli.py
@@ -110,6 +111,3 @@ run()
 ```
 
 #### 
-
-
-    """)
