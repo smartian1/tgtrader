@@ -31,6 +31,11 @@ pip install tgtrader -i https://mirrors.aliyun.com/pypi/simple/
 
 ## 更新日志
 
+**v1.3.0**
+
+- 支持港股期权交易
+![alt text](https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/hk_option.png)
+
 **v1.2.0**
 
 - 数据流支持使用AI大模型解读财经新闻
