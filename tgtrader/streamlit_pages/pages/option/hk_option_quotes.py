@@ -3,6 +3,7 @@ import pandas as pd
 from tgtrader.gateway.futu.futu_option_gateway import FutuOptionGateway
 from tgtrader.gateway.futu.defs import OptionType
 from tgtrader.gateway.futu.futu_stock_gateway import FutuStockGateway
+from tgtrader.gateway.futu.common import check_futu_gateway_avalable
 from loguru import logger
 from tgtrader.streamlit_pages.pages.option.comp_option_chain import display_option_chain, clear_option_trader
 from tgtrader.streamlit_pages.pages.option.futu_account_info import account_info_component
@@ -83,6 +84,10 @@ def run():
     Option quotes page implementation
     """
 
+    if not check_futu_gateway_avalable():
+        st.error("富途网关未启动, 请先启动Futu OpenD. 下载地址: https://openapi.futunn.com/futu-api-doc/opend/opend-cmd.html")
+        return
+
     # 调整页面样式
     st.markdown("""
         <style>
@@ -129,7 +134,7 @@ def run():
             # 是否选择了新的股票,如果是,需要清空相关信息
             if 'stock_code' in st.session_state and stock_code != st.session_state.stock_code:
                 clear_option_trader()
-                
+
             st.session_state.stock_code = stock_code
             
         except Exception as e:
