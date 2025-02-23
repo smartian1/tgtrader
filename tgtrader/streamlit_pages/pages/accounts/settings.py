@@ -34,7 +34,7 @@ def manage_api_keys():
     # 添加新的API Key
     with st.expander("添加新的API Key"):
         api_key_name = st.text_input("API Key名称", key="new_api_key_name")
-        model_name = st.selectbox("模型名称", ["qwen-plus-latest", "qwen-turbo-latest"])
+        model_name = st.selectbox("模型名称", ["qwen-plus-latest", "qwen-turbo-latest", "qwen-turbo-1101"])
         api_key = st.text_input("API Key", key="new_api_key")
         
         if st.button("保存"):
