@@ -435,12 +435,13 @@ def perform_cluster_analysis(corr_matrix: pd.DataFrame) -> None:
             for cluster_id, cluster_items in clusters.items():
                 for item in cluster_items:
                     cluster_data.append({
-                        "聚类ID": f"聚类 {cluster_id}",
+                        "聚类ID": int(cluster_id),
                         "标的": item
                     })
             
             cluster_df = pd.DataFrame(cluster_data)
-            st.dataframe(cluster_df, use_container_width=True)
+            cluster_df.sort_values(by="聚类ID", inplace=True)
+            st.dataframe(cluster_df, use_container_width=False)
     except Exception as e:
         st.error(f"层次聚类过程中出错: {str(e)}")
         st.write("请尝试选择不同的聚类方法或检查数据")
