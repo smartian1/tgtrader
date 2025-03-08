@@ -393,7 +393,7 @@ def perform_cluster_analysis(corr_matrix: pd.DataFrame) -> None:
         # 执行层次聚类
         with st.spinner('正在计算层次聚类...'):
             # 打印调试信息
-            st.write(f"相关性矩阵维度: {corr_matrix.shape}")
+            # st.write(f"相关性矩阵维度: {corr_matrix.shape}")
             
             # 执行层次聚类
             linkage_matrix, labels = perform_hierarchical_clustering(
@@ -403,7 +403,7 @@ def perform_cluster_analysis(corr_matrix: pd.DataFrame) -> None:
             )
             
             # 打印调试信息
-            st.write(f"链接矩阵维度: {linkage_matrix.shape}, 标签数量: {len(labels)}")
+            # st.write(f"链接矩阵维度: {linkage_matrix.shape}, 标签数量: {len(labels)}")
             
             # 创建树状图
             dendrogram_fig = create_dendrogram_figure(
