@@ -31,6 +31,13 @@ pip install tgtrader -i https://mirrors.aliyun.com/pypi/simple/
 
 ## 更新日志
 
+**v1.3.2**
+
+- 工具集: 支持选定标的计算相关性，以及进行层次聚类分析
+![alt text](https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/corr_metrix.png)
+![alt text](https://raw.githubusercontent.com/smartian1/tgtrader/main/tgtrader/images/corr_cluster1.png)
+
+
 **v1.3.1**
 
 - 支持港股期权交易
