@@ -15,7 +15,7 @@ from tgtrader.streamlit_pages.pages.ai.ai_flow import run as ai_flow_run
 from tgtrader.streamlit_pages.pages.ai.news_reader import run as news_reader_run
 from tgtrader.streamlit_pages.pages.tasks.task_mgr import run as task_mgr_run
 from tgtrader.streamlit_pages.pages.option.hk_option_quotes import run as hk_option_quotes_run
-
+from tgtrader.streamlit_pages.pages.tools.corr_analysis import run as corr_analysis_run
 
 def logout():
     # Clear session state
@@ -51,6 +51,10 @@ def run():
                                icon=':material/psychology:', url_path='news_reader')
         
         strategy_pages['AI'] = [ai_flow_page, news_reader_page]
+
+        corr_analysis_page = st.Page(corr_analysis_run, title='相关性分析',
+                                    icon=':material/psychology:', url_path='corr_analysis')
+        strategy_pages['工具'] = [corr_analysis_page]
 
         option_quotes_page = st.Page(hk_option_quotes_run, title='港股期权行情',
                                      icon=':material/psychology:', url_path='option_quotes')
