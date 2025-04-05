@@ -1,13 +1,13 @@
 # encoding utf-8
 
 import streamlit as st
+import statsmodels.api as sm
 import pandas as pd
 from datetime import datetime, timedelta
 import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd
 import numpy as np
-import streamlit as st
 from datetime import datetime, timedelta
 from typing import Dict, List, Tuple, Optional, Any
 from tgtrader.data import DataGetter, SecurityType
@@ -354,7 +354,7 @@ def create_monthly_returns_heatmap(factor_df: pd.DataFrame, factor_column: str, 
     
     # 更新布局
     fig.update_layout(
-        title="月度收益率热力图",
+        title="因子月度收益率热力图",
         xaxis_title="月份",
         yaxis_title="年份",
         height=400,
@@ -456,6 +456,8 @@ def display_single_factor_chart(factor_df: pd.DataFrame, factor_name: str, facto
     if factor_df.empty:
         st.warning(f"没有可用的{factor_name}数据")
         return
+
+    factor_df = factor_df.copy()
     
     # 创建图表
     fig = go.Figure()
@@ -601,6 +603,52 @@ def display_price_chart(normalized_prices: pd.DataFrame, symbol_to_name: Dict[st
     st.plotly_chart(fig)
 
 
+def display_correlation_matrix(corr_matrix: pd.DataFrame, symbol_to_name: Optional[Dict[str, str]] = None, 
+                           returns_df: Optional[pd.DataFrame] = None):
+    """
+    显示相关性矩阵
+    
+    Args:
+        corr_matrix: 相关性矩阵DataFrame
+        symbol_to_name: 代码到名称的映射
+        returns_df: 收益率数据，用于判断是否有标的数据
+    """
+    if corr_matrix is None:
+        return
+        
+    # 根据是否有标的数据显示不同的标题
+    if returns_df is not None and not returns_df.empty:
+        st.subheader('标的与因子相关性')
+    else:
+        st.subheader('因子之间的相关性')
+    
+    # 重命名索引和列，添加标的名称
+    if symbol_to_name:
+        # 创建新的列名和索引名
+        new_columns = []
+        for col in corr_matrix.columns:
+            # 如果是标的代码，添加名称；如果是因子，保持不变
+            if col in symbol_to_name:
+                new_columns.append(f"{col} ({symbol_to_name[col]})")
+            else:
+                new_columns.append(col)
+        
+        # 设置新的列名和索引名
+        corr_matrix.columns = new_columns
+        
+        # 对于索引，只修改标的代码的部分
+        new_index = []
+        for idx in corr_matrix.index:
+            if idx in symbol_to_name:
+                new_index.append(f"{idx} ({symbol_to_name[idx]})")
+            else:
+                new_index.append(idx)
+        corr_matrix.index = new_index
+    
+    # 显示带颜色渐变的相关性矩阵
+    st.dataframe(corr_matrix.style.background_gradient(cmap='coolwarm', axis=None, vmin=-1, vmax=1))
+
+
 def process_factor_data(factor_data: Dict[str, pd.DataFrame], target_index: pd.DatetimeIndex) -> pd.DataFrame:
     """
     处理因子数据，将其重新索引到目标索引
@@ -691,72 +739,227 @@ def calculate_factor_correlation(returns_df: Optional[pd.DataFrame], factor_data
 
 
 @st.cache_data(ttl=3600, hash_funcs={pd.DataFrame: lambda _: None}, show_spinner=False)
-def calculate_factor_regression(returns_df: pd.DataFrame, factor_data: Dict[str, pd.DataFrame]) -> Optional[pd.DataFrame]:
+def display_factor_regression_analysis(regression_df: pd.DataFrame, symbol_to_name: Optional[Dict[str, str]] = None):
     """
-    计算标的收益率与因子收益率的线性回归指标
+    显示因子回归分析结果
     
     Args:
-        returns_df: 标的收益率数据
+        regression_df: 回归分析结果DataFrame
+        symbol_to_name: 代码到名称的映射
+    """
+    if regression_df is None or regression_df.empty:
+        return
+    
+    st.subheader('因子回归分析')
+    st.markdown('以下表格展示了各标的收益率与因子收益率的线性回归结果，用于分析因子对标的收益率的解释性。')
+    
+    # 重命名标的列，添加名称
+    if symbol_to_name:
+        regression_df['标的名称'] = regression_df['标的'].apply(lambda x: symbol_to_name.get(x, x))
+        regression_df['标的'] = regression_df['标的'].apply(lambda x: f"{x} ({symbol_to_name.get(x, x)})") 
+    
+    # 显示回归结果表格
+    st.dataframe(regression_df.style.format({
+        'R²': '{:.4f}',
+        'RMSE': '{:.4f}',
+        '截距': '{:.4f}',
+        'SMB规模因子_系数': '{:.4f}',
+        'HML价值因子_系数': '{:.4f}',
+        'MOM动量因子_系数': '{:.4f}',
+        'RMW盈利因子_系数': '{:.4f}',
+        'CMA投资因子_系数': '{:.4f}'
+    }))
+    
+    # 创建汇总表格
+    display_factor_impact_summary(regression_df)
+
+
+def display_factor_impact_summary(regression_df: pd.DataFrame):
+    """
+    显示因子影响汇总表
+    
+    Args:
+        regression_df: 回归分析结果DataFrame
+    """
+    st.markdown('### 标的因子影响汇总表')
+    
+    # 定义因子影响判断函数
+    def get_factor_impact(coef):
+        """根据系数判断因子影响大小和方向"""
+        if coef > 0.5:
+            return "强正相关"
+        elif coef > 0.2:
+            return "中正相关"
+        elif coef > 0:
+            return "弱正相关"
+        elif coef > -0.2:
+            return "弱负相关"
+        elif coef > -0.5:
+            return "中负相关"
+        else:
+            return "强负相关"
+    
+    def get_r2_impact(r2):
+        """根据R²判断模型解释力"""
+        if r2 > 0.6:
+            return "解释力强"
+        elif r2 > 0.3:
+            return "解释力中"
+        else:
+            return "解释力弱"
+    
+    # 准备汇总表格数据
+    summary_data = []
+    
+    # 因子解释字典
+    factor_explanations = {
+        'SMB规模因子': {
+            '强正相关': '强烈偏好小市值',
+            '中正相关': '中度偏好小市值',
+            '弱正相关': '轻微偏好小市值',
+            '弱负相关': '轻微偏好大市值',
+            '中负相关': '中度偏好大市值',
+            '强负相关': '强烈偏好大市值'
+        },
+        'HML价值因子': {
+            '强正相关': '强烈偏好价值股',
+            '中正相关': '中度偏好价值股',
+            '弱正相关': '轻微偏好价值股',
+            '弱负相关': '轻微偏好成长股',
+            '中负相关': '中度偏好成长股',
+            '强负相关': '强烈偏好成长股'
+        },
+        'MOM动量因子': {
+            '强正相关': '强烈追涨特征',
+            '中正相关': '中度追涨特征',
+            '弱正相关': '轻微追涨特征',
+            '弱负相关': '轻微逆势特征',
+            '中负相关': '中度逆势特征',
+            '强负相关': '强烈逆势特征'
+        },
+        'RMW盈利因子': {
+            '强正相关': '强烈偏好高盈利',
+            '中正相关': '中度偏好高盈利',
+            '弱正相关': '轻微偏好高盈利',
+            '弱负相关': '轻微偏好低盈利',
+            '中负相关': '中度偏好低盈利',
+            '强负相关': '强烈偏好低盈利'
+        },
+        'CMA投资因子': {
+            '强正相关': '强烈偏好保守投资',
+            '中正相关': '中度偏好保守投资',
+            '弱正相关': '轻微偏好保守投资',
+            '弱负相关': '轻微偏好激进投资',
+            '中负相关': '中度偏好激进投资',
+            '强负相关': '强烈偏好激进投资'
+        }
+    }
+    
+    # 处理每个标的
+    for _, row in regression_df.iterrows():
+        symbol = row['标的']
+        
+        # 创建每个标的的数据行
+        symbol_data = {
+            '标的': symbol,
+            'R²': f"{row['R²']:.4f} ({get_r2_impact(row['R²'])})",
+            'RMSE': f"{row['RMSE']:.4f} ({'误差大' if row['RMSE'] > 0.02 else '误差小'})",
+            '截距': f"{row['截距']:.4f} ({'有超额收益' if row['截距'] > 0.001 else '无显著超额收益' if row['截距'] > -0.001 else '有负超额收益'})"
+        }
+        
+        # 添加各因子解释
+        for factor in ['SMB规模因子', 'HML价值因子', 'MOM动量因子', 'RMW盈利因子', 'CMA投资因子']:
+            coef_col = f"{factor}_系数"
+            if coef_col in row:
+                impact = get_factor_impact(row[coef_col])
+                explanation = factor_explanations[factor][impact] if factor in factor_explanations and impact in factor_explanations[factor] else impact
+                symbol_data[factor] = f"{row[coef_col]:.4f} ({explanation})"
+        
+        # 添加到汇总数据
+        summary_data.append(symbol_data)
+    
+    # 显示汇总表格
+    st.dataframe(pd.DataFrame(summary_data))
+
+
+@st.cache_data(ttl=3600, hash_funcs={pd.DataFrame: lambda _: None}, show_spinner=False)
+def calculate_factor_regression(returns_df: pd.DataFrame, factor_data: Dict[str, pd.DataFrame]) -> Optional[pd.DataFrame]:
+    """
+    计算因子回归分析
+    
+    Args:
+        returns_df: 收益率数据DataFrame
         factor_data: 因子数据字典
         
     Returns:
-        回归指标数据框
+        回归分析结果DataFrame
     """
-    if returns_df is None or returns_df.empty:
-        logger.warning("Returns DataFrame is empty, cannot calculate regression")
+    if returns_df is None or returns_df.empty or not factor_data:
         return None
     
-    # 使用通用函数处理因子数据
-    factor_returns = process_factor_data(factor_data, returns_df.index)
+    # 获取共同的日期索引
+    common_index = returns_df.index
     
-    # 合并数据并删除缺失值
-    combined_data = pd.concat([returns_df, factor_returns], axis=1).dropna()
+    # 处理因子数据
+    all_factors = process_factor_data(factor_data, common_index)
     
-    if combined_data.empty:
-        logger.warning("Combined data is empty, cannot calculate regression")
+    # 如果没有足够的因子数据，返回None
+    if all_factors.empty or all_factors.shape[1] < 1:
         return None
     
-    # 创建结果数据框
-    results = []
+    # 创建一个空的DataFrame来存储回归结果
+    regression_results = []
     
     # 对每个标的进行回归分析
     for symbol in returns_df.columns:
-        # 准备数据
-        y = combined_data[symbol].values.reshape(-1, 1)  # 标的收益率
-        X = combined_data[factor_returns.columns].values  # 因子收益率
+        # 获取标的的收益率数据
+        symbol_returns = returns_df[symbol].copy()
         
-        # 创建并拟合模型
-        model = LinearRegression()
-        model.fit(X, y)
+        # 删除缺失值
+        valid_data = pd.concat([symbol_returns, all_factors], axis=1).dropna()
+        if valid_data.shape[0] < 10:  # 确保有足够的数据点
+            continue
+            
+        # 提取X和y
+        X = valid_data[all_factors.columns].values
+        y = valid_data[symbol].values
         
-        # 预测值
-        y_pred = model.predict(X)
+        # 添加常数项
+        X = sm.add_constant(X)
         
-        # 计算指标
-        r2 = r2_score(y, y_pred)
-        mse = mean_squared_error(y, y_pred)
-        rmse = np.sqrt(mse)
-        
-        # 提取系数
-        coefficients = {}
-        for i, factor_name in enumerate(factor_returns.columns):
-            coefficients[f"{factor_name}_系数"] = model.coef_[0][i]
-        
-        # 添加截距
-        coefficients["截距"] = model.intercept_[0]
-        
-        # 添加评估指标
-        coefficients["R²"] = r2
-        coefficients["RMSE"] = rmse
-        
-        # 添加到结果列表
-        result = {"标的": symbol, **coefficients}
-        results.append(result)
+        # 拟合线性回归模型
+        try:
+            model = sm.OLS(y, X).fit()
+            
+            # 获取系数和统计信息
+            coefficients = model.params
+            r_squared = model.rsquared
+            rmse = np.sqrt(model.mse_resid)
+            
+            # 创建结果字典
+            result = {
+                '标的': symbol,
+                'R²': r_squared,
+                'RMSE': rmse,
+                '截距': coefficients[0]
+            }
+            
+            # 添加因子系数
+            for i, factor_name in enumerate(all_factors.columns):
+                result[f'{factor_name}_系数'] = coefficients[i+1]
+                
+            # 添加到结果列表
+            regression_results.append(result)
+        except Exception as e:
+            logging.error(f"Error in regression for {symbol}: {e}")
+            continue
     
-    # 创建结果数据框
-    regression_df = pd.DataFrame(results)
-    
-    logger.info("Successfully calculated factor regression")
+    # 如果没有有效的回归结果，返回None
+    if not regression_results:
+        return None
+        
+    # 将结果转换为DataFrame
+    regression_df = pd.DataFrame(regression_results)
     return regression_df
 
 
@@ -900,38 +1103,8 @@ def run():
         # 将相关性矩阵保存到session_state
         st.session_state.corr_matrix = corr_matrix
         
-        if corr_matrix is not None:
-            # 根据是否有标的数据显示不同的标题
-            if returns_df is not None and not returns_df.empty:
-                st.subheader('标的与因子相关性')
-            else:
-                st.subheader('因子之间的相关性')
-            
-            # 重命名索引和列，添加标的名称
-            if symbol_to_name:
-                # 创建新的列名和索引名
-                new_columns = []
-                for col in corr_matrix.columns:
-                    # 如果是标的代码，添加名称；如果是因子，保持不变
-                    if col in symbol_to_name:
-                        new_columns.append(f"{col} ({symbol_to_name[col]})")
-                    else:
-                        new_columns.append(col)
-                
-                # 设置新的列名和索引名
-                corr_matrix.columns = new_columns
-                
-                # 对于索引，只修改标的代码的部分
-                new_index = []
-                for idx in corr_matrix.index:
-                    if idx in symbol_to_name:
-                        new_index.append(f"{idx} ({symbol_to_name[idx]})")
-                    else:
-                        new_index.append(idx)
-                corr_matrix.index = new_index
-            
-            # 显示带颜色渐变的相关性矩阵
-            st.dataframe(corr_matrix.style.background_gradient(cmap='coolwarm', axis=None, vmin=-1, vmax=1))
+        # 使用新函数显示相关性矩阵
+        display_correlation_matrix(corr_matrix, symbol_to_name, returns_df)
         
         # 如果有标的数据，计算并显示因子回归分析
         if returns_df is not None and not returns_df.empty:
@@ -939,127 +1112,8 @@ def run():
             calculate_factor_regression.clear()  # 清除缓存
             regression_df = calculate_factor_regression(returns_df, factor_data)
             
-            if regression_df is not None:
-                st.subheader('因子回归分析')
-                st.markdown('以下表格展示了各标的收益率与因子收益率的线性回归结果，用于分析因子对标的收益率的解释性。')
-                
-                # 重命名标的列，添加名称
-                if symbol_to_name:
-                    regression_df['标的名称'] = regression_df['标的'].apply(lambda x: symbol_to_name.get(x, x))
-                    regression_df['标的'] = regression_df['标的'].apply(lambda x: f"{x} ({symbol_to_name.get(x, x)})")
-                
-                # 显示回归结果表格
-                st.dataframe(regression_df.style.format({
-                    'R²': '{:.4f}',
-                    'RMSE': '{:.4f}',
-                    '截距': '{:.4f}',
-                    'SMB规模因子_系数': '{:.4f}',
-                    'HML价值因子_系数': '{:.4f}',
-                    'MOM动量因子_系数': '{:.4f}',
-                    'RMW盈利因子_系数': '{:.4f}',
-                    'CMA投资因子_系数': '{:.4f}'
-                }))
-                
-                # 创建汇总表格，每行是一个标的，每列是各因子的解释
-                st.markdown('### 标的因子影响汇总表')
-                
-                # 定义因子影响判断函数
-                def get_factor_impact(coef):
-                    """根据系数判断因子影响大小和方向"""
-                    if coef > 0.5:
-                        return "强正相关"
-                    elif coef > 0.2:
-                        return "中正相关"
-                    elif coef > 0:
-                        return "弱正相关"
-                    elif coef > -0.2:
-                        return "弱负相关"
-                    elif coef > -0.5:
-                        return "中负相关"
-                    else:
-                        return "强负相关"
-                
-                def get_r2_impact(r2):
-                    """根据R²判断模型解释力"""
-                    if r2 > 0.6:
-                        return "解释力强"
-                    elif r2 > 0.3:
-                        return "解释力中"
-                    else:
-                        return "解释力弱"
-                
-                # 准备汇总表格数据
-                summary_data = []
-                
-                # 处理每个标的
-                for _, row in regression_df.iterrows():
-                    symbol = row['标的']
-                    
-                    # 创建每个标的的数据行
-                    symbol_data = {
-                        '标的': symbol,
-                        'R²': f"{row['R²']:.4f} ({get_r2_impact(row['R²'])})",
-                        'RMSE': f"{row['RMSE']:.4f} ({'误差大' if row['RMSE'] > 0.02 else '误差小'})",
-                        '截距': f"{row['截距']:.4f} ({'有超额收益' if row['截距'] > 0.001 else '无显著超额收益' if row['截距'] > -0.001 else '有负超额收益'})"
-                    }
-                    
-                    # 添加各因子的影响解释
-                    factor_explanations = {
-                        'SMB规模因子': {
-                            '强正相关': '强烈偏好小市值',
-                            '中正相关': '中度偏好小市值',
-                            '弱正相关': '轻微偏好小市值',
-                            '弱负相关': '轻微偏好大市值',
-                            '中负相关': '中度偏好大市值',
-                            '强负相关': '强烈偏好大市值'
-                        },
-                        'HML价值因子': {
-                            '强正相关': '强烈偏好价值股',
-                            '中正相关': '中度偏好价值股',
-                            '弱正相关': '轻微偏好价值股',
-                            '弱负相关': '轻微偏好成长股',
-                            '中负相关': '中度偏好成长股',
-                            '强负相关': '强烈偏好成长股'
-                        },
-                        'MOM动量因子': {
-                            '强正相关': '强烈追涨特征',
-                            '中正相关': '中度追涨特征',
-                            '弱正相关': '轻微追涨特征',
-                            '弱负相关': '轻微逆势特征',
-                            '中负相关': '中度逆势特征',
-                            '强负相关': '强烈逆势特征'
-                        },
-                        'RMW盈利因子': {
-                            '强正相关': '强烈偏好高盈利',
-                            '中正相关': '中度偏好高盈利',
-                            '弱正相关': '轻微偏好高盈利',
-                            '弱负相关': '轻微偏好低盈利',
-                            '中负相关': '中度偏好低盈利',
-                            '强负相关': '强烈偏好低盈利'
-                        },
-                        'CMA投资因子': {
-                            '强正相关': '强烈偏好保守投资',
-                            '中正相关': '中度偏好保守投资',
-                            '弱正相关': '轻微偏好保守投资',
-                            '弱负相关': '轻微偏好激进投资',
-                            '中负相关': '中度偏好激进投资',
-                            '强负相关': '强烈偏好激进投资'
-                        }
-                    }
-                    
-                    # 添加各因子解释
-                    for factor in ['SMB规模因子', 'HML价值因子', 'MOM动量因子', 'RMW盈利因子', 'CMA投资因子']:
-                        coef_col = f"{factor}_系数"
-                        if coef_col in row:
-                            impact = get_factor_impact(row[coef_col])
-                            explanation = factor_explanations[factor][impact] if factor in factor_explanations and impact in factor_explanations[factor] else impact
-                            symbol_data[factor] = f"{row[coef_col]:.4f} ({explanation})"
-                    
-                    # 添加到汇总数据
-                    summary_data.append(symbol_data)
-                
-                # 显示汇总表格
-                st.dataframe(pd.DataFrame(summary_data))
+            # 使用新函数显示因子回归分析结果
+            display_factor_regression_analysis(regression_df, symbol_to_name)
                 
 
 if __name__ == "__main__":

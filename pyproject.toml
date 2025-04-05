@@ -49,7 +49,8 @@ dependencies = [
     "feedparser==6.0.11",
     "openai==1.60.0",
     "apscheduler==3.11.0",
-    "futu-api"
+    "futu-api",
+    "statsmodels==0.14.4",
 ]
 
 [project.urls]
