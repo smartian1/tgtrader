@@ -12,6 +12,37 @@ from tgtrader.data import DataGetter
 from tgtrader.streamlit_pages.pages.component.stock_dropdown_list import StockDropdownSelectItem, build_stock_dropdown_list
 from tgtrader.data_provider.index_data_query import IndexDataQuery
 
+# 因子配置字典
+# 所有因子相关的配置都集中在这里，后续只需要修改这个字典即可
+FACTOR_CONFIG = {
+    'smb': {
+        'name': 'SMB规模因子',
+        'color': '#1eb5a6',
+        'description': "SMB因子（规模因子）：Small Minus Big，表示小市值股票相对于大市值股票的超额收益。正值表示小市值股票表现优于大市值股票，负值表示大市值股票表现优于小市值股票。"
+    },
+    'hml': {
+        'name': 'HML价值因子',
+        'color': '#ff6b78',
+        'description': "HML因子（价值因子）：High Minus Low，表示高账面市值比股票相对于低账面市值比股票的超额收益。正值表示价值股表现优于成长股，负值表示成长股表现优于价值股。"
+    },
+    'rmw': {
+        'name': 'RMW盈利因子',
+        'color': '#4b9afa',
+        'description': "RMW因子（盈利因子）：Robust Minus Weak，表示高盈利能力股票相对于低盈利能力股票的超额收益。正值表示高盈利能力股票表现优于低盈利能力股票，负值表示低盈利能力股票表现优于高盈利能力股票。"
+    },
+    'cma': {
+        'name': 'CMA投资因子',
+        'color': '#9c27b0',
+        'description': "CMA因子（投资因子）：Conservative Minus Aggressive，表示低投资企业相对于高投资企业的超额收益。正值表示低投资企业表现优于高投资企业，负值表示高投资企业表现优于低投资企业。"
+    }
+    # 如果需要添加新因子，只需在这里添加新的配置项
+    # 'new_factor': {
+    #     'name': '新因子名称',
+    #     'color': '#hex颜色代码',
+    #     'description': '因子描述'
+    # }
+}
+
 
 def prepare_symbols_dict(symbol_multiselect: list[StockDropdownSelectItem]) -> Tuple[Dict[SecurityType, List[str]], Dict[str, str]]:
     """
@@ -230,27 +261,22 @@ def get_factor_data(start_date: datetime, end_date: datetime) -> Dict[str, pd.Da
     start_date_str = start_date.strftime("%Y-%m-%d")
     end_date_str = end_date.strftime("%Y-%m-%d")
     
-    # 因子名称和显示名称的映射
-    factor_display_names = {
-        'smb': 'SMB规模因子',
-        'hml': 'HML价值因子',
-        'rmw': 'RMW盈利因子',
-        'cma': 'CMA投资因子'
-    }
+    # 从配置中获取因子名称
+    factor_display_names = {factor_key: config['name'] for factor_key, config in FACTOR_CONFIG.items()}
     
     # 获取所有因子数据
     factor_data = {}
     
-    for factor_name, display_name in factor_display_names.items():
+    for factor_key, config in FACTOR_CONFIG.items():
         # 使用可缓存的函数获取因子数据
-        factor_df = _get_factor_data_cached(start_date_str, end_date_str, factor_name)
+        factor_df = _get_factor_data_cached(start_date_str, end_date_str, factor_key)
         
         if not factor_df.empty:
-            factor_df = factor_df.rename(columns={'value': display_name})
+            factor_df = factor_df.rename(columns={'value': config['name']})
         else:
-            st.error(f"获取{display_name}数据失败")
+            st.error(f"获取{config['name']}数据失败")
         
-        factor_data[factor_name] = factor_df
+        factor_data[factor_key] = factor_df
     
     logger.info("Successfully fetched factor data")
     return factor_data
@@ -369,77 +395,27 @@ def display_factor_charts(factor_data: Dict[str, pd.DataFrame], returns_df: Opti
         st.warning("没有可用的因子数据")
         return
     
-    # 因子描述
-    factor_descriptions = {
-        'smb': "SMB因子（规模因子）：Small Minus Big，表示小市值股票相对于大市值股票的超额收益。正值表示小市值股票表现优于大市值股票，负值表示大市值股票表现优于小市值股票。",
-        'hml': "HML因子（价值因子）：High Minus Low，表示高账面市值比股票相对于低账面市值比股票的超额收益。正值表示价值股表现优于成长股，负值表示成长股表现优于价值股。",
-        'rmw': "RMW因子（盈利因子）：Robust Minus Weak，表示高盈利能力股票相对于低盈利能力股票的超额收益。正值表示高盈利能力股票表现优于低盈利能力股票，负值表示低盈利能力股票表现优于高盈利能力股票。",
-        'cma': "CMA因子（投资因子）：Conservative Minus Aggressive，表示低投资企业相对于高投资企业的超额收益。正值表示低投资企业表现优于高投资企业，负值表示高投资企业表现优于低投资企业。"
-    }
+    # 从配置中获取因子描述
+    factor_descriptions = {factor_key: config['description'] for factor_key, config in FACTOR_CONFIG.items()}
     
-    # 因子颜色
-    factor_colors = {
-        'smb': '#1eb5a6',
-        'hml': '#ff6b78',
-        'rmw': '#4b9afa',
-        'cma': '#9c27b0'
-    }
+    # 从配置中获取因子颜色
+    factor_colors = {factor_key: config['color'] for factor_key, config in FACTOR_CONFIG.items()}
     
-    # 因子名称和列名映射
-    factor_names = {
-        'smb': 'SMB规模因子',
-        'hml': 'HML价值因子',
-        'rmw': 'RMW盈利因子',
-        'cma': 'CMA投资因子'
-    }
+    # 从配置中获取因子名称
+    factor_names = {factor_key: config['name'] for factor_key, config in FACTOR_CONFIG.items()}
     
-    # 显示SMB因子图表
-    if not factor_data['smb'].empty:
-        display_single_factor_chart(
-            factor_df=factor_data['smb'],
-            factor_name=factor_names['smb'],
-            factor_column=factor_names['smb'],
-            color=factor_colors['smb'],
-            factor_description=factor_descriptions['smb'],
-            returns_df=returns_df,
-            symbol_to_name=symbol_to_name
-        )
-    
-    # 显示HML因子图表
-    if not factor_data['hml'].empty:
-        display_single_factor_chart(
-            factor_df=factor_data['hml'],
-            factor_name=factor_names['hml'],
-            factor_column=factor_names['hml'],
-            color=factor_colors['hml'],
-            factor_description=factor_descriptions['hml'],
-            returns_df=returns_df,
-            symbol_to_name=symbol_to_name
-        )
-    
-    # 显示RMW因子图表
-    if not factor_data['rmw'].empty:
-        display_single_factor_chart(
-            factor_df=factor_data['rmw'],
-            factor_name=factor_names['rmw'],
-            factor_column=factor_names['rmw'],
-            color=factor_colors['rmw'],
-            factor_description=factor_descriptions['rmw'],
-            returns_df=returns_df,
-            symbol_to_name=symbol_to_name
-        )
-    
-    # 显示CMA因子图表
-    if 'cma' in factor_data and not factor_data['cma'].empty:
-        display_single_factor_chart(
-            factor_df=factor_data['cma'],
-            factor_name=factor_names['cma'],
-            factor_column=factor_names['cma'],
-            color=factor_colors['cma'],
-            factor_description=factor_descriptions['cma'],
-            returns_df=returns_df,
-            symbol_to_name=symbol_to_name
-        )
+    # 遍历所有因子并显示图表
+    for factor_key in FACTOR_CONFIG.keys():
+        if factor_key in factor_data and not factor_data[factor_key].empty:
+            display_single_factor_chart(
+                factor_df=factor_data[factor_key],
+                factor_name=factor_names[factor_key],
+                factor_column=factor_names[factor_key],
+                color=factor_colors[factor_key],
+                factor_description=factor_descriptions[factor_key],
+                returns_df=returns_df,
+                symbol_to_name=symbol_to_name
+            )
 
 
 def display_price_chart(normalized_prices: pd.DataFrame, symbol_to_name: Dict[str, str]):
