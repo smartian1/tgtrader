@@ -24,7 +24,20 @@ class StockDropdownSelectItem:
         # 通过 symbol_type 和 code 确定唯一性
         return hash((self.symbol_type, self.code))
     
-def build_stock_dropdown_list(src_page:str, data_getter: DataGetter, strategy_config: StrategyConfig = None) -> list[StockDropdownSelectItem]:
+def build_stock_dropdown_list(src_page:str, data_getter: DataGetter, strategy_config: StrategyConfig = None, title: str = '选择标的', with_border: bool = False) -> list[StockDropdownSelectItem]:
+    # 使用 expander 来创建带边框的容器
+    if with_border:
+        # 如果有标题就使用标题，否则使用默认标题
+        expander_title = title
+        with st.expander(expander_title, expanded=True):
+            return _build_stock_dropdown_list_internal(src_page, data_getter, strategy_config)
+    else:
+        # 如果有标题但不需要边框
+        if title:
+            st.markdown(f"### {title}")
+        return _build_stock_dropdown_list_internal(src_page, data_getter, strategy_config)
+
+def _build_stock_dropdown_list_internal(src_page:str, data_getter: DataGetter, strategy_config: StrategyConfig = None) -> list[StockDropdownSelectItem]:
     # 从策略配置中获取默认的证券类型
     default_security_type = None
     if strategy_config is not None and strategy_config.symbols:
@@ -80,5 +93,5 @@ def build_stock_dropdown_list(src_page:str, data_getter: DataGetter, strategy_co
 
     # 将symbol_multiselect转换为BuildStockDropdownSelectItem列表
     symbol_multiselect = [StockDropdownSelectItem(symbol.split('|')[2], symbol.split('|')[0], symbol.split('|')[1]) for symbol in symbol_multiselect]
-
+    
     return symbol_multiselect
