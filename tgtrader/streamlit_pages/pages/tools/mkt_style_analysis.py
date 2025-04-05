@@ -16,6 +16,10 @@ from sklearn.metrics import r2_score, mean_squared_error
 from tgtrader.streamlit_pages.pages.component.stock_dropdown_list import StockDropdownSelectItem, build_stock_dropdown_list
 from tgtrader.data_provider.index_data_query import IndexDataQuery
 from loguru import logger
+from statsmodels.stats.outliers_influence import variance_inflation_factor
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.linear_model import Ridge
 
 # 因子配置字典
 # 所有因子相关的配置都集中在这里，后续只需要修改这个字典即可
@@ -85,11 +89,10 @@ def prepare_symbols_dict(symbol_multiselect: list[StockDropdownSelectItem]) -> T
     return symbols_dict, symbol_to_name
 
 
-@st.cache_data(ttl=3600)  # 缓存1小时
-def _get_price_data_cached(symbol: str, security_type_value: int,
+def _get_price_data_cached_inner(symbol: str, security_type_value: int,
                          start_date_str: str, end_date_str: str) -> Optional[pd.DataFrame]:
     """
-    获取单个标的的价格数据（可缓存版本）
+    获取单个标的的价格数据（内部实现）
     
     Args:
         symbol: 标的代码
@@ -136,6 +139,33 @@ def _get_price_data_cached(symbol: str, security_type_value: int,
         st.error(f"获取{symbol}数据失败: {str(e)}")
         logger.error(f"获取{symbol}数据失败: {str(e)}")
         return None
+
+@st.cache_data(ttl=3600)  # 缓存1小时
+def _get_price_data_cached(symbol: str, security_type_value: int,
+                         start_date_str: str, end_date_str: str) -> Optional[pd.DataFrame]:
+    """
+    获取单个标的的价格数据（可缓存版本）
+    
+    只有在成功获取数据时才会将结果添加到缓存中
+    
+    Args:
+        symbol: 标的代码
+        security_type_value: 证券类型的枚举值
+        start_date_str: 开始日期字符串
+        end_date_str: 结束日期字符串
+        
+    Returns:
+        单个标的的价格数据
+    """
+    # 调用内部函数获取数据
+    result = _get_price_data_cached_inner(symbol, security_type_value, start_date_str, end_date_str)
+    
+    # 如果结果为None，抛出异常以避免缓存
+    if result is None:
+        # 使用st.cache_data的特性，抛出异常会阻止缓存
+        raise Exception(f"获取{symbol}数据失败，不缓存结果")
+    
+    return result
 
 
 def get_single_symbol_price_data(data_getter: DataGetter, symbol: str, security_type: SecurityType,
@@ -222,11 +252,10 @@ def get_price_data(data_getter: DataGetter, symbols_dict: Dict[SecurityType, Lis
     logger.info(f"Successfully processed price data for {len(pivot_df.columns)} symbols")
     return pivot_df, returns_df, normalized_prices
 
-
 @st.cache_data(ttl=3600)  # 缓存1小时
-def _get_factor_data_cached(start_date_str: str, end_date_str: str, factor_name: str) -> pd.DataFrame:
+def _get_factor_data_cached_inner(start_date_str: str, end_date_str: str, factor_name: str) -> pd.DataFrame:
     """
-    获取单个因子数据（可缓存版本）
+    获取单个因子数据（内部实现）
     
     Args:
         start_date_str: 开始日期字符串
@@ -246,6 +275,30 @@ def _get_factor_data_cached(start_date_str: str, end_date_str: str, factor_name:
     except Exception as e:
         logger.error(f"获取{factor_name}因子数据失败: {str(e)}")
         return pd.DataFrame()
+
+def _get_factor_data_cached(start_date_str: str, end_date_str: str, factor_name: str) -> pd.DataFrame:
+    """
+    获取单个因子数据（可缓存版本）
+    
+    只有在成功获取数据时才会将结果添加到缓存中
+    
+    Args:
+        start_date_str: 开始日期字符串
+        end_date_str: 结束日期字符串
+        factor_name: 因子名称
+        
+    Returns:
+        因子数据 DataFrame
+    """
+    # 调用内部函数获取数据
+    result = _get_factor_data_cached_inner(start_date_str, end_date_str, factor_name)
+    
+    # 如果结果为空 DataFrame，抛出异常以避免缓存
+    if result.empty:
+        # 使用st.cache_data的特性，抛出异常会阻止缓存
+        raise Exception(f"获取{factor_name}因子数据失败，不缓存结果")
+    
+    return result
 
 
 def get_factor_data(start_date: datetime, end_date: datetime) -> Dict[str, pd.DataFrame]:
@@ -525,7 +578,8 @@ def display_single_factor_chart(factor_df: pd.DataFrame, factor_name: str, facto
         color=color,
         description=factor_description
     )
-    
+
+
 def display_factor_charts(factor_data: Dict[str, pd.DataFrame], returns_df: Optional[pd.DataFrame] = None, 
                          symbol_to_name: Optional[Dict[str, str]] = None):
     """
@@ -674,7 +728,6 @@ def process_factor_data(factor_data: Dict[str, pd.DataFrame], target_index: pd.D
     return factor_returns
 
 
-@st.cache_data(ttl=3600, hash_funcs={pd.DataFrame: lambda _: None}, show_spinner=False)  # 缓存1小时，使用自定义哈希函数
 def calculate_factor_correlation(returns_df: Optional[pd.DataFrame], factor_data: Dict[str, pd.DataFrame]) -> Optional[pd.DataFrame]:
     """
     计算标的收益率与因子之间的相关性，如果没有标的数据，则计算因子之间的相关性
@@ -738,48 +791,464 @@ def calculate_factor_correlation(returns_df: Optional[pd.DataFrame], factor_data
     return corr_matrix
 
 
-@st.cache_data(ttl=3600, hash_funcs={pd.DataFrame: lambda _: None}, show_spinner=False)
-def display_factor_regression_analysis(regression_df: pd.DataFrame, symbol_to_name: Optional[Dict[str, str]] = None):
+def filter_high_correlation_factors(factors_df: pd.DataFrame, correlation_threshold: float = 0.7) -> Tuple[pd.DataFrame, Dict[str, str], pd.DataFrame]:
     """
-    显示因子回归分析结果
+    移除高相关性因子，优先保留具有重要经济意义的因子，其次保留方差大或VIF值低的因子
     
     Args:
-        regression_df: 回归分析结果DataFrame
-        symbol_to_name: 代码到名称的映射
+        factors_df: 因子数据框
+        correlation_threshold: 相关性阈值，当相关性绝对值超过此阈值时进行处理
+        
+    Returns:
+        过滤后的因子数据框、过滤信息字典和过滤后的相关性矩阵的元组 (filtered_factors_df, filter_info, filtered_correlation_matrix)
     """
-    if regression_df is None or regression_df.empty:
-        return
+    if factors_df.empty or factors_df.shape[1] < 2:
+        return factors_df, {}, factors_df.corr().abs() if not factors_df.empty else pd.DataFrame()
     
+    # 定义具有重要经济意义的因子列表（按重要性排序）
+    important_factors = ['smb', 'rmw', 'hml', 'cma']  # 小市值、盈利、价值、投资因子
+    
+    # 计算相关性矩阵的绝对值
+    correlation_matrix = factors_df.corr().abs()
+    
+    # 计算每个因子的方差
+    factor_variance = factors_df.var()
+    
+    # 尝试计算VIF值（如果数据充足）
+    vif_values = {}
+    try:
+        # 添加常数项
+        X = sm.add_constant(factors_df)
+        vif_data = pd.DataFrame()
+        vif_data["feature"] = X.columns
+        
+        # 计算每个因子的VIF
+        for i in range(1, len(X.columns)):
+            vif_values[X.columns[i]] = variance_inflation_factor(X.values, i)
+        
+        logger.debug(f"VIF值: {vif_values}")
+    except Exception as e:
+        logger.warning(f"计算VIF值时出错: {e}")
+    
+    # 创建一个列表来存储要保留的因子
+    filtered_factors = list(factors_df.columns)
+    
+    # 创建一个字典来记录过滤信息
+    filter_info = {}
+    
+    # 获取上三角矩阵的索引，不包括对角线
+    upper_triangle = np.triu(correlation_matrix.values, k=1)
+    
+    # 找出相关性超过阈值的因子对
+    high_correlation_indices = np.where(upper_triangle > correlation_threshold)
+    
+    # 将索引转换为因子名称对
+    high_correlation_pairs = [(correlation_matrix.index[i], correlation_matrix.columns[j]) 
+                              for i, j in zip(*high_correlation_indices)]
+    
+    # 按相关性从高到低排序
+    high_correlation_pairs.sort(key=lambda pair: correlation_matrix.loc[pair[0], pair[1]], reverse=True)
+    
+    # 处理每一对高相关性因子
+    for factor1, factor2 in high_correlation_pairs:
+        # 如果其中一个因子已经被移除，则跳过
+        if factor1 not in filtered_factors or factor2 not in filtered_factors:
+            continue
+        
+        # 决定移除哪个因子
+        remove_factor = None
+        keep_factor = None
+        reason = ""
+        
+        # 第一优先级：根据因子的经济意义重要性决定
+        factor1_importance = -1
+        factor2_importance = -1
+        
+        # 检查因子是否在重要因子列表中，并获取其重要性排名
+        for factor in [factor1.lower(), factor2.lower()]:
+            for i, important_factor in enumerate(important_factors):
+                if factor == important_factor or factor.startswith(important_factor):
+                    if factor == factor1.lower():
+                        factor1_importance = i
+                    else:
+                        factor2_importance = i
+                    break
+        
+        # 如果两个因子都在重要因子列表中，根据重要性排名决定
+        if factor1_importance >= 0 and factor2_importance >= 0:
+            if factor1_importance < factor2_importance:  # 排名越小越重要
+                remove_factor = factor2
+                keep_factor = factor1
+                reason = f"经济意义更重要({important_factors[factor1_importance]} > {important_factors[factor2_importance]})"
+            else:
+                remove_factor = factor1
+                keep_factor = factor2
+                reason = f"经济意义更重要({important_factors[factor2_importance]} > {important_factors[factor1_importance]})"
+        
+        # 如果只有一个因子在重要因子列表中，保留该因子
+        elif factor1_importance >= 0:
+            remove_factor = factor2
+            keep_factor = factor1
+            reason = f"保留经济意义重要因子({important_factors[factor1_importance]})"
+        elif factor2_importance >= 0:
+            remove_factor = factor1
+            keep_factor = factor2
+            reason = f"保留经济意义重要因子({important_factors[factor2_importance]})"
+        
+        # 第二优先级：使用VIF值做决策（如果可用且上一步没有决定）
+        elif vif_values and factor1 in vif_values and factor2 in vif_values:
+            if vif_values[factor1] > vif_values[factor2]:
+                remove_factor = factor1
+                keep_factor = factor2
+                reason = f"VIF值较高({vif_values[factor1]:.2f} > {vif_values[factor2]:.2f})"
+            else:
+                remove_factor = factor2
+                keep_factor = factor1
+                reason = f"VIF值较高({vif_values[factor2]:.2f} > {vif_values[factor1]:.2f})"
+        
+        # 第三优先级：根据方差决定（如果前两步没有决定）
+        else:
+            # 移除方差较小的因子（保留信息量更大的因子）
+            if factor_variance[factor1] >= factor_variance[factor2]:
+                remove_factor = factor2
+                keep_factor = factor1
+                reason = f"方差较小({factor_variance[factor2]:.6f} < {factor_variance[factor1]:.6f})"
+            else:
+                remove_factor = factor1
+                keep_factor = factor2
+                reason = f"方差较小({factor_variance[factor1]:.6f} < {factor_variance[factor2]:.6f})"
+        
+        logger.debug(f"移除因子: {remove_factor}，保留因子: {keep_factor}，原因: {reason}，相关性: {correlation_matrix.loc[factor1, factor2]:.4f}")
+        
+        # 移除选定的因子
+        if remove_factor in filtered_factors:
+            filtered_factors.remove(remove_factor)
+            filter_info[remove_factor] = f"由于与{keep_factor}高相关({correlation_matrix.loc[factor1, factor2]:.4f})被移除，{reason}"
+    
+    # 创建过滤后的因子数据框
+    filtered_factors_df = factors_df[filtered_factors].copy()
+    
+    # 计算过滤后的相关性矩阵
+    filtered_correlation_matrix = filtered_factors_df.corr().abs()
+    logger.debug(f"过滤后因子相关性矩阵:\n{filtered_correlation_matrix}")
+    
+    return filtered_factors_df, filter_info, filtered_correlation_matrix
+
+
+def calculate_factor_regression(returns_df: pd.DataFrame, factor_data: Dict[str, pd.DataFrame], maxlags: int = 5, 
+                               correlation_threshold: float = 0.7) -> Tuple[Optional[pd.DataFrame], Optional[pd.DataFrame]]:
+    """
+    计算因子回归分析，通过移除高相关性因子来处理共线性问题，然后使用处理后的因子进行OLS回归
+    
+    Args:
+        returns_df: 收益率数据框
+        factor_data: 因子数据字典，键为因子名称，值为因子数据框
+        maxlags: HAC标准误的最大滞后期数，用于处理时间序列中的自相关和异方差
+        correlation_threshold: 相关性阈值，当因子间绝对相关性超过此阈值时，移除其中一个因子
+        
+    Returns:
+        回归分析结果数据框和处理后的因子相关性矩阵的元组 (regression_df, filtered_correlation_matrix)
+    """
+    # 检查输入数据有效性
+    if returns_df is None or returns_df.empty or not factor_data:
+        logger.warning("收益率数据或因子数据为空，无法进行回归分析")
+        return None, None
+
+    # 处理因子数据，确保时间索引一致
+    common_index = returns_df.index
+    all_factors = process_factor_data(factor_data, common_index)
+
+    if all_factors.empty or all_factors.shape[1] < 1:
+        logger.warning("处理后的因子数据为空，无法进行回归分析")
+        return None, None
+    
+    # 1. 计算原始因子相关性矩阵（用于显示原始相关性）
+    correlation_matrix = all_factors.corr().abs()
+    logger.debug(f"原始因子相关性矩阵:\n{correlation_matrix}")
+    
+    # 2. 使用过滤高相关性因子的方法处理共线性
+    filtered_factors, filter_info, filtered_correlation_matrix = filter_high_correlation_factors(all_factors, correlation_threshold)
+    logger.info(f"共线性处理后保留的因子数量: {filtered_factors.shape[1]}/{all_factors.shape[1]}")
+    
+    # 3. 对每个标的进行回归分析
+    regression_results = []
+    for symbol in returns_df.columns:
+        symbol_returns = returns_df[[symbol]]
+        # 合并收益率和过滤后的因子数据
+        merged_data = pd.merge(symbol_returns, filtered_factors, left_index=True, right_index=True, how='inner')
+        merged_data = merged_data.dropna()
+        
+        # 检查数据量是否足够
+        if len(merged_data) < 10:  # 至少需要10个观测值
+            logger.warning(f"对{symbol}进行回归分析的有效数据不足。只有{len(merged_data)}个观测值。")
+            continue
+
+        # 准备回归变量
+        y = merged_data[symbol].values  # 回归因变量（收益率）
+        X_df = merged_data.drop(columns=[symbol])  # 自变量（因子）
+        
+        # 添加常数项
+        X = sm.add_constant(X_df.values)
+        X_cols_with_const = ['const'] + X_df.columns.tolist()  # 用于结果索引
+        
+        try:
+            # 4. 使用OLS + HAC标准误进行回归
+            ols_model = sm.OLS(y, X)
+            ols_fit = ols_model.fit(cov_type='HAC', cov_kwds={'maxlags': maxlags})
+
+            # 5. 收集回归结果
+            reg_res = {
+                '标的': symbol,
+                'R²': ols_fit.rsquared,
+                'Adj. R²': ols_fit.rsquared_adj,
+                '样本数': ols_fit.nobs
+            }
+            
+            # 添加系数信息
+            for i, name in enumerate(X_cols_with_const):
+                # 格式化: 系数 (t值, p值)
+                coef = ols_fit.params[i]
+                tval = ols_fit.tvalues[i]
+                pval = ols_fit.pvalues[i]
+                reg_res[f'{name}_系数'] = f"{coef:.4f} (t={tval:.2f}, p={pval:.3f})"
+            
+            # 添加共线性处理信息
+            if filter_info:
+                reg_res['共线性处理'] = f'移除高相关因子(阈值={correlation_threshold})'
+                # 添加过滤信息
+                reg_res['过滤信息'] = ', '.join([f"{factor}: {info}" for factor, info in filter_info.items()])
+            else:
+                reg_res['共线性处理'] = '无'
+
+            regression_results.append(reg_res)
+        except Exception as e:
+            logger.error(f"对{symbol}进行回归分析时出错: {e}")
+            # 跳过当前符号，继续处理下一个
+            continue
+
+    # 6. 创建回归结果数据框
+    regression_df = pd.DataFrame(regression_results) if regression_results else None
+
+    return regression_df, filtered_correlation_matrix
+
+
+def display_factor_regression_analysis(regression_results: Optional[pd.DataFrame], filtered_correlation_matrix: Optional[pd.DataFrame], symbol_to_name: Optional[Dict[str, str]], factor_code_to_display: Dict[str, str]):
+    """
+    显示因子回归分析结果表格和处理后的因子相关性矩阵
+
+    Args:
+        regression_results: 回归分析结果DataFrame
+        filtered_correlation_matrix: 处理后的因子相关性矩阵
+        symbol_to_name: 代码到名称的映射
+        factor_code_to_display: 因子代码 (列名后缀) 到中文显示名称的映射
+    """
     st.subheader('因子回归分析')
-    st.markdown('以下表格展示了各标的收益率与因子收益率的线性回归结果，用于分析因子对标的收益率的解释性。')
+
+    # 添加总体解释
+    st.markdown("""
+    ### 分析方法与目的
     
-    # 重命名标的列，添加名称
-    if symbol_to_name:
-        regression_df['标的名称'] = regression_df['标的'].apply(lambda x: symbol_to_name.get(x, x))
-        regression_df['标的'] = regression_df['标的'].apply(lambda x: f"{x} ({symbol_to_name.get(x, x)})") 
+    因子回归分析采用线性回归模型，量化评估各风格因子对标的收益率的影响程度。该分析可以帮助：
+    - 识别标的对不同市场风格的敏感度
+    - 发现标的收益率的主要驱动因素
+    - 对比不同标的的风格特征
     
-    # 显示回归结果表格
-    st.dataframe(regression_df.style.format({
-        'R²': '{:.4f}',
-        'RMSE': '{:.4f}',
-        '截距': '{:.4f}',
-        'SMB规模因子_系数': '{:.4f}',
-        'HML价值因子_系数': '{:.4f}',
-        'MOM动量因子_系数': '{:.4f}',
-        'RMW盈利因子_系数': '{:.4f}',
-        'CMA投资因子_系数': '{:.4f}'
-    }))
+    ### 模型说明
     
-    # 创建汇总表格
-    display_factor_impact_summary(regression_df)
+    我们使用 **OLS + Newey-West HAC** 回归方法，该方法特别适用于时间序列数据，可以处理：
+    - 自相关：当前收益率与过去收益率的相关性
+    - 异方差：收益率波动幅度的变化
+    
+    ### 共线性处理
+    
+    为确保结果可靠，我们使用了移除高相关性因子的方法处理共线性问题，这样可以：
+    - 保持因子原始含义，便于解释
+    - 提高系数估计的稳定性
+    - 使模型更简洁高效
+    
+    ### 结果解读指南
+    
+    **系数值与显著性**：
+    - **系数值**：表示因子每变动一个单位，标的收益率预期变动的百分比
+    - **t值**：表示系数估计的统计显著性，绝对值越大越显著
+    - **p值与星号**：表示显著性级别：
+        * p < 0.01 (***): 非常显著
+        * p < 0.05 (**): 显著
+        * p < 0.1 (*): 弱显著
+    
+    **模型评估**：
+    - **R²**：模型解释力，范围为0-1，越高表示因子对收益率的解释力越强
+    - **Adj. R²**：调整后的R²，考虑了因子数量，更适合模型比较
+    """)
+
+    # 定义一个函数来处理系数显示，添加显著性标记
+    def format_coef_with_significance(coef_str):
+        if not isinstance(coef_str, str) or '(' not in coef_str:
+            return coef_str
+        try:
+            # 先移除可能已存在的星号，再解析p值
+            p_val_str = coef_str.split('p=')[1].split(')')[0].replace('*','').strip()
+            p_val = float(p_val_str)
+            
+            # 检查是否是z值或t值
+            if 'z=' in coef_str:
+                stat_type = 'z'
+            else:
+                stat_type = 't'
+                
+            # 提取系数值和统计量部分，保留t值或z值
+            coef_and_stat = coef_str.split('p=')[0].strip()
+            if coef_and_stat.endswith(','):
+                coef_and_stat = coef_and_stat[:-1]  # 移除末尾的逗号
+
+            # 根据p值添加星号
+            if p_val < 0.01:
+                return f"{coef_and_stat} p={p_val:.3f} ***)" 
+            elif p_val < 0.05:
+                return f"{coef_and_stat} p={p_val:.3f} **)"
+            elif p_val < 0.1:
+                return f"{coef_and_stat} p={p_val:.3f} *)"
+            return f"{coef_and_stat} p={p_val:.3f})" 
+        except:
+            return coef_str # 解析失败返回原值
+
+    # --- 显示处理后的因子相关性矩阵 ---
+    if filtered_correlation_matrix is not None and not filtered_correlation_matrix.empty:
+        st.markdown("### 处理后的因子相关性矩阵")
+        
+        # 将因子代码转换为显示名称
+        display_matrix = filtered_correlation_matrix.copy()
+        display_matrix.index = [factor_code_to_display.get(col, col.capitalize()) for col in display_matrix.index]
+        display_matrix.columns = [factor_code_to_display.get(col, col.capitalize()) for col in display_matrix.columns]
+        
+        # 创建相关性热力图
+        fig = px.imshow(
+            display_matrix,
+            text_auto=True,
+            color_continuous_scale='RdBu_r',
+            zmin=0, zmax=1,
+            aspect="auto"
+        )
+        fig.update_layout(
+            title="因子相关性热力图 (去除共线性后)",
+            height=500,
+            width=700
+        )
+        st.plotly_chart(fig)
+        
+        st.markdown('''
+        ### 相关性矩阵说明
+        
+        上图显示了**处理共线性后保留的因子**之间的相关性矩阵。该矩阵的特点：
+        
+        - **相关性值范围**：0（无相关）至1（完全相关），这里显示的是绝对值
+        - **颜色含义**：颜色越深，表示相关性越强
+        - **共线性处理效果**：经过处理，所有因子间的相关性绝对值均低于设定的阈值，有效降低了多重共线性问题
+        
+        这些低相关性的因子能更好地捕捉不同的市场风格特征，提高回归结果的可靠性和解释性。
+        ''')
+    
+    # --- 显示回归分析结果 ---
+    if regression_results is not None and not regression_results.empty:
+        st.markdown("### 回归分析结果")
+        
+        # 检查是否有共线性处理信息
+        collinearity_method = None
+        if '共线性处理' in regression_results.columns:
+            collinearity_methods = regression_results['共线性处理'].unique()
+            if len(collinearity_methods) > 0 and collinearity_methods[0] != '无':
+                collinearity_method = collinearity_methods[0]
+        
+        method_description = '''
+        **方法说明**：普通最小二乘法(OLS)结合Newey-West修正，适用于存在自相关和异方差的时间序列数据。'''
+        
+        # 根据共线性处理方法添加相应的说明
+        if collinearity_method and '移除高相关因子' in collinearity_method:
+            method_description += f'并通过移除相关性高的因子来处理共线性问题，保持了因子的原始含义，使模型更加简洁稳定。'
+        
+        method_description += '''
+        **结果解读**：关注各因子的系数、显著性(p值和星号)和解读。R²表示模型整体解释力度。'''
+        
+        st.markdown(method_description)
+
+        display_df = regression_results.copy()
+        
+        # 合并标的和标的名称为一列
+        if symbol_to_name:
+            display_df['标的'] = display_df['标的'].apply(lambda x: f"{x} ({symbol_to_name.get(x, '')})") 
+        
+        # 调整列顺序，非系数列
+        base_cols = ['标的']
+        # 更新列名：将'正交化信息'改为'过滤信息'
+        if '正交化信息' in display_df.columns and '过滤信息' not in display_df.columns:
+            display_df.rename(columns={'正交化信息': '过滤信息'}, inplace=True)
+        other_cols = [col for col in display_df.columns if col not in base_cols and not col.endswith('_系数')]
+        
+        # 按照指定顺序排列因子列：SMB、RMW、HML、CMA
+        factor_order = ['smb', 'rmw', 'hml', 'cma']
+        coef_cols = []
+        for factor in factor_order:
+            factor_col = f"{factor}_系数"
+            if factor_col in display_df.columns:
+                coef_cols.append(factor_col)
+        
+        # 添加其他可能存在的因子列（如截距项）
+        other_coef_cols = [col for col in display_df.columns if col.endswith('_系数') and col not in coef_cols]
+        coef_cols = other_coef_cols + coef_cols  # 其他因子放在前面
+        
+        # 应用最终列顺序
+        display_df = display_df[base_cols + other_cols + coef_cols]
+
+        # 存储最终列顺序的列表
+        final_cols_order = []
+        processed_interpret_cols = set() # 跟踪已添加的解读列
+
+        # 创建OLS显示DataFrame
+        ols_display_df = display_df.copy()
+
+        # 遍历调整后的列
+        for col in display_df.columns:
+            if col.endswith('_系数'):
+                base_factor_code = col.replace('_系数', '')
+                display_name = factor_code_to_display.get(base_factor_code, base_factor_code.capitalize())
+                
+                # 1. 格式化系数列 (添加星号和p值)
+                formatted_coefs = ols_display_df[col].apply(format_coef_with_significance)
+                
+                # 2. 获取解读文本
+                interpretations = formatted_coefs.apply(
+                    lambda x: interpret_coefficient(x, display_name)
+                )
+                
+                # 3. 合并系数和解读到同一个单元格，增加换行符使显示更清晰
+                ols_display_df[col] = formatted_coefs.astype(str) + "\n\n" + "解读：\n" + interpretations.astype(str)
+            elif col == 'R²' or col == 'Adj. R²':
+                # 为 R² 和 Adj. R² 添加解读
+                r_squared_values = ols_display_df[col].astype(float)
+                interpretations = r_squared_values.apply(interpret_r_squared)
+                ols_display_df[col] = r_squared_values.apply(lambda x: f"{x:.4f}") + "\n\n" + "解读：\n" + interpretations
+            
+            final_cols_order.append(col)
+
+        # 应用最终的列顺序
+        ols_display_df = ols_display_df[final_cols_order]
+
+        # 直接显示 DataFrame，不应用格式化
+        # 由于我们已经将所有列转换为字符串，不需要再应用格式化
+        
+        # 直接显示 DataFrame，不应用格式化
+        st.dataframe(ols_display_df)
+
+    else:
+        st.markdown("### 回归分析结果")
+        st.info("没有足够的有效数据进行回归分析。")
+
+    st.markdown("---") # 分隔线
 
 
-def display_factor_impact_summary(regression_df: pd.DataFrame):
+def display_factor_impact_summary(regression_df: pd.DataFrame, symbol_to_name: Optional[Dict[str, str]] = None):
     """
     显示因子影响汇总表
-    
-    Args:
-        regression_df: 回归分析结果DataFrame
     """
     st.markdown('### 标的因子影响汇总表')
     
@@ -882,85 +1351,135 @@ def display_factor_impact_summary(regression_df: pd.DataFrame):
     st.dataframe(pd.DataFrame(summary_data))
 
 
-@st.cache_data(ttl=3600, hash_funcs={pd.DataFrame: lambda _: None}, show_spinner=False)
-def calculate_factor_regression(returns_df: pd.DataFrame, factor_data: Dict[str, pd.DataFrame]) -> Optional[pd.DataFrame]:
+def interpret_r_squared(r_squared_val):
     """
-    计算因子回归分析
-    
+    解读R平方和调整后R平方的值
+
     Args:
-        returns_df: 收益率数据DataFrame
-        factor_data: 因子数据字典
-        
+        r_squared_val (float): R平方或调整后R平方的值
+
     Returns:
-        回归分析结果DataFrame
+        str: 解读文本，说明模型拟合程度
     """
-    if returns_df is None or returns_df.empty or not factor_data:
-        return None
-    
-    # 获取共同的日期索引
-    common_index = returns_df.index
-    
-    # 处理因子数据
-    all_factors = process_factor_data(factor_data, common_index)
-    
-    # 如果没有足够的因子数据，返回None
-    if all_factors.empty or all_factors.shape[1] < 1:
-        return None
-    
-    # 创建一个空的DataFrame来存储回归结果
-    regression_results = []
-    
-    # 对每个标的进行回归分析
-    for symbol in returns_df.columns:
-        # 获取标的的收益率数据
-        symbol_returns = returns_df[symbol].copy()
-        
-        # 删除缺失值
-        valid_data = pd.concat([symbol_returns, all_factors], axis=1).dropna()
-        if valid_data.shape[0] < 10:  # 确保有足够的数据点
-            continue
-            
-        # 提取X和y
-        X = valid_data[all_factors.columns].values
-        y = valid_data[symbol].values
-        
-        # 添加常数项
-        X = sm.add_constant(X)
-        
-        # 拟合线性回归模型
+    if not isinstance(r_squared_val, (float, int)):
         try:
-            model = sm.OLS(y, X).fit()
-            
-            # 获取系数和统计信息
-            coefficients = model.params
-            r_squared = model.rsquared
-            rmse = np.sqrt(model.mse_resid)
-            
-            # 创建结果字典
-            result = {
-                '标的': symbol,
-                'R²': r_squared,
-                'RMSE': rmse,
-                '截距': coefficients[0]
-            }
-            
-            # 添加因子系数
-            for i, factor_name in enumerate(all_factors.columns):
-                result[f'{factor_name}_系数'] = coefficients[i+1]
-                
-            # 添加到结果列表
-            regression_results.append(result)
-        except Exception as e:
-            logging.error(f"Error in regression for {symbol}: {e}")
-            continue
+            r_squared_val = float(r_squared_val)
+        except:
+            return "无法解读"
     
-    # 如果没有有效的回归结果，返回None
-    if not regression_results:
-        return None
+    if r_squared_val >= 0.7:
+        return "模型拟合度很高，因子能很好地解释收益率变化"
+    elif r_squared_val >= 0.5:
+        return "模型拟合度较高，因子能较好地解释收益率变化"
+    elif r_squared_val >= 0.3:
+        return "模型拟合度中等，因子能部分解释收益率变化"
+    elif r_squared_val >= 0.1:
+        return "模型拟合度较低，因子对收益率的解释力有限"
+    else:
+        return "模型拟合度很低，因子几乎不能解释收益率变化"
+
+def interpret_coefficient(coef_str, factor_display_name):
+    """
+    根据系数信息字符串生成解读文本。
+
+    Args:
+        coef_str (str): 包含系数、t/z值和p值的字符串, e.g., "0.12 (t=2.1, p=0.04)"
+        factor_display_name (str): 因子的中文显示名称, e.g., "市值"
+
+    Returns:
+        str: 解读文本, e.g., "影响显著 (**)，正相关"
+    """
+    if not isinstance(coef_str, str):
+        return "无法解析"
+    
+    # 调试信息
+    # print(f"解析系数字符串: {coef_str}, 因子: {factor_display_name}")
+    
+    try:
+        # 处理可能的格式: "0.123 (t=1.23, p=0.045)"
+        # 或者: "0.123 (z=1.23, p=0.045)"
+        # 或者其他可能的格式
         
-    # 将结果转换为DataFrame
-    regression_df = pd.DataFrame(regression_results)
-    return regression_df
+        # 1. 提取系数值 (数字部分)
+        if '(' in coef_str:
+            coef_part = coef_str.split('(')[0].strip()
+        else:
+            coef_part = coef_str.strip()
+            
+        try:
+            coef_val = float(coef_part)
+        except ValueError:
+            # 如果无法转换为浮点数，尝试其他方法提取
+            import re
+            number_match = re.search(r"[-+]?\d*\.\d+|\d+", coef_part)
+            if number_match:
+                coef_val = float(number_match.group())
+            else:
+                return "系数解析失败"
+        
+        # 2. 提取p值
+        if 'p=' not in coef_str:
+            return f"{'正相关' if coef_val > 0 else '负相关'} (无显著性信息)"
+            
+        # 尝试不同的方式提取p值
+        try:
+            # 方法1: 直接分割
+            p_val_str = coef_str.split('p=')[1]
+            if ')' in p_val_str:
+                p_val_str = p_val_str.split(')')[0]
+            
+            # 移除可能的星号和空格
+            p_val_str = p_val_str.replace('*', '').strip()
+            
+            # 如果有逗号，取逗号前的部分
+            if ',' in p_val_str:
+                p_val_str = p_val_str.split(',')[0].strip()
+                
+            p_val = float(p_val_str)
+        except:
+            # 方法2: 使用正则表达式
+            import re
+            p_match = re.search(r"p\s*=\s*([-+]?\d*\.\d+|\d+)", coef_str)
+            if p_match:
+                p_val = float(p_match.group(1))
+            else:
+                return f"{'正相关' if coef_val > 0 else '负相关'} (p值解析失败)"
+
+        # 3. 确定显著性
+        if p_val < 0.01:
+            significance = "非常显著 (***)"
+        elif p_val < 0.05:
+            significance = "显著 (**)"
+        elif p_val < 0.1:
+            significance = "弱显著 (*)"
+        else:
+            significance = "不显著"
+
+        # 4. 确定方向 (仅当显著时)
+        direction = ""
+        if significance != "不显著":
+            if coef_val > 0:
+                direction = "，正相关"
+            elif coef_val < 0:
+                direction = "，负相关"
+
+        # 5. 特殊处理截距
+        if factor_display_name == '截距' or factor_display_name.lower() == 'const' or factor_display_name.lower() == 'intercept':
+            # 对于截距，显著性通常表示是否存在Alpha (超额收益)
+            if significance != "不显著":
+                return f"{significance} (存在Alpha)"
+            else:
+                return f"{significance} (无Alpha)"
+        else:
+            return f"{significance}{direction}"
+
+    except Exception as e:
+        # 记录详细的错误信息以便调试
+        # import traceback
+        # print(f"解析系数错误: {coef_str}, 因子: {factor_display_name}")
+        # print(f"错误: {str(e)}")
+        # print(traceback.format_exc())
+        return "解析错误"
 
 
 def run():
@@ -1096,8 +1615,6 @@ def run():
         
         # 如果有添加的标的，显示相关性矩阵
         # 计算并显示相关性矩阵
-        # 清除缓存的计算结果，确保重新计算
-        calculate_factor_correlation.clear()
         corr_matrix = calculate_factor_correlation(returns_df, factor_data)
 
         # 将相关性矩阵保存到session_state
@@ -1108,13 +1625,46 @@ def run():
         
         # 如果有标的数据，计算并显示因子回归分析
         if returns_df is not None and not returns_df.empty:
-            # 计算因子回归
-            calculate_factor_regression.clear()  # 清除缓存
-            regression_df = calculate_factor_regression(returns_df, factor_data)
-            
-            # 使用新函数显示因子回归分析结果
-            display_factor_regression_analysis(regression_df, symbol_to_name)
+            # 共线性处理选项
+            with st.expander("共线性处理参数设置", expanded=False):
+                st.markdown("""
+                ### 共线性问题与处理方法
                 
+                共线性是指因子之间存在高相关性，会导致以下问题：
+                - 回归系数估计不稳定，标准误差增大
+                - 系数符号可能与经济学预期相反
+                - 难以区分各因子的独立贡献
+                
+                本分析通过**移除高相关性因子**的方法处理共线性，保留信息量更大、独立性更强的因子。
+                """)
+                
+                correlation_threshold = st.slider(
+                    "相关性阈值", 
+                    min_value=0.5, 
+                    max_value=0.9, 
+                    value=0.7, 
+                    step=0.05,
+                    help="当因子间的相关性绝对值超过该阈值时，将移除其中一个因子（保留方差大、VIF值低的因子）"
+                )
+                
+                st.markdown("""
+                **阈值选择指南**:
+                - **0.5-0.6**: 严格控制共线性，移除较多因子，模型更简洁但可能丢失信息
+                - **0.7-0.8**: 推荐设置，平衡因子保留和共线性控制
+                - **>0.8**: 仅移除高度相关的因子，保留更多因子信息但可能存在轻微共线性
+                
+                **因子选择标准**：当两个因子相关性高时，系统会：
+                1. 优先考虑VIF值（方差膨胀因子）：保留VIF值低的因子
+                2. 其次考虑方差大小：保留方差大（信息量大）的因子
+                """)
+                
+            # 计算因子回归
+            regression_results, filtered_correlation_matrix = calculate_factor_regression(
+                returns_df, 
+                factor_data, 
+                correlation_threshold=correlation_threshold
+            )
 
-if __name__ == "__main__":
-    run()
+            # 使用新函数显示因子回归分析结果
+            display_factor_regression_analysis(regression_results, filtered_correlation_matrix, symbol_to_name, factor_code_to_display={'smb': '市值', 'hml': '价值', 'rmw': '盈利', 'cma': '投资'})
+                
