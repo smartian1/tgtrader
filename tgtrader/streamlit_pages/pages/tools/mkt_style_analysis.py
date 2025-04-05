@@ -367,6 +367,77 @@ def create_monthly_returns_heatmap(factor_df: pd.DataFrame, factor_column: str, 
     return fig
 
 
+def create_common_chart_layout(fig: go.Figure, title: str, xaxis_title: str, yaxis_title: str, 
+                              height: int = 400, width: int = 800) -> go.Figure:
+    """
+    为图表创建通用布局
+    
+    Args:
+        fig: Plotly图表对象
+        title: 图表标题
+        xaxis_title: x轴标题
+        yaxis_title: y轴标题
+        height: 图表高度
+        width: 图表宽度
+        
+    Returns:
+        更新布局后的图表对象
+    """
+    fig.update_layout(
+        title=title,
+        xaxis_title=xaxis_title,
+        yaxis_title=yaxis_title,
+        height=height,
+        width=width,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        ),
+        hovermode="closest"
+    )
+    
+    # 添加网格线
+    fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='LightGrey')
+    fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='LightGrey')
+    
+    return fig
+
+
+def display_chart_with_heatmap(fig: go.Figure, factor_df: pd.DataFrame = None, 
+                              factor_column: str = None, color: str = None, 
+                              description: str = None):
+    """
+    显示图表和热力图的通用函数
+    
+    Args:
+        fig: 主图表对象
+        factor_df: 因子数据框（用于热力图）
+        factor_column: 因子数据列名
+        color: 热力图颜色
+        description: 显示的描述信息
+    """
+    # 创建两列布局
+    col1, col2 = st.columns([1.5, 1])
+    
+    # 左侧显示主图表
+    with col1:
+        st.plotly_chart(fig)
+    
+    # 右侧显示热力图（如果提供了必要参数）
+    with col2:
+        if factor_df is not None and factor_column is not None and color is not None:
+            heatmap_fig = create_monthly_returns_heatmap(factor_df, factor_column, color)
+            if heatmap_fig is not None:
+                st.plotly_chart(heatmap_fig)
+    
+    # 显示描述信息（如果有）
+    if description:
+        st.info(description)
+
+
 def display_single_factor_chart(factor_df: pd.DataFrame, factor_name: str, factor_column: str, color: str, 
                            factor_description: str, returns_df: Optional[pd.DataFrame] = None, 
                            symbol_to_name: Optional[Dict[str, str]] = None):
@@ -436,47 +507,22 @@ def display_single_factor_chart(factor_df: pd.DataFrame, factor_name: str, facto
                 )
             )
     
-    # 添加带有问号的标题，用于显示解释信息
-    title_with_help = f"{factor_name}"
-    
-    # 更新布局
-    fig.update_layout(
-        title=title_with_help,
+    # 使用通用函数设置图表布局
+    create_common_chart_layout(
+        fig=fig,
+        title=factor_name,
         xaxis_title="时间",
-        yaxis_title="累计收益率(%)",
-        height=400,
-        width=800,
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1
-        ),
-        # 添加悬停提示
-        hovermode="closest"
+        yaxis_title="累计收益率(%)"
     )
     
-    # 添加网格线
-    fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='LightGrey')
-    fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='LightGrey')
-    
-    # 创建两列布局，左侧显示走势图，右侧显示热力图
-    col1, col2 = st.columns([1.5, 1])
-    
-    # 左侧显示走势图
-    with col1:
-        st.plotly_chart(fig)
-    
-    # 右侧显示热力图
-    with col2:
-        # 创建月度收益率热力图
-        heatmap_fig = create_monthly_returns_heatmap(factor_df, factor_column, color)
-        if heatmap_fig is not None:
-            st.plotly_chart(heatmap_fig)
-    
-    # 显示因子解释
-    st.info(factor_description)
+    # 使用通用函数显示图表和热力图
+    display_chart_with_heatmap(
+        fig=fig,
+        factor_df=factor_df,
+        factor_column=factor_column,
+        color=color,
+        description=factor_description
+    )
     
 def display_factor_charts(factor_data: Dict[str, pd.DataFrame], returns_df: Optional[pd.DataFrame] = None, 
                          symbol_to_name: Optional[Dict[str, str]] = None):
@@ -542,42 +588,42 @@ def display_price_chart(normalized_prices: pd.DataFrame, symbol_to_name: Dict[st
             )
         )
     
-    # 更新布局
-    fig.update_layout(
+    # 使用通用函数设置图表布局
+    create_common_chart_layout(
+        fig=fig,
         title="标的价格走势（标准化）",
         xaxis_title="日期",
         yaxis_title="价格（起始=100）",
-        height=500,
-        width=800,
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1
-        )
+        height=500
     )
     
-    # 添加网格线
-    fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='LightGrey')
-    fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='LightGrey')
+    # 只显示图表，不显示热力图和描述
+    st.plotly_chart(fig)
+
+
+def process_factor_data(factor_data: Dict[str, pd.DataFrame], target_index: pd.DatetimeIndex) -> pd.DataFrame:
+    """
+    处理因子数据，将其重新索引到目标索引
     
-    # 创建两列布局，左侧显示走势图，右侧显示热力图
-    col1, col2 = st.columns([1.5, 1])
+    Args:
+        factor_data: 因子数据字典
+        target_index: 目标索引
+        
+    Returns:
+        处理后的因子数据框
+    """
+    factor_returns = pd.DataFrame(index=target_index)
     
-    # 左侧显示走势图
-    with col1:
-        st.plotly_chart(fig)
+    # 遍历FACTOR_CONFIG中的所有因子
+    for factor_key, config in FACTOR_CONFIG.items():
+        factor_name = config['name']
+        if factor_key in factor_data and not factor_data[factor_key].empty:
+            factor_series = factor_data[factor_key].set_index('data_time')[factor_name]
+            factor_series.index = pd.to_datetime(factor_series.index)
+            factor_series = factor_series.reindex(target_index, method='ffill')
+            factor_returns[factor_name] = factor_series
     
-    # 右侧显示热力图
-    with col2:
-        # 创建月度收益率热力图
-        heatmap_fig = create_monthly_returns_heatmap(factor_df, factor_column, color)
-        if heatmap_fig is not None:
-            st.plotly_chart(heatmap_fig)
-    
-    # 显示因子解释
-    st.info(factor_description)
+    return factor_returns
 
 
 @st.cache_data(ttl=3600, hash_funcs={pd.DataFrame: lambda _: None}, show_spinner=False)  # 缓存1小时，使用自定义哈希函数
@@ -616,49 +662,15 @@ def calculate_factor_correlation(returns_df: Optional[pd.DataFrame], factor_data
             return None
             
         # 使用公共日期索引创建因子收益率数据框
-        factor_returns = pd.DataFrame(index=common_index)
         target_index = common_index  # 设置target_index为公共索引
         logger.info(f"Calculating correlation between factors only (no symbols)")
     else:
         # 获取要使用的索引
         target_index = returns_df.index
-        factor_returns = pd.DataFrame(index=target_index)
         logger.info(f"Calculating correlation for {len(returns_df.columns)} symbols with factors")
     
-    # 添加SMB因子数据
-    if not factor_data['smb'].empty:
-        smb_data = factor_data['smb'].set_index('data_time')['SMB规模因子']
-        smb_data.index = pd.to_datetime(smb_data.index)
-        smb_data = smb_data.reindex(target_index, method='ffill')
-        factor_returns['SMB规模因子'] = smb_data
-    
-    # 添加HML因子数据
-    if not factor_data['hml'].empty:
-        hml_data = factor_data['hml'].set_index('data_time')['HML价值因子']
-        hml_data.index = pd.to_datetime(hml_data.index)
-        hml_data = hml_data.reindex(target_index, method='ffill')
-        factor_returns['HML价值因子'] = hml_data
-    
-    # 添加MOM因子数据
-    if 'mom' in factor_data and not factor_data['mom'].empty:
-        mom_data = factor_data['mom'].set_index('data_time')['MOM动量因子']
-        mom_data.index = pd.to_datetime(mom_data.index)
-        mom_data = mom_data.reindex(target_index, method='ffill')
-        factor_returns['MOM动量因子'] = mom_data
-    
-    # 添加RMW因子数据
-    if not factor_data['rmw'].empty:
-        rmw_data = factor_data['rmw'].set_index('data_time')['RMW盈利因子']
-        rmw_data.index = pd.to_datetime(rmw_data.index)
-        rmw_data = rmw_data.reindex(target_index, method='ffill')
-        factor_returns['RMW盈利因子'] = rmw_data
-    
-    # 添加CMA因子数据
-    if 'cma' in factor_data and not factor_data['cma'].empty:
-        cma_data = factor_data['cma'].set_index('data_time')['CMA投资因子']
-        cma_data.index = pd.to_datetime(cma_data.index)
-        cma_data = cma_data.reindex(target_index, method='ffill')
-        factor_returns['CMA投资因子'] = cma_data
+    # 使用通用函数处理因子数据
+    factor_returns = process_factor_data(factor_data, target_index)
 
     # 合并标的收益率和因子收益率
     if returns_df is not None and not returns_df.empty:
@@ -694,43 +706,8 @@ def calculate_factor_regression(returns_df: pd.DataFrame, factor_data: Dict[str,
         logger.warning("Returns DataFrame is empty, cannot calculate regression")
         return None
     
-    # 创建因子收益率数据框
-    factor_returns = pd.DataFrame(index=returns_df.index)
-    
-    # 添加SMB因子数据
-    if not factor_data['smb'].empty:
-        smb_data = factor_data['smb'].set_index('data_time')['SMB规模因子']
-        smb_data.index = pd.to_datetime(smb_data.index)
-        smb_data = smb_data.reindex(returns_df.index, method='ffill')
-        factor_returns['SMB规模因子'] = smb_data
-    
-    # 添加HML因子数据
-    if not factor_data['hml'].empty:
-        hml_data = factor_data['hml'].set_index('data_time')['HML价值因子']
-        hml_data.index = pd.to_datetime(hml_data.index)
-        hml_data = hml_data.reindex(returns_df.index, method='ffill')
-        factor_returns['HML价值因子'] = hml_data
-    
-    # 添加MOM因子数据
-    if 'mom' in factor_data and not factor_data['mom'].empty:
-        mom_data = factor_data['mom'].set_index('data_time')['MOM动量因子']
-        mom_data.index = pd.to_datetime(mom_data.index)
-        mom_data = mom_data.reindex(returns_df.index, method='ffill')
-        factor_returns['MOM动量因子'] = mom_data
-    
-    # 添加RMW因子数据
-    if not factor_data['rmw'].empty:
-        rmw_data = factor_data['rmw'].set_index('data_time')['RMW盈利因子']
-        rmw_data.index = pd.to_datetime(rmw_data.index)
-        rmw_data = rmw_data.reindex(returns_df.index, method='ffill')
-        factor_returns['RMW盈利因子'] = rmw_data
-    
-    # 添加CMA因子数据
-    if 'cma' in factor_data and not factor_data['cma'].empty:
-        cma_data = factor_data['cma'].set_index('data_time')['CMA投资因子']
-        cma_data.index = pd.to_datetime(cma_data.index)
-        cma_data = cma_data.reindex(returns_df.index, method='ffill')
-        factor_returns['CMA投资因子'] = cma_data
+    # 使用通用函数处理因子数据
+    factor_returns = process_factor_data(factor_data, returns_df.index)
     
     # 合并数据并删除缺失值
     combined_data = pd.concat([returns_df, factor_returns], axis=1).dropna()
