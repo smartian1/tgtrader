@@ -282,9 +282,89 @@ def get_factor_data(start_date: datetime, end_date: datetime) -> Dict[str, pd.Da
     return factor_data
 
 
+def create_monthly_returns_heatmap(factor_df: pd.DataFrame, factor_column: str, color: str):
+    """
+    创建因子月度收益率热力图
+    
+    Args:
+        factor_df: 因子数据DataFrame
+        factor_column: 因子数据列名
+        color: 热力图颜色
+        
+    Returns:
+        热力图Figure对象
+    """
+    if factor_df.empty:
+        return None
+    
+    # 确保日期列是datetime类型
+    factor_df['data_time'] = pd.to_datetime(factor_df['data_time'])
+    
+    # 设置日期为索引
+    df = factor_df.set_index('data_time')
+    
+    # 计算每个月的收益率
+    df['year'] = df.index.year
+    df['month'] = df.index.month
+    
+    # 按年月分组计算月度收益率
+    # 将每个月的第一个点设为0
+    def calculate_monthly_return(group):
+        # 将组内第一个点设为0
+        group_values = group[factor_column].copy()
+        if not group_values.empty:
+            group_values.iloc[0] = 0
+        # 计算累计收益率
+        return (1 + group_values).prod() - 1
+    
+    monthly_returns = df.groupby(['year', 'month']).apply(calculate_monthly_return) * 100
+    
+    # 创建透视表，行为年，列为月
+    pivot_table = monthly_returns.reset_index().pivot(index='year', columns='month', values=0)
+    
+    # 对年份进行排序，使其从上到下依次增大
+    pivot_table = pivot_table.sort_index(ascending=True)
+    
+    # 创建热力图
+    fig = go.Figure(data=go.Heatmap(
+        z=pivot_table.values,
+        x=[f"{i}月" for i in range(1, 13)],
+        y=pivot_table.index,
+        # 设置纵轴方向，使年份从上到下依次增大
+        yaxis="y",
+        colorscale=[[0, 'rgba(0, 128, 0, 0.8)'], [0.5, 'rgba(255, 255, 255, 0.8)'], [1, 'rgba(255, 0, 0, 0.8)']],
+        zmid=0,  # 将0设为中间值，正收益为绿色，负收益为红色
+        text=[[f"{val:.2f}%" if not pd.isna(val) else "" for val in row] for row in pivot_table.values],
+        texttemplate="%{text}",  # 直接在热力图上显示文本
+        hoverinfo='text',
+        showscale=True,
+        colorbar=dict(
+            title="月度收益率(%)",
+            thickness=10,  # 减小颜色条的宽度
+            len=0.8,  # 减小颜色条的长度
+            titleside="right",  # 标题放在右侧
+            ticks="outside"
+        ),
+    ))
+    
+    # 更新布局
+    fig.update_layout(
+        title="月度收益率热力图",
+        xaxis_title="月份",
+        yaxis_title="年份",
+        height=400,
+        width=500,  # 增加宽度
+        margin=dict(l=40, r=20, t=50, b=30),  # 保持边距紧凑
+        xaxis=dict(side='top'),  # 将x轴标签放在顶部
+        yaxis=dict(autorange='reversed')  # 将y轴反转，使年份从上到下依次增大
+    )
+    
+    return fig
+
+
 def display_single_factor_chart(factor_df: pd.DataFrame, factor_name: str, factor_column: str, color: str, 
-                          factor_description: str, returns_df: Optional[pd.DataFrame] = None, 
-                          symbol_to_name: Optional[Dict[str, str]] = None):
+                           factor_description: str, returns_df: Optional[pd.DataFrame] = None, 
+                           symbol_to_name: Optional[Dict[str, str]] = None):
     """
     显示单个因子的走势图
     
@@ -374,8 +454,19 @@ def display_single_factor_chart(factor_df: pd.DataFrame, factor_name: str, facto
     fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='LightGrey')
     fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='LightGrey')
     
-    # 显示图表
-    st.plotly_chart(fig)
+    # 创建两列布局，左侧显示走势图，右侧显示热力图
+    col1, col2 = st.columns([1.5, 1])
+    
+    # 左侧显示走势图
+    with col1:
+        st.plotly_chart(fig)
+    
+    # 右侧显示热力图
+    with col2:
+        # 创建月度收益率热力图
+        heatmap_fig = create_monthly_returns_heatmap(factor_df, factor_column, color)
+        if heatmap_fig is not None:
+            st.plotly_chart(heatmap_fig)
     
     # 显示因子解释
     st.info(factor_description)
@@ -464,67 +555,111 @@ def display_price_chart(normalized_prices: pd.DataFrame, symbol_to_name: Dict[st
     fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='LightGrey')
     fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='LightGrey')
     
-    # 显示图表
-    st.plotly_chart(fig)
+    # 创建两列布局，左侧显示走势图，右侧显示热力图
+    col1, col2 = st.columns([1.5, 1])
+    
+    # 左侧显示走势图
+    with col1:
+        st.plotly_chart(fig)
+    
+    # 右侧显示热力图
+    with col2:
+        # 创建月度收益率热力图
+        heatmap_fig = create_monthly_returns_heatmap(factor_df, factor_column, color)
+        if heatmap_fig is not None:
+            st.plotly_chart(heatmap_fig)
     
     # 显示因子解释
     st.info(factor_description)
 
 
 @st.cache_data(ttl=3600, hash_funcs={pd.DataFrame: lambda _: None}, show_spinner=False)  # 缓存1小时，使用自定义哈希函数
-def calculate_factor_correlation(returns_df: pd.DataFrame, factor_data: Dict[str, pd.DataFrame]) -> Optional[pd.DataFrame]:
+def calculate_factor_correlation(returns_df: Optional[pd.DataFrame], factor_data: Dict[str, pd.DataFrame]) -> Optional[pd.DataFrame]:
     """
-    计算标的收益率与因子之间的相关性
+    计算标的收益率与因子之间的相关性，如果没有标的数据，则计算因子之间的相关性
     
     Args:
-        returns_df: 收益率数据
+        returns_df: 收益率数据，可以为None
         factor_data: 因子数据字典
         
     Returns:
         相关性矩阵
     """
-    if returns_df is None or returns_df.empty:
-        return None
-    
-    # 记录日志
-    logger.info(f"Calculating correlation for {len(returns_df.columns)} symbols with factors")
-    
     # 创建因子收益率数据框
-    factor_returns = pd.DataFrame(index=returns_df.index)
+    # 如果没有标的数据，使用因子数据的索引
+    if returns_df is None or returns_df.empty:
+        # 获取所有因子数据的公共日期索引
+        common_index = None
+        for factor_name, df in factor_data.items():
+            # 确保数据框不为空并且有数据
+            if df is not None and not df.empty:
+                # 如果数据框有data_time列，先设置索引
+                if 'data_time' in df.columns:
+                    df_indexed = df.set_index('data_time')
+                else:
+                    df_indexed = df
+                
+                if common_index is None:
+                    common_index = df_indexed.index
+                else:
+                    common_index = common_index.intersection(df_indexed.index)
+        
+        if common_index is None or len(common_index) == 0:
+            logger.warning("No common dates found in factor data")
+            return None
+            
+        # 使用公共日期索引创建因子收益率数据框
+        factor_returns = pd.DataFrame(index=common_index)
+        target_index = common_index  # 设置target_index为公共索引
+        logger.info(f"Calculating correlation between factors only (no symbols)")
+    else:
+        # 获取要使用的索引
+        target_index = returns_df.index
+        factor_returns = pd.DataFrame(index=target_index)
+        logger.info(f"Calculating correlation for {len(returns_df.columns)} symbols with factors")
     
     # 添加SMB因子数据
     if not factor_data['smb'].empty:
         smb_data = factor_data['smb'].set_index('data_time')['SMB规模因子']
-        # 将日期转换为相同格式
         smb_data.index = pd.to_datetime(smb_data.index)
-        # 重采样到与收益率数据相同的频率
-        smb_data = smb_data.reindex(returns_df.index, method='ffill')
+        smb_data = smb_data.reindex(target_index, method='ffill')
         factor_returns['SMB规模因子'] = smb_data
     
     # 添加HML因子数据
     if not factor_data['hml'].empty:
         hml_data = factor_data['hml'].set_index('data_time')['HML价值因子']
         hml_data.index = pd.to_datetime(hml_data.index)
-        hml_data = hml_data.reindex(returns_df.index, method='ffill')
+        hml_data = hml_data.reindex(target_index, method='ffill')
         factor_returns['HML价值因子'] = hml_data
+    
+    # 添加MOM因子数据
+    if 'mom' in factor_data and not factor_data['mom'].empty:
+        mom_data = factor_data['mom'].set_index('data_time')['MOM动量因子']
+        mom_data.index = pd.to_datetime(mom_data.index)
+        mom_data = mom_data.reindex(target_index, method='ffill')
+        factor_returns['MOM动量因子'] = mom_data
     
     # 添加RMW因子数据
     if not factor_data['rmw'].empty:
         rmw_data = factor_data['rmw'].set_index('data_time')['RMW盈利因子']
         rmw_data.index = pd.to_datetime(rmw_data.index)
-        rmw_data = rmw_data.reindex(returns_df.index, method='ffill')
+        rmw_data = rmw_data.reindex(target_index, method='ffill')
         factor_returns['RMW盈利因子'] = rmw_data
     
     # 添加CMA因子数据
     if 'cma' in factor_data and not factor_data['cma'].empty:
         cma_data = factor_data['cma'].set_index('data_time')['CMA投资因子']
         cma_data.index = pd.to_datetime(cma_data.index)
-        cma_data = cma_data.reindex(returns_df.index, method='ffill')
+        cma_data = cma_data.reindex(target_index, method='ffill')
         factor_returns['CMA投资因子'] = cma_data
-    
+
     # 合并标的收益率和因子收益率
-    combined_returns = pd.concat([returns_df, factor_returns], axis=1).dropna()
-    
+    if returns_df is not None and not returns_df.empty:
+        combined_returns = pd.concat([returns_df, factor_returns], axis=1).dropna()
+    else:
+        # 如果没有标的数据，只使用因子收益率
+        combined_returns = factor_returns.dropna()
+
     # 计算相关性矩阵
     if combined_returns.empty:
         logger.warning("Combined returns DataFrame is empty, cannot calculate correlation")
@@ -668,43 +803,46 @@ def run():
         display_factor_charts(factor_data, returns_df, symbol_to_name)
         
         # 如果有添加的标的，显示相关性矩阵
-        if returns_df is not None:
-            # 计算并显示相关性矩阵
-            # 清除缓存的计算结果，确保重新计算
-            calculate_factor_correlation.clear()
-            corr_matrix = calculate_factor_correlation(returns_df, factor_data)
-            
-            # 将相关性矩阵保存到session_state
-            st.session_state.corr_matrix = corr_matrix
-            
-            if corr_matrix is not None:
+        # 计算并显示相关性矩阵
+        # 清除缓存的计算结果，确保重新计算
+        calculate_factor_correlation.clear()
+        corr_matrix = calculate_factor_correlation(returns_df, factor_data)
+
+        # 将相关性矩阵保存到session_state
+        st.session_state.corr_matrix = corr_matrix
+        
+        if corr_matrix is not None:
+            # 根据是否有标的数据显示不同的标题
+            if returns_df is not None and not returns_df.empty:
                 st.subheader('标的与因子相关性')
+            else:
+                st.subheader('因子之间的相关性')
+            
+            # 重命名索引和列，添加标的名称
+            if symbol_to_name:
+                # 创建新的列名和索引名
+                new_columns = []
+                for col in corr_matrix.columns:
+                    # 如果是标的代码，添加名称；如果是因子，保持不变
+                    if col in symbol_to_name:
+                        new_columns.append(f"{col} ({symbol_to_name[col]})")
+                    else:
+                        new_columns.append(col)
                 
-                # 重命名索引和列，添加标的名称
-                if symbol_to_name:
-                    # 创建新的列名和索引名
-                    new_columns = []
-                    for col in corr_matrix.columns:
-                        # 如果是标的代码，添加名称；如果是因子，保持不变
-                        if col in symbol_to_name:
-                            new_columns.append(f"{col} ({symbol_to_name[col]})")
-                        else:
-                            new_columns.append(col)
-                    
-                    # 设置新的列名和索引名
-                    corr_matrix.columns = new_columns
-                    
-                    # 对于索引，只修改标的代码的部分
-                    new_index = []
-                    for idx in corr_matrix.index:
-                        if idx in symbol_to_name:
-                            new_index.append(f"{idx} ({symbol_to_name[idx]})")
-                        else:
-                            new_index.append(idx)
-                    corr_matrix.index = new_index
+                # 设置新的列名和索引名
+                corr_matrix.columns = new_columns
                 
-                # 显示带颜色渐变的相关性矩阵
-                st.dataframe(corr_matrix.style.background_gradient(cmap='coolwarm', axis=None, vmin=-1, vmax=1))
+                # 对于索引，只修改标的代码的部分
+                new_index = []
+                for idx in corr_matrix.index:
+                    if idx in symbol_to_name:
+                        new_index.append(f"{idx} ({symbol_to_name[idx]})")
+                    else:
+                        new_index.append(idx)
+                corr_matrix.index = new_index
+            
+            # 显示带颜色渐变的相关性矩阵
+            st.dataframe(corr_matrix.style.background_gradient(cmap='coolwarm', axis=None, vmin=-1, vmax=1))
 
 
 if __name__ == "__main__":
