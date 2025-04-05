@@ -4,13 +4,18 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 import plotly.graph_objects as go
-from typing import Dict, List, Tuple, Optional
-from loguru import logger
-
-from tgtrader.common import SecurityType
-from tgtrader.data import DataGetter
+import plotly.express as px
+import pandas as pd
+import numpy as np
+import streamlit as st
+from datetime import datetime, timedelta
+from typing import Dict, List, Tuple, Optional, Any
+from tgtrader.data import DataGetter, SecurityType
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score, mean_squared_error
 from tgtrader.streamlit_pages.pages.component.stock_dropdown_list import StockDropdownSelectItem, build_stock_dropdown_list
 from tgtrader.data_provider.index_data_query import IndexDataQuery
+from loguru import logger
 
 # 因子配置字典
 # 所有因子相关的配置都集中在这里，后续只需要修改这个字典即可
@@ -671,6 +676,111 @@ def calculate_factor_correlation(returns_df: Optional[pd.DataFrame], factor_data
     return corr_matrix
 
 
+@st.cache_data(ttl=3600, hash_funcs={pd.DataFrame: lambda _: None}, show_spinner=False)
+def calculate_factor_regression(returns_df: pd.DataFrame, factor_data: Dict[str, pd.DataFrame]) -> Optional[pd.DataFrame]:
+    """
+    计算标的收益率与因子收益率的线性回归指标
+    
+    Args:
+        returns_df: 标的收益率数据
+        factor_data: 因子数据字典
+        
+    Returns:
+        回归指标数据框
+    """
+    if returns_df is None or returns_df.empty:
+        logger.warning("Returns DataFrame is empty, cannot calculate regression")
+        return None
+    
+    # 创建因子收益率数据框
+    factor_returns = pd.DataFrame(index=returns_df.index)
+    
+    # 添加SMB因子数据
+    if not factor_data['smb'].empty:
+        smb_data = factor_data['smb'].set_index('data_time')['SMB规模因子']
+        smb_data.index = pd.to_datetime(smb_data.index)
+        smb_data = smb_data.reindex(returns_df.index, method='ffill')
+        factor_returns['SMB规模因子'] = smb_data
+    
+    # 添加HML因子数据
+    if not factor_data['hml'].empty:
+        hml_data = factor_data['hml'].set_index('data_time')['HML价值因子']
+        hml_data.index = pd.to_datetime(hml_data.index)
+        hml_data = hml_data.reindex(returns_df.index, method='ffill')
+        factor_returns['HML价值因子'] = hml_data
+    
+    # 添加MOM因子数据
+    if 'mom' in factor_data and not factor_data['mom'].empty:
+        mom_data = factor_data['mom'].set_index('data_time')['MOM动量因子']
+        mom_data.index = pd.to_datetime(mom_data.index)
+        mom_data = mom_data.reindex(returns_df.index, method='ffill')
+        factor_returns['MOM动量因子'] = mom_data
+    
+    # 添加RMW因子数据
+    if not factor_data['rmw'].empty:
+        rmw_data = factor_data['rmw'].set_index('data_time')['RMW盈利因子']
+        rmw_data.index = pd.to_datetime(rmw_data.index)
+        rmw_data = rmw_data.reindex(returns_df.index, method='ffill')
+        factor_returns['RMW盈利因子'] = rmw_data
+    
+    # 添加CMA因子数据
+    if 'cma' in factor_data and not factor_data['cma'].empty:
+        cma_data = factor_data['cma'].set_index('data_time')['CMA投资因子']
+        cma_data.index = pd.to_datetime(cma_data.index)
+        cma_data = cma_data.reindex(returns_df.index, method='ffill')
+        factor_returns['CMA投资因子'] = cma_data
+    
+    # 合并数据并删除缺失值
+    combined_data = pd.concat([returns_df, factor_returns], axis=1).dropna()
+    
+    if combined_data.empty:
+        logger.warning("Combined data is empty, cannot calculate regression")
+        return None
+    
+    # 创建结果数据框
+    results = []
+    
+    # 对每个标的进行回归分析
+    for symbol in returns_df.columns:
+        # 准备数据
+        y = combined_data[symbol].values.reshape(-1, 1)  # 标的收益率
+        X = combined_data[factor_returns.columns].values  # 因子收益率
+        
+        # 创建并拟合模型
+        model = LinearRegression()
+        model.fit(X, y)
+        
+        # 预测值
+        y_pred = model.predict(X)
+        
+        # 计算指标
+        r2 = r2_score(y, y_pred)
+        mse = mean_squared_error(y, y_pred)
+        rmse = np.sqrt(mse)
+        
+        # 提取系数
+        coefficients = {}
+        for i, factor_name in enumerate(factor_returns.columns):
+            coefficients[f"{factor_name}_系数"] = model.coef_[0][i]
+        
+        # 添加截距
+        coefficients["截距"] = model.intercept_[0]
+        
+        # 添加评估指标
+        coefficients["R²"] = r2
+        coefficients["RMSE"] = rmse
+        
+        # 添加到结果列表
+        result = {"标的": symbol, **coefficients}
+        results.append(result)
+    
+    # 创建结果数据框
+    regression_df = pd.DataFrame(results)
+    
+    logger.info("Successfully calculated factor regression")
+    return regression_df
+
+
 def run():
     """
     市场风格分析页面
@@ -843,7 +953,135 @@ def run():
             
             # 显示带颜色渐变的相关性矩阵
             st.dataframe(corr_matrix.style.background_gradient(cmap='coolwarm', axis=None, vmin=-1, vmax=1))
-
+        
+        # 如果有标的数据，计算并显示因子回归分析
+        if returns_df is not None and not returns_df.empty:
+            # 计算因子回归
+            calculate_factor_regression.clear()  # 清除缓存
+            regression_df = calculate_factor_regression(returns_df, factor_data)
+            
+            if regression_df is not None:
+                st.subheader('因子回归分析')
+                st.markdown('以下表格展示了各标的收益率与因子收益率的线性回归结果，用于分析因子对标的收益率的解释性。')
+                
+                # 重命名标的列，添加名称
+                if symbol_to_name:
+                    regression_df['标的名称'] = regression_df['标的'].apply(lambda x: symbol_to_name.get(x, x))
+                    regression_df['标的'] = regression_df['标的'].apply(lambda x: f"{x} ({symbol_to_name.get(x, x)})")
+                
+                # 显示回归结果表格
+                st.dataframe(regression_df.style.format({
+                    'R²': '{:.4f}',
+                    'RMSE': '{:.4f}',
+                    '截距': '{:.4f}',
+                    'SMB规模因子_系数': '{:.4f}',
+                    'HML价值因子_系数': '{:.4f}',
+                    'MOM动量因子_系数': '{:.4f}',
+                    'RMW盈利因子_系数': '{:.4f}',
+                    'CMA投资因子_系数': '{:.4f}'
+                }))
+                
+                # 创建汇总表格，每行是一个标的，每列是各因子的解释
+                st.markdown('### 标的因子影响汇总表')
+                
+                # 定义因子影响判断函数
+                def get_factor_impact(coef):
+                    """根据系数判断因子影响大小和方向"""
+                    if coef > 0.5:
+                        return "强正相关"
+                    elif coef > 0.2:
+                        return "中正相关"
+                    elif coef > 0:
+                        return "弱正相关"
+                    elif coef > -0.2:
+                        return "弱负相关"
+                    elif coef > -0.5:
+                        return "中负相关"
+                    else:
+                        return "强负相关"
+                
+                def get_r2_impact(r2):
+                    """根据R²判断模型解释力"""
+                    if r2 > 0.6:
+                        return "解释力强"
+                    elif r2 > 0.3:
+                        return "解释力中"
+                    else:
+                        return "解释力弱"
+                
+                # 准备汇总表格数据
+                summary_data = []
+                
+                # 处理每个标的
+                for _, row in regression_df.iterrows():
+                    symbol = row['标的']
+                    
+                    # 创建每个标的的数据行
+                    symbol_data = {
+                        '标的': symbol,
+                        'R²': f"{row['R²']:.4f} ({get_r2_impact(row['R²'])})",
+                        'RMSE': f"{row['RMSE']:.4f} ({'误差大' if row['RMSE'] > 0.02 else '误差小'})",
+                        '截距': f"{row['截距']:.4f} ({'有超额收益' if row['截距'] > 0.001 else '无显著超额收益' if row['截距'] > -0.001 else '有负超额收益'})"
+                    }
+                    
+                    # 添加各因子的影响解释
+                    factor_explanations = {
+                        'SMB规模因子': {
+                            '强正相关': '强烈偏好小市值',
+                            '中正相关': '中度偏好小市值',
+                            '弱正相关': '轻微偏好小市值',
+                            '弱负相关': '轻微偏好大市值',
+                            '中负相关': '中度偏好大市值',
+                            '强负相关': '强烈偏好大市值'
+                        },
+                        'HML价值因子': {
+                            '强正相关': '强烈偏好价值股',
+                            '中正相关': '中度偏好价值股',
+                            '弱正相关': '轻微偏好价值股',
+                            '弱负相关': '轻微偏好成长股',
+                            '中负相关': '中度偏好成长股',
+                            '强负相关': '强烈偏好成长股'
+                        },
+                        'MOM动量因子': {
+                            '强正相关': '强烈追涨特征',
+                            '中正相关': '中度追涨特征',
+                            '弱正相关': '轻微追涨特征',
+                            '弱负相关': '轻微逆势特征',
+                            '中负相关': '中度逆势特征',
+                            '强负相关': '强烈逆势特征'
+                        },
+                        'RMW盈利因子': {
+                            '强正相关': '强烈偏好高盈利',
+                            '中正相关': '中度偏好高盈利',
+                            '弱正相关': '轻微偏好高盈利',
+                            '弱负相关': '轻微偏好低盈利',
+                            '中负相关': '中度偏好低盈利',
+                            '强负相关': '强烈偏好低盈利'
+                        },
+                        'CMA投资因子': {
+                            '强正相关': '强烈偏好保守投资',
+                            '中正相关': '中度偏好保守投资',
+                            '弱正相关': '轻微偏好保守投资',
+                            '弱负相关': '轻微偏好激进投资',
+                            '中负相关': '中度偏好激进投资',
+                            '强负相关': '强烈偏好激进投资'
+                        }
+                    }
+                    
+                    # 添加各因子解释
+                    for factor in ['SMB规模因子', 'HML价值因子', 'MOM动量因子', 'RMW盈利因子', 'CMA投资因子']:
+                        coef_col = f"{factor}_系数"
+                        if coef_col in row:
+                            impact = get_factor_impact(row[coef_col])
+                            explanation = factor_explanations[factor][impact] if factor in factor_explanations and impact in factor_explanations[factor] else impact
+                            symbol_data[factor] = f"{row[coef_col]:.4f} ({explanation})"
+                    
+                    # 添加到汇总数据
+                    summary_data.append(symbol_data)
+                
+                # 显示汇总表格
+                st.dataframe(pd.DataFrame(summary_data))
+                
 
 if __name__ == "__main__":
     run()
