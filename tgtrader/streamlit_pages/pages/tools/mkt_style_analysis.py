@@ -407,6 +407,8 @@ def display_single_factor_chart(factor_df: pd.DataFrame, factor_name: str, facto
     
     # 如果有对照标的数据，添加所有标的到图表中
     if returns_df is not None and not returns_df.empty and symbol_to_name is not None:
+        returns_df = returns_df.copy()
+
         # 为不同的标的设置不同的颜色
         colors = ['#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
         
@@ -669,7 +671,7 @@ def calculate_factor_correlation(returns_df: Optional[pd.DataFrame], factor_data
     if combined_returns.empty:
         logger.warning("Combined returns DataFrame is empty, cannot calculate correlation")
         return None
-    
+
     corr_matrix = combined_returns.corr()
     logger.info("Successfully calculated factor correlation matrix")
     
