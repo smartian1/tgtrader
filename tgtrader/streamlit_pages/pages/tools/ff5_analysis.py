@@ -1545,12 +1545,12 @@ def display_factor_regression_section(returns_df: Optional[pd.DataFrame], factor
 
 def run():
     """
-    市场风格分析页面
+    FF5风格分析页面
     1. 选标的（ETF或股票）
     2. 选时间段
     3. 分析市场风格因子
     """
-    st.title('市场风格分析')
+    st.title('FF5风格分析')
     
     # 初始化session_state
     if 'added_symbols' not in st.session_state:
@@ -1669,7 +1669,7 @@ def run():
             )
 
         # 显示所有因子图表
-        st.subheader('市场风格因子走势')
+        st.subheader('FF5因子走势')
         display_factor_charts(factor_data, returns_df, symbol_to_name)
         
         # 如果有添加的标的，显示相关性矩阵
