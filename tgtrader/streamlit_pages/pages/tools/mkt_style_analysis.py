@@ -267,7 +267,7 @@ def _get_factor_data_cached_inner(start_date_str: str, end_date_str: str, factor
     """
     # 创建新的查询实例
     index_query = IndexDataQuery()
-    
+
     try:
         factor_df = index_query.get_index_data(factor_name, start_date_str, end_date_str)
         logger.info(f"Successfully fetched {factor_name} factor data")
@@ -1141,9 +1141,12 @@ def display_factor_regression_analysis(regression_results: Optional[pd.DataFrame
         
         # 根据共线性处理方法添加相应的说明
         if collinearity_method and '移除高相关因子' in collinearity_method:
-            method_description += f'并通过移除相关性高的因子来处理共线性问题，保持了因子的原始含义，使模型更加简洁稳定。'
-        
-        method_description += '''
+            method_description += f'并通过移除相关性高的因子来处理共线性问题，这样可以：\n\n'
+            method_description += '- 保持因子原始含义，便于解释\n'
+            method_description += '- 提高系数估计的稳定性\n'
+            method_description += '- 使模型更简洁高效'
+
+        '''
         **结果解读**：关注各因子的系数、显著性(p值和星号)和解读。R²表示模型整体解释力度。'''
         
         st.markdown(method_description)
@@ -1512,8 +1515,8 @@ def display_factor_regression_section(returns_df: Optional[pd.DataFrame], factor
             correlation_threshold = st.slider(
                 "相关性阈值", 
                 min_value=0.5, 
-                max_value=0.9, 
-                value=0.7, 
+                max_value=1.0, 
+                value=1.0, 
                 step=0.05,
                 help="当因子间的相关性绝对值超过该阈值时，将移除其中一个因子（保留方差大、VIF值低的因子）"
             )
@@ -1557,9 +1560,9 @@ def run():
     if 'corr_matrix' not in st.session_state:
         st.session_state.corr_matrix = None
     if 'start_date' not in st.session_state:
-        st.session_state.start_date = datetime.now() - timedelta(days=365)
+        st.session_state.start_date = (datetime.now() - timedelta(days=365)).date() # 确保是date类型
     if 'end_date' not in st.session_state:
-        st.session_state.end_date = datetime.now()
+        st.session_state.end_date = datetime.now().date() # 确保是date类型
     
     # 1. 标的选择
     data_getter = DataGetter()
@@ -1577,10 +1580,6 @@ def run():
     # 2. 时间段选择
     col1, col2, col3 = st.columns([1, 1, 1])
     
-    # 默认开始日期为一年前
-    default_start_date = st.session_state.start_date
-    default_end_date = st.session_state.end_date
-    
     # 快速选择时间范围
     time_range_options = {
         "选择时间范围": None,
@@ -1590,43 +1589,45 @@ def run():
         "最近2年": timedelta(days=365*2),
         "最近3年": timedelta(days=365*3),
         "最近5年": timedelta(days=365*5),
-        "最近10年": timedelta(days=365*10)
+        "最近10年": timedelta(days=365*10),
+        "最近20年": timedelta(days=365*20)
     }
     
+    # 使用 on_change 回调
     time_range = col3.selectbox(
         "快速选择",
         options=list(time_range_options.keys()),
-        key="mkt_style_analysis_time_range"
+        key="mkt_style_analysis_time_range",
+        on_change=update_dates_from_selectbox # 绑定回调函数
     )
     
-    # 如果选择了时间范围，自动计算开始日期
-    if time_range != "选择时间范围" and time_range_options[time_range] is not None:
-        new_start_date = datetime.now() - time_range_options[time_range]
-        st.session_state.start_date = new_start_date.date()
-        default_start_date = st.session_state.start_date
-        # 结束日期设置为今天
-        st.session_state.end_date = datetime.now().date()
-        default_end_date = st.session_state.end_date
-    
+    # 直接从 session_state 获取日期值
     start_date = col1.date_input(
         "开始日期",
-        value=default_start_date,
+        value=st.session_state.start_date, # 直接使用 session_state
         key="mkt_style_analysis_start_date"
     )
     
     end_date = col2.date_input(
         "结束日期",
-        value=default_end_date,
+        value=st.session_state.end_date, # 直接使用 session_state
         key="mkt_style_analysis_end_date"
     )
     
-    # 更新session_state中的日期
-    st.session_state.start_date = start_date
-    st.session_state.end_date = end_date
+    # 更新session_state中的日期 (这部分仍然需要，以捕获 date_input 的手动更改)
+    # 只有当 date_input 的值发生变化时才更新 session_state，避免覆盖回调设置的值
+    if st.session_state.start_date != start_date:
+        st.session_state.start_date = start_date
+    if st.session_state.end_date != end_date:
+        st.session_state.end_date = end_date
+        
+    # 确保 start_date 和 end_date 是 datetime.date 类型，以便后续使用
+    current_start_date = st.session_state.start_date
+    current_end_date = st.session_state.end_date
     
     # 3. 处理添加标的
     if add_button:
-        if start_date >= end_date:
+        if current_start_date >= current_end_date:
             st.error('开始日期必须早于结束日期')
         else:
             # 清除之前的标的和相关数据
@@ -1647,7 +1648,7 @@ def run():
     # 始终显示图表，无论是否有对照标的
     with st.spinner('正在分析市场风格...'):
         # 获取因子数据（第一次加载或日期变化时更新）
-        factor_data = get_factor_data(start_date, end_date)
+        factor_data = get_factor_data(current_start_date, current_end_date) # 使用当前日期
 
         st.session_state.factor_data = factor_data
         
@@ -1663,8 +1664,8 @@ def run():
             pivot_df, returns_df, normalized_prices = get_price_data(
                 data_getter=data_getter,
                 symbols_dict=symbols_dict,
-                start_date=start_date,
-                end_date=end_date
+                start_date=current_start_date, # 使用当前日期
+                end_date=current_end_date # 使用当前日期
             )
 
         # 显示所有因子图表
@@ -1683,3 +1684,26 @@ def run():
         
         # 显示因子回归分析部分
         display_factor_regression_section(returns_df, factor_data, symbol_to_name)
+
+# 定义时间范围选择的回调函数
+def update_dates_from_selectbox():
+    """根据快速选择下拉框更新session_state中的日期"""
+    time_range = st.session_state.mkt_style_analysis_time_range
+    
+    time_range_options = {
+        "选择时间范围": None,
+        "最近1个月": timedelta(days=30),
+        "最近3个月": timedelta(days=90),
+        "最近1年": timedelta(days=365),
+        "最近2年": timedelta(days=365*2),
+        "最近3年": timedelta(days=365*3),
+        "最近5年": timedelta(days=365*5),
+        "最近10年": timedelta(days=365*10),
+        "最近20年": timedelta(days=365*20)
+    }
+
+    if time_range != "选择时间范围" and time_range_options[time_range] is not None:
+        new_start_date = datetime.now() - time_range_options[time_range]
+        st.session_state.start_date = new_start_date.date()
+        st.session_state.end_date = datetime.now().date()
+        # 注意：这里不需要再手动设置selectbox的值，让它自然保持选择状态

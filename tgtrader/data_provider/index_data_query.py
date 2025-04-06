@@ -46,7 +46,7 @@ class IndexDataQuery:
             
             # 解析响应数据
             data = response.json()
-            
+
             if not data:
                 logger.warning(f"No data returned for code={code}")
                 return pd.DataFrame()
