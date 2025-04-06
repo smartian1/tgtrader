@@ -31,7 +31,7 @@ pip install tgtrader -i https://mirrors.aliyun.com/pypi/simple/
 
 ## 更新日志
 
-**v1.3.3**
+**v1.3.5**
 
 - 工具集: 支持FF5风格分析
 ![alt text](https://raw.githubusercontent.com/smartian1/tgtrader-image/main/2025-04/250406210648309_1743944808327.png)
