@@ -1459,6 +1459,87 @@ def interpret_coefficient(coef_str, factor_display_name):
         return "解析错误"
 
 
+def display_factor_regression_section(returns_df: Optional[pd.DataFrame], factor_data: Dict[str, pd.DataFrame], symbol_to_name: Optional[Dict[str, str]]):
+    """
+    显示因子回归分析部分
+    
+    Args:
+        returns_df: 收益率数据框，可以为None
+        factor_data: 因子数据字典
+        symbol_to_name: 代码到名称的映射
+    """
+    st.subheader('因子回归分析')
+
+    # 添加总体解释
+    st.markdown("""
+    ### 分析方法与目的
+    
+    因子回归分析采用线性回归模型，量化评估各风格因子对标的收益率的影响程度。该分析可以帮助：
+    - 识别标的对不同市场风格的敏感度
+    - 发现标的收益率的主要驱动因素
+    - 对比不同标的的风格特征
+    
+    ### 模型说明
+    
+    我们使用 **OLS + Newey-West HAC** 回归方法，该方法特别适用于时间序列数据，可以处理：
+    - 自相关：当前收益率与过去收益率的相关性
+    - 异方差：收益率波动幅度的变化
+    
+    ### 共线性处理
+    
+    为确保结果可靠，我们使用了移除高相关性因子的方法处理共线性问题，这样可以：
+    - 保持因子原始含义，便于解释
+    - 提高系数估计的稳定性
+    - 使模型更简洁高效
+
+    """)
+    
+    # 如果有标的数据，计算并显示因子回归分析
+    if returns_df is not None and not returns_df.empty:
+        # 共线性处理选项
+        with st.expander("共线性处理参数设置", expanded=False):
+            st.markdown("""
+            ### 共线性问题与处理方法
+            
+            共线性是指因子之间存在高相关性，会导致以下问题：
+            - 回归系数估计不稳定，标准误差增大
+            - 系数符号可能与经济学预期相反
+            - 难以区分各因子的独立贡献
+            
+            本分析通过**移除高相关性因子**的方法处理共线性，保留信息量更大、独立性更强的因子。
+            """)
+            
+            correlation_threshold = st.slider(
+                "相关性阈值", 
+                min_value=0.5, 
+                max_value=0.9, 
+                value=0.7, 
+                step=0.05,
+                help="当因子间的相关性绝对值超过该阈值时，将移除其中一个因子（保留方差大、VIF值低的因子）"
+            )
+            
+            st.markdown("""
+            **阈值选择指南**:
+            - **0.5-0.6**: 严格控制共线性，移除较多因子，模型更简洁但可能丢失信息
+            - **0.7-0.8**: 推荐设置，平衡因子保留和共线性控制
+            - **>0.8**: 仅移除高度相关的因子，保留更多因子信息但可能存在轻微共线性
+            
+            **因子选择标准**：当两个因子相关性高时，系统会：
+            1. 优先考虑VIF值（方差膨胀因子）：保留VIF值低的因子
+            2. 其次考虑方差大小：保留方差大（信息量大）的因子
+            """)
+            
+        # 计算因子回归
+        regression_results, filtered_correlation_matrix = calculate_factor_regression(
+            returns_df, 
+            factor_data, 
+            correlation_threshold=correlation_threshold
+        )
+
+        # 使用新函数显示因子回归分析结果
+        display_factor_regression_analysis(regression_results, filtered_correlation_matrix, symbol_to_name, factor_code_to_display={'smb': '市值', 'hml': '价值', 'rmw': '盈利', 'cma': '投资'})
+
+
 def run():
     """
     市场风格分析页面
@@ -1600,74 +1681,5 @@ def run():
         # 使用新函数显示相关性矩阵
         display_correlation_matrix(corr_matrix, symbol_to_name, returns_df)
         
-        st.subheader('因子回归分析')
-
-        # 添加总体解释
-        st.markdown("""
-        ### 分析方法与目的
-        
-        因子回归分析采用线性回归模型，量化评估各风格因子对标的收益率的影响程度。该分析可以帮助：
-        - 识别标的对不同市场风格的敏感度
-        - 发现标的收益率的主要驱动因素
-        - 对比不同标的的风格特征
-        
-        ### 模型说明
-        
-        我们使用 **OLS + Newey-West HAC** 回归方法，该方法特别适用于时间序列数据，可以处理：
-        - 自相关：当前收益率与过去收益率的相关性
-        - 异方差：收益率波动幅度的变化
-        
-        ### 共线性处理
-        
-        为确保结果可靠，我们使用了移除高相关性因子的方法处理共线性问题，这样可以：
-        - 保持因子原始含义，便于解释
-        - 提高系数估计的稳定性
-        - 使模型更简洁高效
-
-        """)
-        
-        # 如果有标的数据，计算并显示因子回归分析
-        if returns_df is not None and not returns_df.empty:
-            # 共线性处理选项
-            with st.expander("共线性处理参数设置", expanded=False):
-                st.markdown("""
-                ### 共线性问题与处理方法
-                
-                共线性是指因子之间存在高相关性，会导致以下问题：
-                - 回归系数估计不稳定，标准误差增大
-                - 系数符号可能与经济学预期相反
-                - 难以区分各因子的独立贡献
-                
-                本分析通过**移除高相关性因子**的方法处理共线性，保留信息量更大、独立性更强的因子。
-                """)
-                
-                correlation_threshold = st.slider(
-                    "相关性阈值", 
-                    min_value=0.5, 
-                    max_value=0.9, 
-                    value=0.7, 
-                    step=0.05,
-                    help="当因子间的相关性绝对值超过该阈值时，将移除其中一个因子（保留方差大、VIF值低的因子）"
-                )
-                
-                st.markdown("""
-                **阈值选择指南**:
-                - **0.5-0.6**: 严格控制共线性，移除较多因子，模型更简洁但可能丢失信息
-                - **0.7-0.8**: 推荐设置，平衡因子保留和共线性控制
-                - **>0.8**: 仅移除高度相关的因子，保留更多因子信息但可能存在轻微共线性
-                
-                **因子选择标准**：当两个因子相关性高时，系统会：
-                1. 优先考虑VIF值（方差膨胀因子）：保留VIF值低的因子
-                2. 其次考虑方差大小：保留方差大（信息量大）的因子
-                """)
-                
-            # 计算因子回归
-            regression_results, filtered_correlation_matrix = calculate_factor_regression(
-                returns_df, 
-                factor_data, 
-                correlation_threshold=correlation_threshold
-            )
-
-            # 使用新函数显示因子回归分析结果
-            display_factor_regression_analysis(regression_results, filtered_correlation_matrix, symbol_to_name, factor_code_to_display={'smb': '市值', 'hml': '价值', 'rmw': '盈利', 'cma': '投资'})
-                
+        # 显示因子回归分析部分
+        display_factor_regression_section(returns_df, factor_data, symbol_to_name)
